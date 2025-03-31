@@ -1,0 +1,15 @@
+syntax = "proto3";
+
+package chaserland.articles;
+
+service Articles {
+  rpc GetArticles (GetArticlesRequest) returns (GetArticlesResponse);
+}
+
+message GetArticlesRequest {
+  string name = 1;
+}
+
+message GetArticlesResponse {
+  string message = 1;
+}
