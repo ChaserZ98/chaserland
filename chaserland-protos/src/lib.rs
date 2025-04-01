@@ -1,5 +1,5 @@
-pub mod articles {
-    tonic::include_proto!("chaserland.articles");
+pub mod article {
+    tonic::include_proto!("chaserland.article");
 }
 
 pub mod greeter {

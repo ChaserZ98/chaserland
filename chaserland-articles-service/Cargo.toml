@@ -5,3 +5,11 @@ edition = "2024"
 
 [dependencies]
 chaserland-protos = { path = "../chaserland-protos" }
+chaserland-logger = { path = "../chaserland-logger" }
+tokio = { version = "1.44.1", features = [
+    "macros",
+    "signal",
+    "rt-multi-thread",
+] }
+tonic = "0.13.0"
+tracing = "0.1.41"
