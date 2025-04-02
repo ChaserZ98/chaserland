@@ -1,10 +1,14 @@
+use crate::model;
+use crate::{db, model::Article};
 use chaserland_logger::init_logger;
 use chaserland_protos::article::{
     GetArticlesRequest, GetArticlesResponse,
     article_server::{Article, ArticleServer},
 };
+use sqlx::PgPool;
 use tonic::transport::Server as TonicServer;
 use tonic::{Request, Response, Status};
+use tracing::level_filters::LevelFilter;
 
 #[derive(Default)]
 pub struct Server {}
@@ -15,18 +19,23 @@ impl Server {
         Self {}
     }
     pub async fn run(&self, addr: &str) -> Result<(), Box<dyn std::error::Error>> {
-        if cfg!(debug_assertions) {
-            println!("dev")
+        let level_filter = if cfg!(debug_assertions) {
+            LevelFilter::DEBUG
         } else {
-            println!("prod")
-        }
-        init_logger(chaserland_logger::LogFormat::Full);
+            LevelFilter::INFO
+        };
+        init_logger(chaserland_logger::LogFormat::Full, level_filter);
+
+        let db = db::connect_db().await?;
+
         let addr = addr.parse()?;
         tracing::info!("Server binding to address {}", addr);
+
         TonicServer::builder()
-            .add_service(ArticleService::new())
+            .add_service(ArticleService::new(db))
             .serve_with_shutdown(addr, self.shutdown())
             .await?;
+
         Ok(())
     }
     async fn shutdown(&self) {
@@ -39,11 +48,13 @@ impl Server {
     }
 }
 
-pub struct ArticleService {}
+pub struct ArticleService {
+    db: PgPool,
+}
 
 impl ArticleService {
-    pub fn new() -> ArticleServer<ArticleService> {
-        ArticleServer::new(ArticleService {})
+    pub fn new(db: PgPool) -> ArticleServer<ArticleService> {
+        ArticleServer::new(ArticleService { db })
     }
 }
 
@@ -54,6 +65,11 @@ impl Article for ArticleService {
         request: Request<GetArticlesRequest>,
     ) -> Result<Response<GetArticlesResponse>, Status> {
         let message = request.get_ref();
+
+        // let articles = model::ArticleMeta::get
+
+        tracing::info!("Database query result: {}", row.0);
+
         let reply = GetArticlesResponse {
             message: format!("Hello {}!", message.name),
         };

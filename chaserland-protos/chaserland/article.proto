@@ -2,14 +2,66 @@ syntax = "proto3";
 
 package chaserland.article;
 
+import "google/protobuf/timestamp.proto";
+
+
 service Article {
-  rpc GetArticles (GetArticlesRequest) returns (GetArticlesResponse);
+  rpc GetArticlesMeta (GetArticlesMetaRequest) 
+    returns (GetArticlesMetaResponse);
 }
 
-message GetArticlesRequest {
-  string name = 1;
+message GetArticlesMetaRequest {
+  int32 page = 1;
+  int32 page_size = 2;
 }
 
-message GetArticlesResponse {
-  string message = 1;
+message GetArticlesMetaResponse {
+  repeated ArticleMeta articles_metas = 1;
+}
+
+message Series {
+  int32 id = 1;
+  string slug = 3;
+  string name = 2;
+}
+
+message Tag {
+  int32 id = 1;
+  string name = 2;
+  string slug = 3;
+}
+
+message Category {
+  int32 id = 1;
+  string name = 2;
+  string slug = 3;
+}
+
+message Article {
+  int32 id = 1;
+  string title = 2;
+  string slug = 2;
+  string description = 3;
+  string content = 4;
+  optional Series series = 5;
+  repeated Category categories = 6;
+  repeated Tag tags = 7;
+  google.protobuf.Timestamp created_at = 8;
+  optional google.protobuf.Timestamp published_at = 9;
+  google.protobuf.Timestamp updated_at = 10;
+  optional google.protobuf.Timestamp deleted_at = 11;
+}
+
+message ArticleMeta {
+  int32 id = 1;
+  string title = 2;
+  string slug = 2;
+  string description = 3;
+  optional Series series = 4;
+  repeated Category categories = 5;
+  repeated Tag tags = 6;
+  google.protobuf.Timestamp created_at = 7;
+  optional google.protobuf.Timestamp published_at = 8;
+  google.protobuf.Timestamp updated_at = 9;
+  optional google.protobuf.Timestamp deleted_at = 10;
 }

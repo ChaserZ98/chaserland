@@ -14,15 +14,13 @@ pub enum LogFormat {
     Full,
 }
 
-pub fn init_logger(log_format: LogFormat) {
+pub fn init_logger(log_format: LogFormat, level_filter: LevelFilter) {
     let subscriber = registry();
     let layer = fmt::layer()
         .with_thread_ids(true)
         .with_thread_names(true)
         .with_target(true)
         .with_line_number(true);
-
-    let level_filter = LevelFilter::INFO;
 
     let boxed_layer = match log_format {
         LogFormat::Json => layer
