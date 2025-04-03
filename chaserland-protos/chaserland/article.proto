@@ -4,10 +4,48 @@ package chaserland.article;
 
 import "google/protobuf/timestamp.proto";
 
+service ArticleService {
+  rpc CreateArticle (CreateArticleRequest) returns (CreateArticleResponse);
+  rpc CreateSeries (CreateSeriesRequest) returns (CreateSeriesResponse);
+  rpc CreateCategory (CreateCategoryRequest) returns (CreateCategoryResponse);
+  rpc CreateTag (CreateTagRequest) returns (CreateTagResponse);
 
-service Article {
-  rpc GetArticlesMeta (GetArticlesMetaRequest) 
+  rpc GetArticlesMeta (GetArticlesMetaRequest)
     returns (GetArticlesMetaResponse);
+  rpc GetArticleContentBySlug (GetArticleContentBySlugRequest)
+    returns (GetArticleContentBySlugResponse);
+}
+
+message CreateArticleRequest {
+  ArticleCreate article = 1;
+}
+
+message CreateArticleResponse {
+  Article article = 1;
+}
+
+message CreateSeriesRequest {
+  SeriesCreate series = 1;
+}
+
+message CreateSeriesResponse {
+  Series series = 1;
+}
+
+message CreateCategoryRequest {
+  CategoryCreate category = 1;
+}
+
+message CreateCategoryResponse {
+  Category category = 1;
+}
+
+message CreateTagRequest {
+  TagCreate tag = 1;
+}
+
+message CreateTagResponse {
+  Tag tag = 1;
 }
 
 message GetArticlesMetaRequest {
@@ -19,9 +57,22 @@ message GetArticlesMetaResponse {
   repeated ArticleMeta articles_metas = 1;
 }
 
+message GetArticleContentBySlugRequest {
+  string slug = 1;
+}
+
+message GetArticleContentBySlugResponse {
+  string content = 1;
+}
+
 message Series {
   int32 id = 1;
-  string slug = 3;
+  string slug = 2;
+  string name = 3;
+}
+
+message SeriesCreate {
+  string slug = 1;
   string name = 2;
 }
 
@@ -31,18 +82,52 @@ message Tag {
   string slug = 3;
 }
 
+message TagCreate {
+  string name = 1;
+  string slug = 2;
+}
+
 message Category {
   int32 id = 1;
   string name = 2;
   string slug = 3;
 }
 
+message CategoryCreate {
+  string name = 1;
+  string slug = 2;
+}
+
 message Article {
   int32 id = 1;
   string title = 2;
+  string slug = 3;
+  string description = 4;
+  string content = 5;
+  optional Series series = 6;
+  repeated Category categories = 7;
+  repeated Tag tags = 8;
+  google.protobuf.Timestamp created_at = 9;
+  optional google.protobuf.Timestamp published_at = 10;
+  google.protobuf.Timestamp updated_at = 11;
+  optional google.protobuf.Timestamp deleted_at = 12;
+}
+
+message ArticleCreate {
+  string title = 1;
   string slug = 2;
   string description = 3;
   string content = 4;
+  optional int32 series_id = 5;
+  repeated int32 category_ids = 6;
+  repeated int32 tag_ids = 7;
+}
+
+message ArticleMeta {
+  int32 id = 1;
+  string title = 2;
+  string slug = 3;
+  string description = 4;
   optional Series series = 5;
   repeated Category categories = 6;
   repeated Tag tags = 7;
@@ -50,18 +135,4 @@ message Article {
   optional google.protobuf.Timestamp published_at = 9;
   google.protobuf.Timestamp updated_at = 10;
   optional google.protobuf.Timestamp deleted_at = 11;
-}
-
-message ArticleMeta {
-  int32 id = 1;
-  string title = 2;
-  string slug = 2;
-  string description = 3;
-  optional Series series = 4;
-  repeated Category categories = 5;
-  repeated Tag tags = 6;
-  google.protobuf.Timestamp created_at = 7;
-  optional google.protobuf.Timestamp published_at = 8;
-  google.protobuf.Timestamp updated_at = 9;
-  optional google.protobuf.Timestamp deleted_at = 10;
 }
