@@ -1,5 +1,6 @@
 use crate::db;
 use crate::service::ArticleService;
+use anyhow::Result;
 use chaserland_logger::init_logger;
 use tonic::transport::Server as TonicServer;
 use tracing::level_filters::LevelFilter;
@@ -9,7 +10,7 @@ pub struct Server {}
 
 #[allow(dead_code)]
 impl Server {
-    pub async fn run(&self, addr: &str) -> Result<(), Box<dyn std::error::Error>> {
+    pub async fn run(&self, addr: &str) -> Result<()> {
         let level_filter = if cfg!(debug_assertions) {
             LevelFilter::DEBUG
         } else {
@@ -17,7 +18,13 @@ impl Server {
         };
         init_logger(chaserland_logger::LogFormat::Full, level_filter);
 
-        let db = db::connect_db().await?;
+        let db = match db::connect_db().await {
+            Ok(db) => db,
+            Err(why) => {
+                tracing::error!("Failed to create db connection pool: {}", why);
+                return Err(why.into());
+            }
+        };
 
         let addr = addr.parse()?;
         tracing::info!("Server binding to address {}", addr);
