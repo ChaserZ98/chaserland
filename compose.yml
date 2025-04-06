@@ -1,0 +1,15 @@
+name: chaserland
+
+services:
+  article-migrator:
+    build:
+      context: .
+      dockerfile: ./chaserland-articles-service/docker/migrator.Dockerfile
+    image: chaserland/article-service-migrator:${VERSION}
+  article-service:
+    build:
+      context: .
+      dockerfile: ./chaserland-articles-service/docker/server.Dockerfile
+    image: chaserland/article-service-server:${VERSION}
+    depends_on:
+      - article-migrator
