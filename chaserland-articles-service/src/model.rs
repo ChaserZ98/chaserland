@@ -1,6 +1,7 @@
 use anyhow::Result;
 use chaserland_protos::article::{ArticleCreate, CategoryCreate, SeriesCreate, TagCreate};
 use serde::{Deserialize, Serialize};
+use slugify::slugify;
 use sqlx::types::chrono;
 use sqlx::{FromRow, PgPool, Postgres, QueryBuilder, Transaction};
 
@@ -17,21 +18,21 @@ impl Series {
         transaction: &mut Transaction<'_, Postgres>,
         series: SeriesCreate,
     ) -> Result<Self> {
+        let name = series.name;
+        let slug = slugify!(&name, separator = "-");
         let series = sqlx::query_as("INSERT INTO article.series (slug, name) VALUES ($1, $2) ON CONFLICT (slug) DO UPDATE SET slug = EXCLUDED.slug RETURNING *")
-            .bind(series.slug)
-            .bind(series.name)
+            .bind(slug)
+            .bind(name)
             .fetch_one(&mut **transaction)
             .await?;
         Ok(series)
     }
-
     pub async fn get(db: &PgPool) -> Result<Vec<Self>> {
         let res = sqlx::query_as("SELECT * FROM article.series")
             .fetch_all(db)
             .await?;
         Ok(res)
     }
-
     pub async fn get_by_id(db: &PgPool, id: i32) -> Result<Option<Self>> {
         let res = sqlx::query_as("SELECT * FROM article.series WHERE id = $1")
             .bind(id)
@@ -39,7 +40,6 @@ impl Series {
             .await?;
         Ok(res)
     }
-
     pub async fn get_articles(&self, db: &PgPool) -> Result<Vec<Article>> {
         let res = sqlx::query_as("SELECT * FROM article.articles WHERE series_id = $1")
             .bind(self.id)
@@ -47,18 +47,18 @@ impl Series {
             .await?;
         Ok(res)
     }
-
     pub async fn get_by_article_id(db: &PgPool, id: i32) -> Result<Option<Self>> {
         let res = sqlx::query_as("SELECT a.id, a.slug, a.name FROM article.series AS a JOIN article.articles AS b ON a.id = b.series_id WHERE b.id = $1").bind(id).fetch_optional(db).await?;
         Ok(res)
     }
-
-    pub async fn delete_by_id(transaction: &mut Transaction<'_, Postgres>, id: i32) -> Result<()> {
-        sqlx::query("DELETE FROM article.series WHERE id = $1")
+    pub async fn delete_by_id(transaction: &mut Transaction<'_, Postgres>, id: i32) -> Result<u64> {
+        let row_count = sqlx::query("DELETE FROM article.series WHERE id = $1")
             .bind(id)
             .execute(&mut **transaction)
-            .await?;
-        Ok(())
+            .await?
+            .rows_affected();
+        println!("row_count: {}", row_count);
+        Ok(row_count)
     }
 }
 
@@ -93,12 +93,13 @@ impl Article {
         article: ArticleCreate,
     ) -> Result<Self> {
         let series_id = article.series_id.clone();
+        let slug = slugify!(&article.title, separator = "-");
 
         let article = sqlx::query_as(
             "INSERT INTO article.articles (title, slug, description, content, series_id) VALUES ($1, $2, $3, $4, $5) ON CONFLICT (slug) DO UPDATE SET slug = EXCLUDED.slug RETURNING *",
         )
         .bind(article.title)
-        .bind(article.slug)
+        .bind(slug)
         .bind(article.description)
         .bind(article.content)
         .bind(series_id)
@@ -189,6 +190,28 @@ impl Article {
             .await?;
         Ok(series)
     }
+    pub async fn publish_by_id(
+        transaction: &mut Transaction<'_, Postgres>,
+        id: i32,
+    ) -> Result<u64> {
+        let row_count = sqlx::query(
+            "UPDATE article.articles SET published_at = CURRENT_TIMESTAMP WHERE id = $1",
+        )
+        .bind(id)
+        .execute(&mut **transaction)
+        .await?
+        .rows_affected();
+        Ok(row_count)
+    }
+    pub async fn delete_by_id(transaction: &mut Transaction<'_, Postgres>, id: i32) -> Result<u64> {
+        let row_count =
+            sqlx::query("UPDATE article.articles SET deleted_at = CURRENT_TIMESTAMP WHERE id = $1")
+                .bind(id)
+                .execute(&mut **transaction)
+                .await?
+                .rows_affected();
+        Ok(row_count)
+    }
 }
 
 #[derive(Debug, Serialize, Deserialize, FromRow)]
@@ -214,6 +237,37 @@ impl ArticleMeta {
             .await?;
         Ok(res)
     }
+    pub async fn get_by_series_id(db: &PgPool, series_id: i32) -> Result<Vec<Self>> {
+        let article_metas = sqlx::query_as("SELECT * FROM article.articles WHERE series_id = $1")
+            .bind(series_id)
+            .fetch_all(db)
+            .await?;
+        Ok(article_metas)
+    }
+    pub async fn get_by_series_slug(db: &PgPool, series_slug: String) -> Result<Vec<Self>> {
+        let article_metas = sqlx::query_as("SELECT a.id, a.title, a.slug, a.description, a.series_id, a.created_at, a.published_at, a.updated_at, a.deleted_at FROM article.articles AS a JOIN article.series AS b ON a.series_id = b.id WHERE b.slug = $1").bind(series_slug).fetch_all(db).await?;
+        Ok(article_metas)
+    }
+    pub async fn get_by_category_slug(
+        db: &PgPool,
+        category_slug: String,
+        page: i32,
+        page_size: i32,
+    ) -> Result<Vec<Self>> {
+        let offset = (page - 1) * page_size;
+        let article_metas = sqlx::query_as("SELECT a.id, a.title, a.slug, a.description, a.series_id, a.created_at, a.published_at, a.updated_at, a.deleted_at FROM article.articles AS a JOIN article.article_categories AS b ON a.id = b.article_id JOIN article.categories AS c ON b.category_id = c.id WHERE c.slug = $1 LIMIT $2 OFFSET $3").bind(category_slug).bind(page_size).bind(offset).fetch_all(db).await?;
+        Ok(article_metas)
+    }
+    pub async fn get_by_tag_slug(
+        db: &PgPool,
+        tag_slug: String,
+        page: i32,
+        page_size: i32,
+    ) -> Result<Vec<Self>> {
+        let offset = (page - 1) * page_size;
+        let article_metas = sqlx::query_as("SELECT a.id, a.title, a.slug, a.description, a.series_id, a.created_at, a.published_at, a.updated_at, a.deleted_at FROM article.articles AS a JOIN article.article_categoies AS b on a.id = b.article_id JOIN article.tags AS c on b.tag_id = c.id WHERE c.slug = $1 LIMIT $2 OFFSET $3").bind(tag_slug).bind(page_size).bind(offset).fetch_all(db).await?;
+        Ok(article_metas)
+    }
     pub async fn get_by_slug(db: &PgPool, slug: &str) -> Result<Option<Self>> {
         let article = sqlx::query_as("SELECT id, title, slug, description, series_id, created_at, published_at, updated_at, deleted_at FROM article.articles WHERE slug = $1").bind(slug).fetch_optional(db).await?;
         Ok(article)
@@ -233,7 +287,9 @@ impl Category {
         transaction: &mut Transaction<'_, Postgres>,
         category: CategoryCreate,
     ) -> Result<Self> {
-        let category = sqlx::query_as("INSERT INTO article.categories (slug, name) VALUES ($1, $2) ON CONFLICT (slug) DO UPDATE SET slug = EXCLUDED.slug RETURNING *").bind(category.slug).bind(category.name).fetch_one(&mut **transaction).await?;
+        let name = category.name;
+        let slug = slugify!(&name, separator = "-");
+        let category = sqlx::query_as("INSERT INTO article.categories (slug, name) VALUES ($1, $2) ON CONFLICT (slug) DO UPDATE SET slug = EXCLUDED.slug RETURNING *").bind(slug).bind(name).fetch_one(&mut **transaction).await?;
         Ok(category)
     }
 
@@ -267,12 +323,13 @@ impl Category {
         Ok(res)
     }
 
-    pub async fn delete_by_id(transaction: &mut Transaction<'_, Postgres>, id: i32) -> Result<()> {
-        sqlx::query("DELETE FROM article.categories WHERE id = $1")
+    pub async fn delete_by_id(transaction: &mut Transaction<'_, Postgres>, id: i32) -> Result<u64> {
+        let row_count = sqlx::query("DELETE FROM article.categories WHERE id = $1")
             .bind(id)
             .execute(&mut **transaction)
-            .await?;
-        Ok(())
+            .await?
+            .rows_affected();
+        Ok(row_count)
     }
 }
 
@@ -299,7 +356,9 @@ impl Tag {
         transaction: &mut Transaction<'_, Postgres>,
         tag: TagCreate,
     ) -> Result<Self> {
-        let tag = sqlx::query_as("INSERT INTO article.tags (slug, name) VALUES ($1, $2) ON CONFLICT (slug) DO UPDATE SET slug = EXCLUDED.slug RETURNING *").bind(tag.slug).bind(tag.name).fetch_one(&mut **transaction).await?;
+        let name = tag.name;
+        let slug = slugify!(&name, separator = "-");
+        let tag = sqlx::query_as("INSERT INTO article.tags (slug, name) VALUES ($1, $2) ON CONFLICT (slug) DO UPDATE SET slug = EXCLUDED.slug RETURNING *").bind(slug).bind(name).fetch_one(&mut **transaction).await?;
         Ok(tag)
     }
     pub async fn get(db: &PgPool) -> Result<Vec<Self>> {
@@ -328,13 +387,13 @@ impl Tag {
         let res = sqlx::query_as("SELECT a.id, a.slug, a.name FROM article.tags AS a JOIN article.article_tags AS b ON a.id = b.tag_id WHERE b.article_id = $1").bind(id).fetch_all(db).await?;
         Ok(res)
     }
-
-    pub async fn delete_by_id(transaction: &mut Transaction<'_, Postgres>, id: i32) -> Result<()> {
-        sqlx::query("DELETE FROM article.tags WHERE id = $1")
+    pub async fn delete_by_id(transaction: &mut Transaction<'_, Postgres>, id: i32) -> Result<u64> {
+        let row_count = sqlx::query("DELETE FROM article.tags WHERE id = $1")
             .bind(id)
             .execute(&mut **transaction)
-            .await?;
-        Ok(())
+            .await?
+            .rows_affected();
+        Ok(row_count)
     }
 }
 
@@ -414,6 +473,112 @@ pub struct FullArticleMeta {
 impl FullArticleMeta {
     pub async fn get(db: &PgPool, page: i32, page_size: i32) -> Result<Vec<Self>> {
         let article_metas = ArticleMeta::get(db, page, page_size).await?;
+        let mut res = Vec::new();
+        for article_meta in article_metas {
+            let series = Series::get_by_article_id(db, article_meta.id).await?;
+            let categories = Category::get_all_by_article_id(db, article_meta.id).await?;
+            let tags = Tag::get_all_by_article_id(db, article_meta.id).await?;
+            res.push(FullArticleMeta {
+                id: article_meta.id,
+                title: article_meta.title,
+                slug: article_meta.slug,
+                description: article_meta.description,
+                created_at: article_meta.created_at,
+                published_at: article_meta.published_at,
+                updated_at: article_meta.updated_at,
+                deleted_at: article_meta.deleted_at,
+                series,
+                categories,
+                tags,
+            });
+        }
+        Ok(res)
+    }
+    pub async fn get_by_series_id(db: &PgPool, series_id: i32) -> Result<Vec<Self>> {
+        let article_metas = ArticleMeta::get_by_series_id(db, series_id).await?;
+        let mut res = Vec::new();
+        for article_meta in article_metas {
+            let series = Series::get_by_article_id(db, article_meta.id).await?;
+            let categories = Category::get_all_by_article_id(db, article_meta.id).await?;
+            let tags = Tag::get_all_by_article_id(db, article_meta.id).await?;
+            res.push(FullArticleMeta {
+                id: article_meta.id,
+                title: article_meta.title,
+                slug: article_meta.slug,
+                description: article_meta.description,
+                created_at: article_meta.created_at,
+                published_at: article_meta.published_at,
+                updated_at: article_meta.updated_at,
+                deleted_at: article_meta.deleted_at,
+                series,
+                categories,
+                tags,
+            });
+        }
+        Ok(res)
+    }
+    pub async fn get_by_series_slug(db: &PgPool, series_slug: String) -> Result<Vec<Self>> {
+        let article_metas = ArticleMeta::get_by_series_slug(db, series_slug).await?;
+
+        let mut res = Vec::new();
+        for article_meta in article_metas {
+            let series = Series::get_by_article_id(db, article_meta.id).await?;
+            let categories = Category::get_all_by_article_id(db, article_meta.id).await?;
+            let tags = Tag::get_all_by_article_id(db, article_meta.id).await?;
+            res.push(FullArticleMeta {
+                id: article_meta.id,
+                title: article_meta.title,
+                slug: article_meta.slug,
+                description: article_meta.description,
+                created_at: article_meta.created_at,
+                published_at: article_meta.published_at,
+                updated_at: article_meta.updated_at,
+                deleted_at: article_meta.deleted_at,
+                series,
+                categories,
+                tags,
+            });
+        }
+        Ok(res)
+    }
+    pub async fn get_by_category_slug(
+        db: &PgPool,
+        category_slug: String,
+        page: i32,
+        page_size: i32,
+    ) -> Result<Vec<Self>> {
+        let article_metas =
+            ArticleMeta::get_by_category_slug(db, category_slug, page, page_size).await?;
+
+        let mut res = Vec::new();
+        for article_meta in article_metas {
+            let series = Series::get_by_article_id(db, article_meta.id).await?;
+            let categories = Category::get_all_by_article_id(db, article_meta.id).await?;
+            let tags = Tag::get_all_by_article_id(db, article_meta.id).await?;
+            res.push(FullArticleMeta {
+                id: article_meta.id,
+                title: article_meta.title,
+                slug: article_meta.slug,
+                description: article_meta.description,
+                created_at: article_meta.created_at,
+                published_at: article_meta.published_at,
+                updated_at: article_meta.updated_at,
+                deleted_at: article_meta.deleted_at,
+                series,
+                categories,
+                tags,
+            });
+        }
+        Ok(res)
+    }
+    pub async fn get_by_tag_slug(
+        db: &PgPool,
+        tag_slug: String,
+        page: i32,
+        page_size: i32,
+    ) -> Result<Vec<Self>> {
+        let article_metas = ArticleMeta::get_by_tag_slug(db, tag_slug, page, page_size).await?;
+
         let mut res = Vec::new();
         for article_meta in article_metas {
             let series = Series::get_by_article_id(db, article_meta.id).await?;

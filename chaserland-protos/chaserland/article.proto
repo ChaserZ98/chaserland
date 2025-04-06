@@ -12,12 +12,23 @@ service ArticleService {
 
   rpc GetArticlesMeta (GetArticlesMetaRequest)
     returns (GetArticlesMetaResponse);
+  rpc GetArticlesMetaBySeriesSlug (GetArticlesMetaBySeriesSlugRequest)
+    returns (GetArticlesMetaResponse);
+  rpc GetArticlesMetaByCategorySlug (GetArticlesMetaByCategorySlugRequest)
+    returns (GetArticlesMetaResponse);
+  rpc GetArticlesMetaByTagSlug (GetArticlesMetaByTagSlugRequest)
+    returns (GetArticlesMetaResponse);
   rpc GetArticleContentBySlug (GetArticleContentBySlugRequest)
     returns (GetArticleContentBySlugResponse);
   rpc GetSeries (GetSeriesRequest) returns (GetSeriesResponse);
   rpc GetCategories (GetCategoriesRequest) returns (GetCategoriesResponse);
   rpc GetTags (GetTagsRequest) returns (GetTagsResponse);
 
+  rpc PublishArticleById (PublishArticleByIdRequest)
+    returns (PublishArticleByIdResponse);
+
+  rpc DeleteArticleById (DeleteArticleByIdRequest) 
+    returns (DeleteArticleByIdResponse);
   rpc DeleteSeriesById (DeleteSeriesByIdRequest)
     returns (DeleteSeriesByIdResponse);
   rpc DeleteCategoryById (DeleteCategoryByIdRequest)
@@ -66,6 +77,22 @@ message GetArticlesMetaResponse {
   repeated ArticleMeta articles_metas = 1;
 }
 
+message GetArticlesMetaBySeriesSlugRequest {
+  string series_slug = 1;
+}
+
+message GetArticlesMetaByCategorySlugRequest {
+  string category_slug = 1;
+  int32 page = 2;
+  int32 page_size = 3;
+}
+
+message GetArticlesMetaByTagSlugRequest {
+  string tag_slug = 1;
+  int32 page = 2;
+  int32 page_size = 3;
+}
+
 message GetArticleContentBySlugRequest {
   string slug = 1;
 }
@@ -96,6 +123,22 @@ message GetTagsRequest {
 
 message GetTagsResponse {
   repeated Tag tags = 1;
+}
+
+message PublishArticleByIdRequest {
+  int32 id = 1;
+}
+
+message PublishArticleByIdResponse {
+
+}
+
+message DeleteArticleByIdRequest {
+  int32 id = 1;
+}
+
+message DeleteArticleByIdResponse {
+  
 }
 
 message DeleteSeriesByIdRequest {
@@ -129,8 +172,7 @@ message Series {
 }
 
 message SeriesCreate {
-  string slug = 1;
-  string name = 2;
+  string name = 1;
 }
 
 message Tag {
@@ -141,7 +183,6 @@ message Tag {
 
 message TagCreate {
   string name = 1;
-  string slug = 2;
 }
 
 message Category {
@@ -152,7 +193,6 @@ message Category {
 
 message CategoryCreate {
   string name = 1;
-  string slug = 2;
 }
 
 message Article {
@@ -172,12 +212,11 @@ message Article {
 
 message ArticleCreate {
   string title = 1;
-  string slug = 2;
-  string description = 3;
-  string content = 4;
-  optional int32 series_id = 5;
-  repeated int32 category_ids = 6;
-  repeated int32 tag_ids = 7;
+  string description = 2;
+  string content = 3;
+  optional int32 series_id = 4;
+  repeated int32 category_ids = 5;
+  repeated int32 tag_ids = 6;
 }
 
 message ArticleMeta {

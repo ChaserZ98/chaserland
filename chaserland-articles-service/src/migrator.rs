@@ -8,7 +8,7 @@ async fn main() -> Result<()> {
     init_logger();
 
     let username = env::var("POSTGRES_USER").unwrap_or("postgres".to_string());
-    let password = env::var("POSTGRES_PASSWORD").unwrap_or("123456".to_string());
+    let password = env::var("POSTGRES_PASSWORD").unwrap_or("postgres".to_string());
     let host = env::var("POSTGRES_HOST").unwrap_or("localhost".to_string());
     let port = env::var("POSTGRES_PORT").unwrap_or("5432".to_string());
     let db_name = env::var("POSTGRES_DB").unwrap_or("chaserland_article".to_string());

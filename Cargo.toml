@@ -1,3 +1,7 @@
 [workspace]
 resolver = "2"
-members = [ "chaserland-articles-service", "chaserland-logger","chaserland-protos"]
+members = [
+    "chaserland-articles-service",
+    "chaserland-logger",
+    "chaserland-protos",
+]

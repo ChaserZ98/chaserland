@@ -2,11 +2,14 @@ use crate::model;
 use chaserland_protos::article::{
     CreateArticleRequest, CreateArticleResponse, CreateCategoryRequest, CreateCategoryResponse,
     CreateSeriesRequest, CreateSeriesResponse, CreateTagRequest, CreateTagResponse,
-    DeleteCategoryByIdRequest, DeleteCategoryByIdResponse, DeleteSeriesByIdRequest,
-    DeleteSeriesByIdResponse, DeleteTagByIdRequest, DeleteTagByIdResponse,
-    GetArticleContentBySlugRequest, GetArticleContentBySlugResponse, GetArticlesMetaRequest,
+    DeleteArticleByIdRequest, DeleteArticleByIdResponse, DeleteCategoryByIdRequest,
+    DeleteCategoryByIdResponse, DeleteSeriesByIdRequest, DeleteSeriesByIdResponse,
+    DeleteTagByIdRequest, DeleteTagByIdResponse, GetArticleContentBySlugRequest,
+    GetArticleContentBySlugResponse, GetArticlesMetaByCategorySlugRequest,
+    GetArticlesMetaBySeriesSlugRequest, GetArticlesMetaByTagSlugRequest, GetArticlesMetaRequest,
     GetArticlesMetaResponse, GetCategoriesRequest, GetCategoriesResponse, GetSeriesRequest,
-    GetSeriesResponse, GetTagsRequest, GetTagsResponse,
+    GetSeriesResponse, GetTagsRequest, GetTagsResponse, PublishArticleByIdRequest,
+    PublishArticleByIdResponse,
     article_service_server::{ArticleService as TonicArticleService, ArticleServiceServer},
 };
 use sqlx::PgPool;
@@ -110,7 +113,6 @@ impl TonicArticleService for ArticleService {
         };
         Ok(Response::new(reply))
     }
-
     async fn create_series(
         &self,
         request: Request<CreateSeriesRequest>,
@@ -144,7 +146,6 @@ impl TonicArticleService for ArticleService {
 
         Ok(Response::new(reply))
     }
-
     async fn create_category(
         &self,
         request: Request<CreateCategoryRequest>,
@@ -184,7 +185,6 @@ impl TonicArticleService for ArticleService {
         };
         Ok(Response::new(reply))
     }
-
     async fn create_tag(
         &self,
         request: Request<CreateTagRequest>,
@@ -223,7 +223,6 @@ impl TonicArticleService for ArticleService {
         };
         Ok(Response::new(reply))
     }
-
     async fn get_articles_meta(
         &self,
         request: Request<GetArticlesMetaRequest>,
@@ -256,7 +255,113 @@ impl TonicArticleService for ArticleService {
         };
         Ok(Response::new(reply))
     }
+    async fn get_articles_meta_by_series_slug(
+        &self,
+        request: Request<GetArticlesMetaBySeriesSlugRequest>,
+    ) -> Result<Response<GetArticlesMetaResponse>, Status> {
+        let message = request.get_ref();
 
+        let series_slug = message.series_slug.clone();
+
+        let articles_meta =
+            match model::FullArticleMeta::get_by_series_slug(&self.db, series_slug).await {
+                Ok(articles_meta) => articles_meta,
+                Err(e) => {
+                    tracing::error!("Failed to get articles meta by series slug: {}", e);
+                    return Err(Status::internal(
+                        "Failed to get articles meta by series slug",
+                    ));
+                }
+            };
+
+        let reply = GetArticlesMetaResponse {
+            articles_metas: articles_meta.into_iter().map(|x| x.into()).collect(),
+        };
+        Ok(Response::new(reply))
+    }
+    async fn get_articles_meta_by_category_slug(
+        &self,
+        request: Request<GetArticlesMetaByCategorySlugRequest>,
+    ) -> Result<Response<GetArticlesMetaResponse>, Status> {
+        let message = request.get_ref();
+
+        let category_slug = message.category_slug.clone();
+
+        let page = message.page;
+        let page_size = message.page_size;
+        if page < 1 {
+            return Err(Status::invalid_argument(
+                "Page must be greater or equal to 1",
+            ));
+        }
+
+        if page_size < 1 {
+            return Err(Status::invalid_argument(
+                "Page size must be greater or equal to 1",
+            ));
+        }
+
+        let articles_meta = match model::FullArticleMeta::get_by_category_slug(
+            &self.db,
+            category_slug,
+            page,
+            page_size,
+        )
+        .await
+        {
+            Ok(articles_meta) => articles_meta,
+            Err(e) => {
+                tracing::error!("Failed to get articles meta by category slug: {}", e);
+                return Err(Status::internal(
+                    "Failed to get articles meta by category slug",
+                ));
+            }
+        };
+
+        let reply = GetArticlesMetaResponse {
+            articles_metas: articles_meta.into_iter().map(|x| x.into()).collect(),
+        };
+        Ok(Response::new(reply))
+    }
+    async fn get_articles_meta_by_tag_slug(
+        &self,
+        request: Request<GetArticlesMetaByTagSlugRequest>,
+    ) -> Result<Response<GetArticlesMetaResponse>, Status> {
+        let message = request.get_ref();
+
+        let tag_slug = message.tag_slug.clone();
+
+        let page = message.page;
+        let page_size = message.page_size;
+        if page < 1 {
+            return Err(Status::invalid_argument(
+                "Page must be greater or equal to 1",
+            ));
+        }
+
+        if page_size < 1 {
+            return Err(Status::invalid_argument(
+                "Page size must be greater or equal to 1",
+            ));
+        }
+
+        let articles_meta = match model::FullArticleMeta::get_by_tag_slug(
+            &self.db, tag_slug, page, page_size,
+        )
+        .await
+        {
+            Ok(articles_meta) => articles_meta,
+            Err(e) => {
+                tracing::error!("Failed to get articles meta by tag slug: {}", e);
+                return Err(Status::internal("Failed to get articles meta by tag slug"));
+            }
+        };
+
+        let reply = GetArticlesMetaResponse {
+            articles_metas: articles_meta.into_iter().map(|x| x.into()).collect(),
+        };
+        Ok(Response::new(reply))
+    }
     async fn get_article_content_by_slug(
         &self,
         request: Request<GetArticleContentBySlugRequest>,
@@ -282,7 +387,6 @@ impl TonicArticleService for ArticleService {
         let reply = GetArticleContentBySlugResponse { content };
         Ok(Response::new(reply))
     }
-
     async fn get_series(
         &self,
         _request: Request<GetSeriesRequest>,
@@ -301,7 +405,6 @@ impl TonicArticleService for ArticleService {
 
         Ok(Response::new(reply))
     }
-
     async fn get_categories(
         &self,
         _request: Request<GetCategoriesRequest>,
@@ -320,7 +423,6 @@ impl TonicArticleService for ArticleService {
 
         Ok(Response::new(reply))
     }
-
     async fn get_tags(
         &self,
         _request: Request<GetTagsRequest>,
@@ -339,7 +441,77 @@ impl TonicArticleService for ArticleService {
 
         Ok(Response::new(reply))
     }
+    async fn publish_article_by_id(
+        &self,
+        request: Request<PublishArticleByIdRequest>,
+    ) -> Result<Response<PublishArticleByIdResponse>, Status> {
+        let message = request.get_ref();
 
+        let id = message.id;
+
+        let mut transaction = match self.db.begin().await {
+            Ok(transaction) => transaction,
+            Err(e) => {
+                tracing::error!("Failed to start transaction: {}", e);
+                return Err(Status::internal("Internal Error"));
+            }
+        };
+
+        match model::Article::publish_by_id(&mut transaction, id).await {
+            Err(e) => {
+                tracing::error!("Failed to publish article by id: {}", e);
+                return Err(Status::internal("Internal Error"));
+            }
+            Ok(0) => {
+                return Err(Status::not_found("Article not found"));
+            }
+            _ => {}
+        };
+
+        transaction.commit().await.map_err(|why| {
+            tracing::error!("Failed to commit transaction: {}", why);
+            Status::internal("Internal Error")
+        })?;
+
+        Ok(Response::new(PublishArticleByIdResponse {}))
+    }
+    async fn delete_article_by_id(
+        &self,
+        request: Request<DeleteArticleByIdRequest>,
+    ) -> Result<Response<DeleteArticleByIdResponse>, Status> {
+        let message = request.get_ref();
+
+        let id = message.id;
+
+        let mut transaction = match self.db.begin().await {
+            Ok(transaction) => transaction,
+            Err(e) => {
+                tracing::error!("Failed to start transaction: {}", e);
+                return Err(Status::internal("Internal Error"));
+            }
+        };
+
+        match model::Article::delete_by_id(&mut transaction, id).await {
+            Err(e) => {
+                tracing::error!("Failed to delete article by id: {}", e);
+                return Err(Status::internal("Internal Error"));
+            }
+            Ok(0) => {
+                return Err(Status::not_found(format!(
+                    "Article with id {} not found",
+                    id
+                )));
+            }
+            _ => {}
+        };
+
+        transaction.commit().await.map_err(|why| {
+            tracing::error!("Failed to commit transaction: {}", why);
+            Status::internal("Internal Error")
+        })?;
+
+        Ok(Response::new(DeleteArticleByIdResponse {}))
+    }
     async fn delete_series_by_id(
         &self,
         request: Request<DeleteSeriesByIdRequest>,
@@ -358,6 +530,12 @@ impl TonicArticleService for ArticleService {
                 tracing::error!("Failed to delete series by id: {}", e);
                 return Err(Status::internal("Internal Error"));
             }
+            Ok(0) => {
+                return Err(Status::not_found(format!(
+                    "Series with id {} not found",
+                    id
+                )));
+            }
             _ => {}
         };
 
@@ -368,7 +546,6 @@ impl TonicArticleService for ArticleService {
 
         Ok(Response::new(DeleteSeriesByIdResponse {}))
     }
-
     async fn delete_category_by_id(
         &self,
         request: Request<DeleteCategoryByIdRequest>,
@@ -388,6 +565,12 @@ impl TonicArticleService for ArticleService {
                 tracing::error!("Failed to delete category by id: {}", e);
                 return Err(Status::internal("Internal Error"));
             }
+            Ok(0) => {
+                return Err(Status::not_found(format!(
+                    "Category with id {} not found",
+                    id
+                )));
+            }
             _ => {}
         };
 
@@ -398,7 +581,6 @@ impl TonicArticleService for ArticleService {
 
         Ok(Response::new(DeleteCategoryByIdResponse {}))
     }
-
     async fn delete_tag_by_id(
         &self,
         request: Request<DeleteTagByIdRequest>,
@@ -418,6 +600,9 @@ impl TonicArticleService for ArticleService {
             Err(e) => {
                 tracing::error!("Failed to delete tag by id: {}", e);
                 return Err(Status::internal("Internal Error"));
+            }
+            Ok(0) => {
+                return Err(Status::not_found(format!("Tag with id {} not found", id)));
             }
             _ => {}
         };

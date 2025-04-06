@@ -27,3 +27,4 @@ serde = { version = "1.0.219", features = ["derive"] }
 chrono = { version = "0.4.40", features = ["serde"] }
 anyhow = "1.0.97"
 prost-types = "0.13.5"
+slugify = "0.1.0"
