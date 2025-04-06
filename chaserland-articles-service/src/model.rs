@@ -25,6 +25,13 @@ impl Series {
         Ok(series)
     }
 
+    pub async fn get(db: &PgPool) -> Result<Vec<Self>> {
+        let res = sqlx::query_as("SELECT * FROM article.series")
+            .fetch_all(db)
+            .await?;
+        Ok(res)
+    }
+
     pub async fn get_by_id(db: &PgPool, id: i32) -> Result<Option<Self>> {
         let res = sqlx::query_as("SELECT * FROM article.series WHERE id = $1")
             .bind(id)
@@ -44,6 +51,14 @@ impl Series {
     pub async fn get_by_article_id(db: &PgPool, id: i32) -> Result<Option<Self>> {
         let res = sqlx::query_as("SELECT a.id, a.slug, a.name FROM article.series AS a JOIN article.articles AS b ON a.id = b.series_id WHERE b.id = $1").bind(id).fetch_optional(db).await?;
         Ok(res)
+    }
+
+    pub async fn delete_by_id(transaction: &mut Transaction<'_, Postgres>, id: i32) -> Result<()> {
+        sqlx::query("DELETE FROM article.series WHERE id = $1")
+            .bind(id)
+            .execute(&mut **transaction)
+            .await?;
+        Ok(())
     }
 }
 
@@ -222,6 +237,13 @@ impl Category {
         Ok(category)
     }
 
+    pub async fn get(db: &PgPool) -> Result<Vec<Self>> {
+        let res = sqlx::query_as("SELECT * FROM article.categories")
+            .fetch_all(db)
+            .await?;
+        Ok(res)
+    }
+
     pub async fn get_articles(
         &self,
         db: &PgPool,
@@ -243,6 +265,14 @@ impl Category {
     pub async fn get_all_by_article_id(db: &PgPool, id: i32) -> Result<Vec<Category>> {
         let res = sqlx::query_as("SELECT a.id, a.slug, a.name FROM article.categories AS a JOIN article.article_categories AS b ON a.id = b.category_id WHERE b.article_id = $1").bind(id).fetch_all(db).await?;
         Ok(res)
+    }
+
+    pub async fn delete_by_id(transaction: &mut Transaction<'_, Postgres>, id: i32) -> Result<()> {
+        sqlx::query("DELETE FROM article.categories WHERE id = $1")
+            .bind(id)
+            .execute(&mut **transaction)
+            .await?;
+        Ok(())
     }
 }
 
@@ -272,7 +302,12 @@ impl Tag {
         let tag = sqlx::query_as("INSERT INTO article.tags (slug, name) VALUES ($1, $2) ON CONFLICT (slug) DO UPDATE SET slug = EXCLUDED.slug RETURNING *").bind(tag.slug).bind(tag.name).fetch_one(&mut **transaction).await?;
         Ok(tag)
     }
-
+    pub async fn get(db: &PgPool) -> Result<Vec<Self>> {
+        let res = sqlx::query_as("SELECT * FROM article.tags")
+            .fetch_all(db)
+            .await?;
+        Ok(res)
+    }
     pub async fn get_articles(
         &self,
         db: &PgPool,
@@ -292,6 +327,14 @@ impl Tag {
     pub async fn get_all_by_article_id(db: &PgPool, id: i32) -> Result<Vec<Tag>> {
         let res = sqlx::query_as("SELECT a.id, a.slug, a.name FROM article.tags AS a JOIN article.article_tags AS b ON a.id = b.tag_id WHERE b.article_id = $1").bind(id).fetch_all(db).await?;
         Ok(res)
+    }
+
+    pub async fn delete_by_id(transaction: &mut Transaction<'_, Postgres>, id: i32) -> Result<()> {
+        sqlx::query("DELETE FROM article.tags WHERE id = $1")
+            .bind(id)
+            .execute(&mut **transaction)
+            .await?;
+        Ok(())
     }
 }
 

@@ -14,6 +14,15 @@ service ArticleService {
     returns (GetArticlesMetaResponse);
   rpc GetArticleContentBySlug (GetArticleContentBySlugRequest)
     returns (GetArticleContentBySlugResponse);
+  rpc GetSeries (GetSeriesRequest) returns (GetSeriesResponse);
+  rpc GetCategories (GetCategoriesRequest) returns (GetCategoriesResponse);
+  rpc GetTags (GetTagsRequest) returns (GetTagsResponse);
+
+  rpc DeleteSeriesById (DeleteSeriesByIdRequest)
+    returns (DeleteSeriesByIdResponse);
+  rpc DeleteCategoryById (DeleteCategoryByIdRequest)
+    returns (DeleteCategoryByIdResponse);
+  rpc DeleteTagById (DeleteTagByIdRequest) returns (DeleteTagByIdResponse);
 }
 
 message CreateArticleRequest {
@@ -63,6 +72,54 @@ message GetArticleContentBySlugRequest {
 
 message GetArticleContentBySlugResponse {
   string content = 1;
+}
+
+message GetSeriesRequest {
+
+}
+
+message GetSeriesResponse {
+  repeated Series series = 1;
+}
+
+message GetCategoriesRequest {
+
+}
+
+message GetCategoriesResponse {
+  repeated Category categories = 1;
+}
+
+message GetTagsRequest {
+
+}
+
+message GetTagsResponse {
+  repeated Tag tags = 1;
+}
+
+message DeleteSeriesByIdRequest {
+  int32 id = 1;
+}
+
+message DeleteSeriesByIdResponse {
+  
+}
+
+message DeleteCategoryByIdRequest {
+  int32 id = 1;
+}
+
+message DeleteCategoryByIdResponse {
+  
+}
+
+message DeleteTagByIdRequest {
+  int32 id = 1;
+}
+
+message DeleteTagByIdResponse {
+  
 }
 
 message Series {

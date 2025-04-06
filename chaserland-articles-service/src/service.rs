@@ -2,8 +2,11 @@ use crate::model;
 use chaserland_protos::article::{
     CreateArticleRequest, CreateArticleResponse, CreateCategoryRequest, CreateCategoryResponse,
     CreateSeriesRequest, CreateSeriesResponse, CreateTagRequest, CreateTagResponse,
+    DeleteCategoryByIdRequest, DeleteCategoryByIdResponse, DeleteSeriesByIdRequest,
+    DeleteSeriesByIdResponse, DeleteTagByIdRequest, DeleteTagByIdResponse,
     GetArticleContentBySlugRequest, GetArticleContentBySlugResponse, GetArticlesMetaRequest,
-    GetArticlesMetaResponse,
+    GetArticlesMetaResponse, GetCategoriesRequest, GetCategoriesResponse, GetSeriesRequest,
+    GetSeriesResponse, GetTagsRequest, GetTagsResponse,
     article_service_server::{ArticleService as TonicArticleService, ArticleServiceServer},
 };
 use sqlx::PgPool;
@@ -278,5 +281,152 @@ impl TonicArticleService for ArticleService {
 
         let reply = GetArticleContentBySlugResponse { content };
         Ok(Response::new(reply))
+    }
+
+    async fn get_series(
+        &self,
+        _request: Request<GetSeriesRequest>,
+    ) -> Result<Response<GetSeriesResponse>, Status> {
+        let series = match model::Series::get(&self.db).await {
+            Ok(series) => series,
+            Err(e) => {
+                tracing::error!("Failed to get series: {}", e);
+                return Err(Status::internal("Failed to get series"));
+            }
+        };
+
+        let reply = GetSeriesResponse {
+            series: series.into_iter().map(|x| x.into()).collect(),
+        };
+
+        Ok(Response::new(reply))
+    }
+
+    async fn get_categories(
+        &self,
+        _request: Request<GetCategoriesRequest>,
+    ) -> Result<Response<GetCategoriesResponse>, Status> {
+        let categories = match model::Category::get(&self.db).await {
+            Ok(categories) => categories,
+            Err(e) => {
+                tracing::error!("Failed to get categories: {}", e);
+                return Err(Status::internal("Failed to get categories"));
+            }
+        };
+
+        let reply = GetCategoriesResponse {
+            categories: categories.into_iter().map(|x| x.into()).collect(),
+        };
+
+        Ok(Response::new(reply))
+    }
+
+    async fn get_tags(
+        &self,
+        _request: Request<GetTagsRequest>,
+    ) -> Result<Response<GetTagsResponse>, Status> {
+        let tags = match model::Tag::get(&self.db).await {
+            Ok(tags) => tags,
+            Err(e) => {
+                tracing::error!("Failed to get tags: {}", e);
+                return Err(Status::internal("Failed to get tags"));
+            }
+        };
+
+        let reply = GetTagsResponse {
+            tags: tags.into_iter().map(|x| x.into()).collect(),
+        };
+
+        Ok(Response::new(reply))
+    }
+
+    async fn delete_series_by_id(
+        &self,
+        request: Request<DeleteSeriesByIdRequest>,
+    ) -> Result<Response<DeleteSeriesByIdResponse>, Status> {
+        let message = request.get_ref();
+        let id = message.id;
+        let mut transaction = match self.db.begin().await {
+            Ok(transaction) => transaction,
+            Err(e) => {
+                tracing::error!("Failed to start transaction: {}", e);
+                return Err(Status::internal("Internal Error"));
+            }
+        };
+        match model::Series::delete_by_id(&mut transaction, id).await {
+            Err(e) => {
+                tracing::error!("Failed to delete series by id: {}", e);
+                return Err(Status::internal("Internal Error"));
+            }
+            _ => {}
+        };
+
+        transaction.commit().await.map_err(|why| {
+            tracing::error!("Failed to commit transaction: {}", why);
+            Status::internal("Internal Error")
+        })?;
+
+        Ok(Response::new(DeleteSeriesByIdResponse {}))
+    }
+
+    async fn delete_category_by_id(
+        &self,
+        request: Request<DeleteCategoryByIdRequest>,
+    ) -> Result<Response<DeleteCategoryByIdResponse>, Status> {
+        let message = request.get_ref();
+
+        let id = message.id;
+        let mut transaction = match self.db.begin().await {
+            Ok(transaction) => transaction,
+            Err(e) => {
+                tracing::error!("Failed to start transaction: {}", e);
+                return Err(Status::internal("Internal Error"));
+            }
+        };
+        match model::Category::delete_by_id(&mut transaction, id).await {
+            Err(e) => {
+                tracing::error!("Failed to delete category by id: {}", e);
+                return Err(Status::internal("Internal Error"));
+            }
+            _ => {}
+        };
+
+        transaction.commit().await.map_err(|why| {
+            tracing::error!("Failed to commit transaction: {}", why);
+            Status::internal("Internal Error")
+        })?;
+
+        Ok(Response::new(DeleteCategoryByIdResponse {}))
+    }
+
+    async fn delete_tag_by_id(
+        &self,
+        request: Request<DeleteTagByIdRequest>,
+    ) -> Result<Response<DeleteTagByIdResponse>, Status> {
+        let message = request.get_ref();
+
+        let id = message.id;
+
+        let mut transaction = match self.db.begin().await {
+            Ok(transaction) => transaction,
+            Err(e) => {
+                tracing::error!("Failed to start transaction: {}", e);
+                return Err(Status::internal("Internal Error"));
+            }
+        };
+        match model::Tag::delete_by_id(&mut transaction, id).await {
+            Err(e) => {
+                tracing::error!("Failed to delete tag by id: {}", e);
+                return Err(Status::internal("Internal Error"));
+            }
+            _ => {}
+        };
+
+        transaction.commit().await.map_err(|why| {
+            tracing::error!("Failed to commit transaction: {}", why);
+            Status::internal("Internal Error")
+        })?;
+
+        Ok(Response::new(DeleteTagByIdResponse {}))
     }
 }
