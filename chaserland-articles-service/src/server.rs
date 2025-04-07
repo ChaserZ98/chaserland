@@ -21,9 +21,17 @@ impl Server {
         tracing::info!("Server binding to address {}", addr);
 
         TonicServer::builder()
-            .add_service(ArticleService::new(db))
+            .add_service(ArticleService::new(db.clone()))
             .serve_with_shutdown(addr, self.shutdown())
             .await?;
+
+        tracing::info!("Server stopped.");
+
+        tracing::info!("Closing db connection pool...");
+        db.close().await;
+        tracing::info!("Db connection pool closed.");
+
+        tracing::info!("Cleanup completed. Server shutdown complete.");
 
         Ok(())
     }
@@ -31,8 +39,8 @@ impl Server {
         tracing::info!("Listening for shutdown signal...");
         if let Err(why) = tokio::signal::ctrl_c().await {
             tracing::error!("Error while shutting down: {}", why);
-        } else {
-            tracing::info!("Shutting down...");
+            return;
         }
+        tracing::info!("Shutdown signal received. Starting graceful shutdown...");
     }
 }

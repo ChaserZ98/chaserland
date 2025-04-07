@@ -19,7 +19,9 @@ async fn main() -> Result<()> {
         "[::]".to_string()
     };
     let port = env::var("APP_PORT").unwrap_or("8080".to_string());
+    let addr = format!("{}:{}", host, port);
+
     let server = Server::default();
-    server.run(&format!("{}:{}", host, port)).await?;
+    server.run(&addr).await?;
     Ok(())
 }
