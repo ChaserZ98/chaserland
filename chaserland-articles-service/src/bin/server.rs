@@ -1,13 +1,7 @@
 use anyhow::Result;
+use chaserland_articles_service::server::Server;
 use chaserland_logger::init_logger;
 use std::env;
-
-mod db;
-mod model;
-mod server;
-mod service;
-
-use server::Server;
 
 #[tokio::main]
 async fn main() -> Result<()> {

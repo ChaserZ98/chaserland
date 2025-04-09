@@ -1,13 +1,12 @@
 use crate::model;
-use chaserland_protos::article::{
+use chaserland_protos::article::v1::{
     CreateArticleRequest, CreateArticleResponse, CreateCategoryRequest, CreateCategoryResponse,
     CreateSeriesRequest, CreateSeriesResponse, CreateTagRequest, CreateTagResponse,
     DeleteArticleByIdRequest, DeleteArticleByIdResponse, DeleteCategoryByIdRequest,
     DeleteCategoryByIdResponse, DeleteSeriesByIdRequest, DeleteSeriesByIdResponse,
-    DeleteTagByIdRequest, DeleteTagByIdResponse, GetArticleContentBySlugRequest,
-    GetArticleContentBySlugResponse, GetArticlesMetaByCategorySlugRequest,
-    GetArticlesMetaBySeriesSlugRequest, GetArticlesMetaByTagSlugRequest, GetArticlesMetaRequest,
-    GetArticlesMetaResponse, GetCategoriesRequest, GetCategoriesResponse, GetSeriesRequest,
+    DeleteTagByIdRequest, DeleteTagByIdResponse, GetArticleContentRequest,
+    GetArticleContentResponse, GetArticleRequest, GetArticleResponse, GetArticlesRequest,
+    GetArticlesResponse, GetCategoriesRequest, GetCategoriesResponse, GetSeriesRequest,
     GetSeriesResponse, GetTagsRequest, GetTagsResponse, PublishArticleByIdRequest,
     PublishArticleByIdResponse,
     article_service_server::{ArticleService as TonicArticleService, ArticleServiceServer},
@@ -223,13 +222,52 @@ impl TonicArticleService for ArticleService {
         };
         Ok(Response::new(reply))
     }
-    async fn get_articles_meta(
+    async fn get_article(
         &self,
-        request: Request<GetArticlesMetaRequest>,
-    ) -> Result<Response<GetArticlesMetaResponse>, Status> {
+        request: Request<GetArticleRequest>,
+    ) -> Result<Response<GetArticleResponse>, Status> {
+        let message = request.get_ref();
+
+        if message.identifier.is_none() {
+            return Err(Status::invalid_argument("Identifier is required"));
+        }
+
+        let identifier = message.identifier.clone().unwrap();
+
+        let public_only = message.public_only;
+        let with_content = message.with_content;
+
+        let article = match model::FullArticle::get_one(
+            &self.db,
+            identifier,
+            public_only,
+            with_content,
+        )
+        .await
+        {
+            Ok(Some(article)) => article,
+            Ok(None) => return Err(Status::not_found("Article not found")),
+            Err(e) => {
+                tracing::error!("Failed to get article: {}", e);
+                return Err(Status::internal("Internal Error"));
+            }
+        };
+
+        let reply = GetArticleResponse {
+            article: Some(article.into()),
+        };
+        Ok(Response::new(reply))
+    }
+    async fn get_articles(
+        &self,
+        request: Request<GetArticlesRequest>,
+    ) -> Result<Response<GetArticlesResponse>, Status> {
         let message = request.get_ref();
         let page = message.page;
         let page_size = message.page_size;
+        let public_only = message.public_only;
+        let with_content = message.with_content;
+        let filter = message.filter.clone();
         if page < 1 {
             return Err(Status::invalid_argument(
                 "Page must be greater or equal to 1",
@@ -242,7 +280,16 @@ impl TonicArticleService for ArticleService {
             ));
         }
 
-        let articles_meta = match model::FullArticleMeta::get(&self.db, page, page_size).await {
+        let articles_meta = match model::FullArticle::get_many(
+            &self.db,
+            page,
+            page_size,
+            public_only,
+            with_content,
+            filter,
+        )
+        .await
+        {
             Ok(articles_meta) => articles_meta,
             Err(e) => {
                 tracing::error!("Failed to get articles meta: {}", e);
@@ -250,131 +297,27 @@ impl TonicArticleService for ArticleService {
             }
         };
 
-        let reply = GetArticlesMetaResponse {
-            articles_metas: articles_meta.into_iter().map(|x| x.into()).collect(),
+        let reply = GetArticlesResponse {
+            articles: articles_meta.into_iter().map(|x| x.into()).collect(),
         };
         Ok(Response::new(reply))
     }
-    async fn get_articles_meta_by_series_slug(
+    async fn get_article_content(
         &self,
-        request: Request<GetArticlesMetaBySeriesSlugRequest>,
-    ) -> Result<Response<GetArticlesMetaResponse>, Status> {
+        request: Request<GetArticleContentRequest>,
+    ) -> Result<Response<GetArticleContentResponse>, Status> {
         let message = request.get_ref();
 
-        let series_slug = message.series_slug.clone();
-
-        let articles_meta =
-            match model::FullArticleMeta::get_by_series_slug(&self.db, series_slug).await {
-                Ok(articles_meta) => articles_meta,
-                Err(e) => {
-                    tracing::error!("Failed to get articles meta by series slug: {}", e);
-                    return Err(Status::internal(
-                        "Failed to get articles meta by series slug",
-                    ));
-                }
-            };
-
-        let reply = GetArticlesMetaResponse {
-            articles_metas: articles_meta.into_iter().map(|x| x.into()).collect(),
-        };
-        Ok(Response::new(reply))
-    }
-    async fn get_articles_meta_by_category_slug(
-        &self,
-        request: Request<GetArticlesMetaByCategorySlugRequest>,
-    ) -> Result<Response<GetArticlesMetaResponse>, Status> {
-        let message = request.get_ref();
-
-        let category_slug = message.category_slug.clone();
-
-        let page = message.page;
-        let page_size = message.page_size;
-        if page < 1 {
-            return Err(Status::invalid_argument(
-                "Page must be greater or equal to 1",
-            ));
+        if message.identifier.is_none() {
+            return Err(Status::invalid_argument("Identifier is required"));
         }
 
-        if page_size < 1 {
-            return Err(Status::invalid_argument(
-                "Page size must be greater or equal to 1",
-            ));
-        }
+        let identifier = message.identifier.clone().unwrap();
 
-        let articles_meta = match model::FullArticleMeta::get_by_category_slug(
-            &self.db,
-            category_slug,
-            page,
-            page_size,
-        )
-        .await
-        {
-            Ok(articles_meta) => articles_meta,
-            Err(e) => {
-                tracing::error!("Failed to get articles meta by category slug: {}", e);
-                return Err(Status::internal(
-                    "Failed to get articles meta by category slug",
-                ));
-            }
-        };
-
-        let reply = GetArticlesMetaResponse {
-            articles_metas: articles_meta.into_iter().map(|x| x.into()).collect(),
-        };
-        Ok(Response::new(reply))
-    }
-    async fn get_articles_meta_by_tag_slug(
-        &self,
-        request: Request<GetArticlesMetaByTagSlugRequest>,
-    ) -> Result<Response<GetArticlesMetaResponse>, Status> {
-        let message = request.get_ref();
-
-        let tag_slug = message.tag_slug.clone();
-
-        let page = message.page;
-        let page_size = message.page_size;
-        if page < 1 {
-            return Err(Status::invalid_argument(
-                "Page must be greater or equal to 1",
-            ));
-        }
-
-        if page_size < 1 {
-            return Err(Status::invalid_argument(
-                "Page size must be greater or equal to 1",
-            ));
-        }
-
-        let articles_meta = match model::FullArticleMeta::get_by_tag_slug(
-            &self.db, tag_slug, page, page_size,
-        )
-        .await
-        {
-            Ok(articles_meta) => articles_meta,
-            Err(e) => {
-                tracing::error!("Failed to get articles meta by tag slug: {}", e);
-                return Err(Status::internal("Failed to get articles meta by tag slug"));
-            }
-        };
-
-        let reply = GetArticlesMetaResponse {
-            articles_metas: articles_meta.into_iter().map(|x| x.into()).collect(),
-        };
-        Ok(Response::new(reply))
-    }
-    async fn get_article_content_by_slug(
-        &self,
-        request: Request<GetArticleContentBySlugRequest>,
-    ) -> Result<Response<GetArticleContentBySlugResponse>, Status> {
-        let message = request.get_ref();
-
-        let slug = message.slug.clone();
-
-        let content = match model::Article::get_content_by_slug(&self.db, slug).await {
+        let content = match model::Article::get_content(&self.db, identifier).await {
             Ok(content) => content,
             Err(e) => {
-                tracing::error!("Failed to get article content by slug: {}", e);
-                return Err(Status::internal("Failed to get article content by slug"));
+                return Err(Status::internal(e.to_string()));
             }
         };
 
@@ -384,7 +327,7 @@ impl TonicArticleService for ArticleService {
 
         let content = content.unwrap();
 
-        let reply = GetArticleContentBySlugResponse { content };
+        let reply = GetArticleContentResponse { content };
         Ok(Response::new(reply))
     }
     async fn get_series(

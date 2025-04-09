@@ -10,13 +10,13 @@ WORKDIR /chaserland/chaserland-articles-service
 
 COPY . /chaserland
 
-RUN cargo build --release --bin migrator
+RUN cargo build --release --bin migrate
 
 FROM alpine:latest AS runner
 
 WORKDIR /app
 
-COPY --from=builder /chaserland/target/release/migrator /app
+COPY --from=builder /chaserland/target/release/migrate /app
 
 ENV POSTGRES_USER=postgres
 ENV POSTGRES_PASSWORD=postgres
@@ -24,4 +24,4 @@ ENV POSTGRES_HOST=postgres
 ENV POSTGRES_PORT=5432
 ENV POSTGRES_DB=chaserland_article
 
-CMD ["./migrator"]
+CMD ["./migrate"]

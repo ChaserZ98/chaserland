@@ -6,11 +6,15 @@ default-run = "server"
 
 [[bin]]
 name = "server"
-path = "src/main.rs"
+path = "src/bin/server.rs"
 
 [[bin]]
-name = "migrator"
-path = "src/migrator.rs"
+name = "migrate"
+path = "src/bin/migrate.rs"
+
+[[bin]]
+name = "init"
+path = "src/bin/init.rs"
 
 [dependencies]
 chaserland-protos = { path = "../chaserland-protos" }

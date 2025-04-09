@@ -1,10 +1,13 @@
 use anyhow::Result;
-use sqlx::Postgres;
+use chaserland_articles_service::migrator::MIGRATOR;
+use chaserland_logger::init_logger;
 use sqlx::postgres::PgPoolOptions;
-use sqlx::{PgPool, migrate::MigrateDatabase};
 use std::env;
 
-pub async fn connect_db() -> Result<PgPool> {
+#[tokio::main]
+async fn main() -> Result<()> {
+    init_logger();
+
     let username = env::var("POSTGRES_USER").unwrap_or("chaserland_article".to_string());
     let password = env::var("POSTGRES_PASSWORD").unwrap_or("chaserland_article".to_string());
     let host = env::var("POSTGRES_HOST").unwrap_or("localhost".to_string());
@@ -16,30 +19,20 @@ pub async fn connect_db() -> Result<PgPool> {
         username, password, host, port, db_name
     );
 
-    match Postgres::database_exists(&db_url).await {
-        Err(e) => {
-            return Err(e.into());
-        }
-        Ok(false) => {
-            return Err(anyhow::anyhow!(
-                "Database does not exist. Please make sure the database exists and migrations have been run."
-            ));
-        }
-        _ => (),
-    }
-
-    let db = match PgPoolOptions::new()
-        .max_connections(5)
-        .connect(&db_url)
-        .await
-    {
+    let db = match PgPoolOptions::new().connect(&db_url).await {
         Ok(db) => db,
         Err(why) => {
+            tracing::error!("Failed to connect to database: {}", why);
             return Err(why.into());
         }
     };
 
-    tracing::info!("Connection to database established.");
+    tracing::info!("Migrating database...");
 
-    Ok(db)
+    if let Err(e) = MIGRATOR.run(&db).await {
+        tracing::error!("Failed to migrate database: {}", e);
+        return Err(e.into());
+    }
+
+    Ok(())
 }

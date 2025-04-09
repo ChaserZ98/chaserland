@@ -1,0 +1,33 @@
+syntax = "proto3";
+
+package chaserland.article.v1;
+
+import "chaserland/article/v1/article.proto";
+
+service ArticleService {
+  rpc CreateArticle (CreateArticleRequest) returns (CreateArticleResponse);
+  rpc CreateSeries (CreateSeriesRequest) returns (CreateSeriesResponse);
+  rpc CreateCategory (CreateCategoryRequest) returns (CreateCategoryResponse);
+  rpc CreateTag (CreateTagRequest) returns (CreateTagResponse);
+
+  rpc GetArticle (GetArticleRequest) returns (GetArticleResponse);
+  rpc GetArticleContent (GetArticleContentRequest)
+    returns (GetArticleContentResponse);
+  rpc GetArticles (GetArticlesRequest) returns (GetArticlesResponse);
+  rpc GetSeries (GetSeriesRequest) returns (GetSeriesResponse);
+  rpc GetCategories (GetCategoriesRequest) returns (GetCategoriesResponse);
+  rpc GetTags (GetTagsRequest) returns (GetTagsResponse);
+
+  rpc PublishArticleById (PublishArticleByIdRequest)
+    returns (PublishArticleByIdResponse);
+
+  rpc DeleteArticleById (DeleteArticleByIdRequest) 
+    returns (DeleteArticleByIdResponse);
+  rpc DeleteSeriesById (DeleteSeriesByIdRequest)
+    returns (DeleteSeriesByIdResponse);
+  rpc DeleteCategoryById (DeleteCategoryByIdRequest)
+    returns (DeleteCategoryByIdResponse);
+  rpc DeleteTagById (DeleteTagByIdRequest) returns (DeleteTagByIdResponse);
+}
+
+
