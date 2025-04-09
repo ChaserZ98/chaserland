@@ -78,6 +78,7 @@ message GetArticleContentRequest {
     int32 id = 1;
     string slug = 2;
   }
+  bool public_only = 3;
 }
 
 message GetArticleContentResponse {

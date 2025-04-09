@@ -21,7 +21,7 @@ impl Server {
         tracing::info!("Server binding to address {}", addr);
 
         TonicServer::builder()
-            .add_service(ArticleService::new(db.clone()))
+            .add_service(ArticleService::new(db.clone()).into_tonic_service())
             .serve_with_shutdown(addr, self.shutdown())
             .await?;
 

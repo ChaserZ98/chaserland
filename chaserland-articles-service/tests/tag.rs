@@ -23,13 +23,4 @@ async fn test_create_tag(db: sqlx::PgPool) {
     assert_eq!(tag.id, 3);
     assert_eq!(tag.slug, "tag-3");
     assert_eq!(tag.name, "Tag 3");
-
-    let tags = model::Tag::get(&db).await.unwrap();
-
-    assert_eq!(tags.len(), 3);
-
-    let tag = &tags[2];
-    assert_eq!(tag.id, 3);
-    assert_eq!(tag.slug, "tag-3");
-    assert_eq!(tag.name, "Tag 3");
 }

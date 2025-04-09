@@ -216,6 +216,7 @@ dependencies = [
  "chaserland-logger",
  "chaserland-protos",
  "chrono",
+ "log",
  "prost-types",
  "serde",
  "slugify",

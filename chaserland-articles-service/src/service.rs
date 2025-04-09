@@ -1,67 +1,36 @@
 use crate::model;
+use anyhow::Result;
 use chaserland_protos::article::v1::{
-    CreateArticleRequest, CreateArticleResponse, CreateCategoryRequest, CreateCategoryResponse,
-    CreateSeriesRequest, CreateSeriesResponse, CreateTagRequest, CreateTagResponse,
-    DeleteArticleByIdRequest, DeleteArticleByIdResponse, DeleteCategoryByIdRequest,
-    DeleteCategoryByIdResponse, DeleteSeriesByIdRequest, DeleteSeriesByIdResponse,
-    DeleteTagByIdRequest, DeleteTagByIdResponse, GetArticleContentRequest,
-    GetArticleContentResponse, GetArticleRequest, GetArticleResponse, GetArticlesRequest,
-    GetArticlesResponse, GetCategoriesRequest, GetCategoriesResponse, GetSeriesRequest,
-    GetSeriesResponse, GetTagsRequest, GetTagsResponse, PublishArticleByIdRequest,
-    PublishArticleByIdResponse,
-    article_service_server::{ArticleService as TonicArticleService, ArticleServiceServer},
+    ArticleCreate, CategoryCreate, SeriesCreate, TagCreate,
+    article_service_server::ArticleServiceServer, get_article_content_request, get_article_request,
+    get_articles_request,
 };
 use sqlx::PgPool;
-use tonic::{Request, Response, Status};
 
 pub struct ArticleService {
     db: PgPool,
 }
 
 impl ArticleService {
-    pub fn new(db: PgPool) -> ArticleServiceServer<Self> {
-        ArticleServiceServer::new(Self { db })
+    pub fn new(db: PgPool) -> Self {
+        Self { db }
     }
-}
+    pub fn into_tonic_service(self) -> ArticleServiceServer<Self> {
+        ArticleServiceServer::new(self)
+    }
+    pub async fn create_article(&self, article: ArticleCreate) -> Result<model::FullArticle> {
+        let series_id = article.series_id.clone();
+        let category_ids = article.category_ids.clone();
+        let tag_ids = article.tag_ids.clone();
 
-#[tonic::async_trait]
-impl TonicArticleService for ArticleService {
-    async fn create_article(
-        &self,
-        request: Request<CreateArticleRequest>,
-    ) -> Result<Response<CreateArticleResponse>, Status> {
-        let message = request.get_ref();
+        let mut transaction = self.db.begin().await?;
 
-        let article_create = match message.article.clone() {
-            Some(value) => value,
-            None => return Err(Status::invalid_argument("Article is required")),
-        };
-
-        let series_id = article_create.series_id.clone();
-        let category_ids = article_create.category_ids.clone();
-        let tag_ids = article_create.tag_ids.clone();
-
-        let mut transaction = self.db.begin().await.map_err(|why| {
-            tracing::error!("Failed to start transaction: {}", why);
-            Status::internal("Internal Error")
-        })?;
-
-        let article = model::Article::create(&mut transaction, article_create.clone())
-            .await
-            .map_err(|why| {
-                tracing::error!("Failed to create article: {}", why);
-                Status::internal("Internal Error")
-            })?;
+        let article = model::Article::create(&mut transaction, article).await?;
 
         let series = match series_id {
-            Some(series_id) => Some(
-                model::Article::update_series(&mut transaction, article.id, series_id)
-                    .await
-                    .map_err(|why| {
-                        tracing::error!("Failed to update series: {}", why);
-                        Status::internal("Internal Error")
-                    })?,
-            ),
+            Some(series_id) => {
+                Some(model::Article::update_series(&mut transaction, article.id, series_id).await?)
+            }
             None => None,
         };
 
@@ -69,30 +38,20 @@ impl TonicArticleService for ArticleService {
             true => vec![],
             false => {
                 model::Article::add_categories(&mut transaction, article.id, category_ids.clone())
-                    .await
-                    .map_err(|why| {
-                        tracing::error!("Failed to add categories: {}", why);
-                        Status::internal("Internal Error")
-                    })?
+                    .await?
             }
         };
 
         let tags = match tag_ids.is_empty() {
             true => vec![],
-            false => model::Article::add_tags(&mut transaction, article.id, tag_ids.clone())
-                .await
-                .map_err(|why| {
-                    tracing::error!("Failed to add tags: {}", why);
-                    Status::internal("Internal Error")
-                })?,
+            false => {
+                model::Article::add_tags(&mut transaction, article.id, tag_ids.clone()).await?
+            }
         };
 
-        transaction.commit().await.map_err(|why| {
-            tracing::error!("Failed to commit transaction: {}", why);
-            Status::internal("Internal Error")
-        })?;
+        transaction.commit().await?;
 
-        let full_article = model::FullArticle {
+        Ok(model::FullArticle {
             id: article.id,
             title: article.title,
             slug: article.slug,
@@ -105,456 +64,153 @@ impl TonicArticleService for ArticleService {
             series,
             categories,
             tags,
-        };
-
-        let reply = CreateArticleResponse {
-            article: Some(full_article.into()),
-        };
-        Ok(Response::new(reply))
+        })
     }
-    async fn create_series(
+    pub async fn create_series(&self, series: SeriesCreate) -> Result<model::Series> {
+        let mut transaction = self.db.begin().await?;
+        let series = model::Series::create(&mut transaction, series).await?;
+        transaction.commit().await?;
+        Ok(series)
+    }
+    pub async fn create_category(&self, category: CategoryCreate) -> Result<model::Category> {
+        let mut transaction = self.db.begin().await?;
+        let category = model::Category::create(&mut transaction, category).await?;
+        transaction.commit().await?;
+        Ok(category)
+    }
+    pub async fn create_tag(&self, tag: TagCreate) -> Result<model::Tag> {
+        let mut transaction = self.db.begin().await?;
+        let tag = model::Tag::create(&mut transaction, tag).await?;
+        transaction.commit().await?;
+        Ok(tag)
+    }
+    pub async fn get_article(
         &self,
-        request: Request<CreateSeriesRequest>,
-    ) -> Result<Response<CreateSeriesResponse>, Status> {
-        let message = request.get_ref();
-        let series_create = message.series.clone();
-        if series_create.is_none() {
-            return Err(Status::invalid_argument("Series is required"));
-        }
-        let series_create = series_create.unwrap();
-        let mut transaction = self.db.begin().await.map_err(|why| {
-            tracing::error!("Failed to start transaction: {}", why);
-            Status::internal("Internal Error")
-        })?;
-
-        let series = model::Series::create(&mut transaction, series_create)
+        identifier: get_article_request::Identifier,
+        public_only: bool,
+        with_content: bool,
+    ) -> Result<Option<model::FullArticle>> {
+        model::FullArticle::get_one(&self.db, identifier, public_only, with_content).await
+    }
+    pub async fn get_article_content(
+        &self,
+        identifer: get_article_content_request::Identifier,
+        public_only: bool,
+    ) -> Result<Option<String>> {
+        model::Article::get_content(&self.db, identifer, public_only).await
+    }
+    pub async fn get_articles(
+        &self,
+        page: i32,
+        page_size: i32,
+        public_only: bool,
+        with_content: bool,
+        filter: Option<get_articles_request::Filter>,
+    ) -> Result<Vec<model::FullArticle>> {
+        model::FullArticle::get_many(&self.db, page, page_size, public_only, with_content, filter)
             .await
-            .map_err(|why| {
-                tracing::error!("Failed to create series: {}", why);
-                Status::internal("Internal Error")
-            })?;
-
-        transaction.commit().await.map_err(|why| {
-            tracing::error!("Failed to commit transaction: {}", why);
-            Status::internal("Internal Error")
-        })?;
-
-        let reply = CreateSeriesResponse {
-            series: Some(series.into()),
-        };
-
-        Ok(Response::new(reply))
     }
-    async fn create_category(
-        &self,
-        request: Request<CreateCategoryRequest>,
-    ) -> Result<Response<CreateCategoryResponse>, Status> {
-        let message = request.get_ref();
-
-        let category_create = match message.category.clone() {
-            Some(value) => value,
-            None => {
-                return Err(Status::invalid_argument("Category is required"));
-            }
-        };
-
-        let mut transaction = match self.db.begin().await {
-            Ok(transaction) => transaction,
-            Err(e) => {
-                tracing::error!("Failed to start transaction: {}", e);
-                return Err(Status::internal("Internal Error"));
-            }
-        };
-
-        let category = match model::Category::create(&mut transaction, category_create).await {
-            Ok(category) => category,
-            Err(e) => {
-                tracing::error!("Failed to create category: {}", e);
-                return Err(Status::internal("Internal Error"));
-            }
-        };
-
-        transaction.commit().await.map_err(|why| {
-            tracing::error!("Failed to commit transaction: {}", why);
-            Status::internal("Internal Error")
-        })?;
-
-        let reply = CreateCategoryResponse {
-            category: Some(category.into()),
-        };
-        Ok(Response::new(reply))
+    pub async fn get_series(&self) -> Result<Vec<model::Series>> {
+        model::Series::get(&self.db).await
     }
-    async fn create_tag(
-        &self,
-        request: Request<CreateTagRequest>,
-    ) -> Result<Response<CreateTagResponse>, Status> {
-        let message = request.get_ref();
+    pub async fn get_categories(&self) -> Result<Vec<model::Category>> {
+        model::Category::get(&self.db).await
+    }
+    pub async fn get_tags(&self) -> Result<Vec<model::Tag>> {
+        model::Tag::get(&self.db).await
+    }
+    pub async fn publish_article_by_id(&self, id: i32) -> Result<u64> {
+        let mut transaction = self.db.begin().await?;
 
-        let tag_create = match message.tag.clone() {
-            Some(value) => value,
-            None => {
-                return Err(Status::invalid_argument("Tag is required"));
-            }
-        };
+        let row_count = model::Article::publish_by_id(&mut transaction, id).await?;
 
-        let mut transaction = match self.db.begin().await {
-            Ok(transaction) => transaction,
-            Err(e) => {
-                tracing::error!("Failed to start transaction: {}", e);
-                return Err(Status::internal("Internal Error"));
-            }
-        };
+        transaction.commit().await?;
 
-        let tag = model::Tag::create(&mut transaction, tag_create)
+        Ok(row_count)
+    }
+    pub async fn delete_article_by_id(&self, id: i32) -> Result<u64> {
+        let mut transaction = self.db.begin().await?;
+
+        let row_count = model::Article::delete_by_id(&mut transaction, id).await?;
+
+        transaction.commit().await?;
+
+        Ok(row_count)
+    }
+    pub async fn delete_series_by_id(&self, id: i32) -> Result<u64> {
+        let mut transaction = self.db.begin().await?;
+
+        let row_count = model::Series::delete_by_id(&mut transaction, id).await?;
+
+        transaction.commit().await?;
+
+        Ok(row_count)
+    }
+    pub async fn delete_category_by_id(&self, id: i32) -> Result<u64> {
+        let mut transaction = self.db.begin().await?;
+
+        let row_count = model::Category::delete_by_id(&mut transaction, id).await?;
+
+        transaction.commit().await?;
+
+        Ok(row_count)
+    }
+    pub async fn delete_tag_by_id(&self, id: i32) -> Result<u64> {
+        let mut transaction = self.db.begin().await?;
+
+        let row_count = model::Tag::delete_by_id(&mut transaction, id).await?;
+
+        transaction.commit().await?;
+
+        Ok(row_count)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use chaserland_protos::article::v1::{CategoryCreate, SeriesCreate, TagCreate};
+
+    use super::ArticleService;
+
+    #[sqlx::test(fixtures(path = "../tests/fixtures", scripts("series")))]
+    async fn create_series(db: sqlx::PgPool) {
+        let service = ArticleService { db };
+        let series = service
+            .create_series(SeriesCreate {
+                name: "Series 3".to_string(),
+            })
             .await
-            .map_err(|why| {
-                tracing::error!("Failed to create tag: {}", why);
-                Status::internal("Internal Error")
-            })?;
-
-        transaction.commit().await.map_err(|why| {
-            tracing::error!("Failed to commit transaction: {}", why);
-            Status::internal("Internal Error")
-        })?;
-
-        let reply = CreateTagResponse {
-            tag: Some(tag.into()),
-        };
-        Ok(Response::new(reply))
+            .unwrap();
+        assert_eq!(series.id, 3);
+        assert_eq!(series.slug, "series-3");
+        assert_eq!(series.name, "Series 3");
     }
-    async fn get_article(
-        &self,
-        request: Request<GetArticleRequest>,
-    ) -> Result<Response<GetArticleResponse>, Status> {
-        let message = request.get_ref();
 
-        if message.identifier.is_none() {
-            return Err(Status::invalid_argument("Identifier is required"));
-        }
-
-        let identifier = message.identifier.clone().unwrap();
-
-        let public_only = message.public_only;
-        let with_content = message.with_content;
-
-        let article = match model::FullArticle::get_one(
-            &self.db,
-            identifier,
-            public_only,
-            with_content,
-        )
-        .await
-        {
-            Ok(Some(article)) => article,
-            Ok(None) => return Err(Status::not_found("Article not found")),
-            Err(e) => {
-                tracing::error!("Failed to get article: {}", e);
-                return Err(Status::internal("Internal Error"));
-            }
-        };
-
-        let reply = GetArticleResponse {
-            article: Some(article.into()),
-        };
-        Ok(Response::new(reply))
+    #[sqlx::test(fixtures(path = "../tests/fixtures", scripts("categories")))]
+    async fn create_category(db: sqlx::PgPool) {
+        let service = ArticleService { db };
+        let category = service
+            .create_category(CategoryCreate {
+                name: "Category 3".to_string(),
+            })
+            .await
+            .unwrap();
+        assert_eq!(category.id, 3);
+        assert_eq!(category.slug, "category-3");
+        assert_eq!(category.name, "Category 3");
     }
-    async fn get_articles(
-        &self,
-        request: Request<GetArticlesRequest>,
-    ) -> Result<Response<GetArticlesResponse>, Status> {
-        let message = request.get_ref();
-        let page = message.page;
-        let page_size = message.page_size;
-        let public_only = message.public_only;
-        let with_content = message.with_content;
-        let filter = message.filter.clone();
-        if page < 1 {
-            return Err(Status::invalid_argument(
-                "Page must be greater or equal to 1",
-            ));
-        }
 
-        if page_size < 1 {
-            return Err(Status::invalid_argument(
-                "Page size must be greater or equal to 1",
-            ));
-        }
-
-        let articles_meta = match model::FullArticle::get_many(
-            &self.db,
-            page,
-            page_size,
-            public_only,
-            with_content,
-            filter,
-        )
-        .await
-        {
-            Ok(articles_meta) => articles_meta,
-            Err(e) => {
-                tracing::error!("Failed to get articles meta: {}", e);
-                return Err(Status::internal("Failed to get articles meta"));
-            }
-        };
-
-        let reply = GetArticlesResponse {
-            articles: articles_meta.into_iter().map(|x| x.into()).collect(),
-        };
-        Ok(Response::new(reply))
-    }
-    async fn get_article_content(
-        &self,
-        request: Request<GetArticleContentRequest>,
-    ) -> Result<Response<GetArticleContentResponse>, Status> {
-        let message = request.get_ref();
-
-        if message.identifier.is_none() {
-            return Err(Status::invalid_argument("Identifier is required"));
-        }
-
-        let identifier = message.identifier.clone().unwrap();
-
-        let content = match model::Article::get_content(&self.db, identifier).await {
-            Ok(content) => content,
-            Err(e) => {
-                return Err(Status::internal(e.to_string()));
-            }
-        };
-
-        if content.is_none() {
-            return Err(Status::not_found("Article not found"));
-        }
-
-        let content = content.unwrap();
-
-        let reply = GetArticleContentResponse { content };
-        Ok(Response::new(reply))
-    }
-    async fn get_series(
-        &self,
-        _request: Request<GetSeriesRequest>,
-    ) -> Result<Response<GetSeriesResponse>, Status> {
-        let series = match model::Series::get(&self.db).await {
-            Ok(series) => series,
-            Err(e) => {
-                tracing::error!("Failed to get series: {}", e);
-                return Err(Status::internal("Failed to get series"));
-            }
-        };
-
-        let reply = GetSeriesResponse {
-            series: series.into_iter().map(|x| x.into()).collect(),
-        };
-
-        Ok(Response::new(reply))
-    }
-    async fn get_categories(
-        &self,
-        _request: Request<GetCategoriesRequest>,
-    ) -> Result<Response<GetCategoriesResponse>, Status> {
-        let categories = match model::Category::get(&self.db).await {
-            Ok(categories) => categories,
-            Err(e) => {
-                tracing::error!("Failed to get categories: {}", e);
-                return Err(Status::internal("Failed to get categories"));
-            }
-        };
-
-        let reply = GetCategoriesResponse {
-            categories: categories.into_iter().map(|x| x.into()).collect(),
-        };
-
-        Ok(Response::new(reply))
-    }
-    async fn get_tags(
-        &self,
-        _request: Request<GetTagsRequest>,
-    ) -> Result<Response<GetTagsResponse>, Status> {
-        let tags = match model::Tag::get(&self.db).await {
-            Ok(tags) => tags,
-            Err(e) => {
-                tracing::error!("Failed to get tags: {}", e);
-                return Err(Status::internal("Failed to get tags"));
-            }
-        };
-
-        let reply = GetTagsResponse {
-            tags: tags.into_iter().map(|x| x.into()).collect(),
-        };
-
-        Ok(Response::new(reply))
-    }
-    async fn publish_article_by_id(
-        &self,
-        request: Request<PublishArticleByIdRequest>,
-    ) -> Result<Response<PublishArticleByIdResponse>, Status> {
-        let message = request.get_ref();
-
-        let id = message.id;
-
-        let mut transaction = match self.db.begin().await {
-            Ok(transaction) => transaction,
-            Err(e) => {
-                tracing::error!("Failed to start transaction: {}", e);
-                return Err(Status::internal("Internal Error"));
-            }
-        };
-
-        match model::Article::publish_by_id(&mut transaction, id).await {
-            Err(e) => {
-                tracing::error!("Failed to publish article by id: {}", e);
-                return Err(Status::internal("Internal Error"));
-            }
-            Ok(0) => {
-                return Err(Status::not_found("Article not found"));
-            }
-            _ => {}
-        };
-
-        transaction.commit().await.map_err(|why| {
-            tracing::error!("Failed to commit transaction: {}", why);
-            Status::internal("Internal Error")
-        })?;
-
-        Ok(Response::new(PublishArticleByIdResponse {}))
-    }
-    async fn delete_article_by_id(
-        &self,
-        request: Request<DeleteArticleByIdRequest>,
-    ) -> Result<Response<DeleteArticleByIdResponse>, Status> {
-        let message = request.get_ref();
-
-        let id = message.id;
-
-        let mut transaction = match self.db.begin().await {
-            Ok(transaction) => transaction,
-            Err(e) => {
-                tracing::error!("Failed to start transaction: {}", e);
-                return Err(Status::internal("Internal Error"));
-            }
-        };
-
-        match model::Article::delete_by_id(&mut transaction, id).await {
-            Err(e) => {
-                tracing::error!("Failed to delete article by id: {}", e);
-                return Err(Status::internal("Internal Error"));
-            }
-            Ok(0) => {
-                return Err(Status::not_found(format!(
-                    "Article with id {} not found",
-                    id
-                )));
-            }
-            _ => {}
-        };
-
-        transaction.commit().await.map_err(|why| {
-            tracing::error!("Failed to commit transaction: {}", why);
-            Status::internal("Internal Error")
-        })?;
-
-        Ok(Response::new(DeleteArticleByIdResponse {}))
-    }
-    async fn delete_series_by_id(
-        &self,
-        request: Request<DeleteSeriesByIdRequest>,
-    ) -> Result<Response<DeleteSeriesByIdResponse>, Status> {
-        let message = request.get_ref();
-        let id = message.id;
-        let mut transaction = match self.db.begin().await {
-            Ok(transaction) => transaction,
-            Err(e) => {
-                tracing::error!("Failed to start transaction: {}", e);
-                return Err(Status::internal("Internal Error"));
-            }
-        };
-        match model::Series::delete_by_id(&mut transaction, id).await {
-            Err(e) => {
-                tracing::error!("Failed to delete series by id: {}", e);
-                return Err(Status::internal("Internal Error"));
-            }
-            Ok(0) => {
-                return Err(Status::not_found(format!(
-                    "Series with id {} not found",
-                    id
-                )));
-            }
-            _ => {}
-        };
-
-        transaction.commit().await.map_err(|why| {
-            tracing::error!("Failed to commit transaction: {}", why);
-            Status::internal("Internal Error")
-        })?;
-
-        Ok(Response::new(DeleteSeriesByIdResponse {}))
-    }
-    async fn delete_category_by_id(
-        &self,
-        request: Request<DeleteCategoryByIdRequest>,
-    ) -> Result<Response<DeleteCategoryByIdResponse>, Status> {
-        let message = request.get_ref();
-
-        let id = message.id;
-        let mut transaction = match self.db.begin().await {
-            Ok(transaction) => transaction,
-            Err(e) => {
-                tracing::error!("Failed to start transaction: {}", e);
-                return Err(Status::internal("Internal Error"));
-            }
-        };
-        match model::Category::delete_by_id(&mut transaction, id).await {
-            Err(e) => {
-                tracing::error!("Failed to delete category by id: {}", e);
-                return Err(Status::internal("Internal Error"));
-            }
-            Ok(0) => {
-                return Err(Status::not_found(format!(
-                    "Category with id {} not found",
-                    id
-                )));
-            }
-            _ => {}
-        };
-
-        transaction.commit().await.map_err(|why| {
-            tracing::error!("Failed to commit transaction: {}", why);
-            Status::internal("Internal Error")
-        })?;
-
-        Ok(Response::new(DeleteCategoryByIdResponse {}))
-    }
-    async fn delete_tag_by_id(
-        &self,
-        request: Request<DeleteTagByIdRequest>,
-    ) -> Result<Response<DeleteTagByIdResponse>, Status> {
-        let message = request.get_ref();
-
-        let id = message.id;
-
-        let mut transaction = match self.db.begin().await {
-            Ok(transaction) => transaction,
-            Err(e) => {
-                tracing::error!("Failed to start transaction: {}", e);
-                return Err(Status::internal("Internal Error"));
-            }
-        };
-        match model::Tag::delete_by_id(&mut transaction, id).await {
-            Err(e) => {
-                tracing::error!("Failed to delete tag by id: {}", e);
-                return Err(Status::internal("Internal Error"));
-            }
-            Ok(0) => {
-                return Err(Status::not_found(format!("Tag with id {} not found", id)));
-            }
-            _ => {}
-        };
-
-        transaction.commit().await.map_err(|why| {
-            tracing::error!("Failed to commit transaction: {}", why);
-            Status::internal("Internal Error")
-        })?;
-
-        Ok(Response::new(DeleteTagByIdResponse {}))
+    #[sqlx::test(fixtures(path = "../tests/fixtures", scripts("tags")))]
+    async fn create_tag(db: sqlx::PgPool) {
+        let service = ArticleService { db };
+        let tag = service
+            .create_tag(TagCreate {
+                name: "Tag 3".to_string(),
+            })
+            .await
+            .unwrap();
+        assert_eq!(tag.id, 3);
+        assert_eq!(tag.slug, "tag-3");
+        assert_eq!(tag.name, "Tag 3");
     }
 }

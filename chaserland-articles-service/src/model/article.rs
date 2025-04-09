@@ -157,9 +157,18 @@ impl Article {
     pub async fn get_content(
         db: &PgPool,
         identifier: chaserland_protos::article::v1::get_article_content_request::Identifier,
+        public_only: bool,
     ) -> Result<Option<String>> {
-        let mut query =
-            QueryBuilder::<Postgres>::new("SELECT content FROM article.articles WHERE ");
+        let mut query = QueryBuilder::<Postgres>::new("SELECT content FROM ");
+        match public_only {
+            true => {
+                query.push("article.public_articles ");
+            }
+            false => {
+                query.push("article.articles ");
+            }
+        }
+        query.push("WHERE ");
         match identifier {
             chaserland_protos::article::v1::get_article_content_request::Identifier::Slug(slug) => {
                 query.push("slug = ");

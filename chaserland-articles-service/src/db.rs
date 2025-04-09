@@ -1,8 +1,10 @@
 use anyhow::Result;
+use sqlx::ConnectOptions;
 use sqlx::Postgres;
-use sqlx::postgres::PgPoolOptions;
+use sqlx::postgres::{PgConnectOptions, PgPoolOptions};
 use sqlx::{PgPool, migrate::MigrateDatabase};
 use std::env;
+use std::str::FromStr;
 
 pub async fn connect_db() -> Result<PgPool> {
     let username = env::var("POSTGRES_USER").unwrap_or("chaserland_article".to_string());
@@ -28,9 +30,14 @@ pub async fn connect_db() -> Result<PgPool> {
         _ => (),
     }
 
+    let opts = PgConnectOptions::from_str(&db_url)?.log_slow_statements(
+        log::LevelFilter::Warn,
+        std::time::Duration::from_millis(100),
+    );
+
     let db = match PgPoolOptions::new()
         .max_connections(5)
-        .connect(&db_url)
+        .connect_with(opts)
         .await
     {
         Ok(db) => db,
