@@ -213,6 +213,7 @@ name = "chaserland-articles-service"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "async-trait",
  "chaserland-logger",
  "chaserland-protos",
  "chrono",
@@ -221,6 +222,7 @@ dependencies = [
  "serde",
  "slugify",
  "sqlx",
+ "thiserror",
  "tokio",
  "tonic",
  "tracing",

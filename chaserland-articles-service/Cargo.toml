@@ -4,6 +4,10 @@ version = "0.1.0"
 edition = "2024"
 default-run = "server"
 
+[lib]
+name = "chaserland_articles_service"
+path = "src/lib/lib.rs"
+
 [[bin]]
 name = "server"
 path = "src/bin/server.rs"
@@ -33,3 +37,5 @@ anyhow = "1.0.97"
 prost-types = "0.13.5"
 slugify = "0.1.0"
 log = "0.4.27"
+async-trait = "0.1.88"
+thiserror = "2.0.12"
