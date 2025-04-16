@@ -1,15 +1,12 @@
-use crate::domain::model::article;
+use crate::domain::entity::{article, category, series, tag};
 use async_trait::async_trait;
 use chaserland_common::pagination::{Page, PageSize};
 
 #[async_trait]
 pub trait ArticleRepository {
-    type Tx;
-
     async fn create(
         &self,
         article: article::ArticleCreate,
-        transaction: &mut Self::Tx,
     ) -> Result<article::Article, CreateArticleError>;
     async fn get_one(
         &self,
@@ -25,11 +22,14 @@ pub trait ArticleRepository {
         with_content: bool,
         filter: Option<ArticlesFilter>,
     ) -> Result<Vec<article::Article>, GetArticleError>;
-    async fn delete_by_id(
-        &self,
-        id: article::ArticleId,
-        transaction: &mut Self::Tx,
-    ) -> Result<(), DeleteArticleError>;
+    async fn delete(&self, identifier: article::Identifier) -> Result<(), DeleteArticleError>;
+}
+
+#[derive(Debug, Default)]
+pub struct ArticlesFilter {
+    pub series_id: Option<series::SeriesId>,
+    pub category_ids: Vec<category::CategoryId>,
+    pub tag_ids: Vec<tag::TagId>,
 }
 
 #[derive(Debug, thiserror::Error)]
@@ -42,8 +42,8 @@ pub enum GetArticleError {
 
 #[derive(Debug, thiserror::Error)]
 pub enum CreateArticleError {
-    #[error("Article with slug {slug} already exists")]
-    DuplicateSlug { slug: article::ArticleSlug },
+    #[error("Article with slug {0} already exists")]
+    DuplicateSlug(String),
     #[error(transparent)]
     Unknown(#[from] anyhow::Error),
 }
@@ -54,13 +54,4 @@ pub enum DeleteArticleError {
     NotFound { identifier: article::Identifier },
     #[error(transparent)]
     Unknown(#[from] anyhow::Error),
-}
-
-#[derive(Debug)]
-pub enum ArticlesFilter {
-    SeriesFilter(String),
-    CategoryFilter {
-        category_slugs: Vec<String>,
-        tag_slugs: Vec<String>,
-    },
 }

@@ -1,17 +1,12 @@
-use core::panic;
-use std::fmt::Display;
-
 use serde::{Deserialize, Serialize};
+use std::fmt::Display;
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Page(i32);
 
 impl Page {
     pub fn new(page: i32) -> Self {
-        if page < 1 {
-            panic!("Page must be greater than 0");
-        }
-
+        assert!(page > 0, "Page must be greater than 0");
         Page(page)
     }
     pub fn value(&self) -> i32 {
@@ -42,10 +37,7 @@ pub struct PageSize(i32);
 
 impl PageSize {
     pub fn new(page_size: i32) -> Self {
-        if page_size < 1 {
-            panic!("Page size must be greater than 0");
-        }
-
+        assert!(page_size > 0, "Page size must be greater than 0");
         PageSize(page_size)
     }
     pub fn value(&self) -> i32 {

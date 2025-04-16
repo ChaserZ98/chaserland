@@ -2,8 +2,35 @@ use serde::{Deserialize, Serialize};
 use slugify::slugify;
 use std::fmt::Display;
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, PartialEq, Eq, Clone, Copy)]
 pub struct SeriesId(i32);
+
+impl SeriesId {
+    pub fn new(id: i32) -> Self {
+        Self::validate(id).unwrap();
+        SeriesId(id)
+    }
+
+    pub fn value(&self) -> i32 {
+        self.0
+    }
+
+    fn validate(id: i32) -> Result<(), String> {
+        match id > 0 {
+            true => Ok(()),
+            false => Err("id must be greater than 0".to_string()),
+        }
+    }
+}
+
+impl TryFrom<i32> for SeriesId {
+    type Error = String;
+
+    fn try_from(value: i32) -> Result<Self, Self::Error> {
+        Self::validate(value)?;
+        Ok(SeriesId(value))
+    }
+}
 
 impl Display for SeriesId {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -26,6 +53,12 @@ pub struct SeriesName(String);
 impl SeriesName {
     pub fn as_slug(&self) -> SeriesSlug {
         SeriesSlug(slugify!(&self.0, separator = "-"))
+    }
+}
+
+impl Display for SeriesName {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.0)
     }
 }
 

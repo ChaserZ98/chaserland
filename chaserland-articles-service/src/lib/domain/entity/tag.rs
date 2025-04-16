@@ -3,8 +3,35 @@ use std::fmt::Display;
 use serde::{Deserialize, Serialize};
 use slugify::slugify;
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, PartialEq, Eq, Clone, Copy)]
 pub struct TagId(i32);
+
+impl TagId {
+    pub fn new(id: i32) -> Self {
+        Self::validate(id).unwrap();
+        TagId(id)
+    }
+
+    pub fn value(&self) -> i32 {
+        self.0
+    }
+
+    fn validate(id: i32) -> Result<(), String> {
+        match id > 0 {
+            true => Ok(()),
+            false => Err("id must be greater than 0".to_string()),
+        }
+    }
+}
+
+impl TryFrom<i32> for TagId {
+    type Error = String;
+
+    fn try_from(value: i32) -> Result<Self, Self::Error> {
+        Self::validate(value)?;
+        Ok(TagId(value))
+    }
+}
 
 impl Display for TagId {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -27,6 +54,12 @@ pub struct TagName(String);
 impl TagName {
     pub fn as_slug(&self) -> TagSlug {
         TagSlug(slugify!(&self.0, separator = "-"))
+    }
+}
+
+impl Display for TagName {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.0)
     }
 }
 

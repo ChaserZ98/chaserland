@@ -1,4 +1,4 @@
-use super::model::article;
+use super::entity::article;
 use super::repository::article::{ArticlesFilter, GetArticleError};
 use chaserland_common::pagination::{Page, PageSize};
 use tonic::async_trait;

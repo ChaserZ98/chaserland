@@ -1,17 +1,39 @@
-use crate::domain::repository::ArticleRepository;
+use crate::domain::repository::{
+    article::ArticleRepository, category::CategoryRepository, series::SeriesRepository,
+    tag::TagRepository,
+};
 
-pub struct ArticleAppService<R>
+pub struct ArticleAppService<R, S, C, T>
 where
     R: ArticleRepository,
+    S: SeriesRepository,
+    C: CategoryRepository,
+    T: TagRepository,
 {
-    repository: R,
+    article_repository: R,
+    series_repository: S,
+    category_repository: C,
+    tag_repository: T,
 }
 
-impl<R> ArticleAppService<R>
+impl<R, S, C, T> ArticleAppService<R, S, C, T>
 where
     R: ArticleRepository,
+    S: SeriesRepository,
+    C: CategoryRepository,
+    T: TagRepository,
 {
-    pub fn new(repository: R) -> Self {
-        ArticleAppService { repository }
+    pub fn new(
+        article_repository: R,
+        series_repository: S,
+        category_repository: C,
+        tag_repository: T,
+    ) -> Self {
+        Self {
+            article_repository,
+            series_repository,
+            category_repository,
+            tag_repository,
+        }
     }
 }

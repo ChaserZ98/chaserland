@@ -1,4 +1,4 @@
-use crate::domain::model::tag;
+use crate::domain::entity::tag;
 use async_trait::async_trait;
 
 #[async_trait]
@@ -9,7 +9,11 @@ pub trait TagRepository {
         name: tag::TagName,
         tx: &mut Self::Tx,
     ) -> Result<tag::Tag, CreateTagError>;
-    async fn get_one(&self, identifier: tag::Identifier) -> Result<tag::Tag, GetTagError>;
+    async fn get_one(
+        &self,
+        identifier: tag::Identifier,
+        tx: &mut Self::Tx,
+    ) -> Result<tag::Tag, GetTagError>;
 }
 
 #[derive(Debug, thiserror::Error)]

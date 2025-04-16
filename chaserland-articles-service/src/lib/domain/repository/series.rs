@@ -1,6 +1,6 @@
 use async_trait::async_trait;
 
-use crate::domain::model::series;
+use crate::domain::entity::series;
 
 #[async_trait]
 pub trait SeriesRepository {
@@ -14,6 +14,7 @@ pub trait SeriesRepository {
     async fn get_one(
         &self,
         identifier: series::Identifier,
+        tx: &mut Self::Tx,
     ) -> Result<series::Series, GetSeriesError>;
 }
 

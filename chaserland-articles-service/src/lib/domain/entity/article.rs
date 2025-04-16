@@ -1,18 +1,25 @@
 use super::{category, series, tag};
 use serde::{Deserialize, Serialize};
 use slugify::slugify;
-use sqlx::types::chrono;
-use std::fmt::Display;
+use std::{fmt::Display, ops::Sub};
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct ArticleId(i32);
 
 impl ArticleId {
+    pub fn new(id: i32) -> Self {
+        Self::validate(id).unwrap();
+        Self(id)
+    }
+
     pub fn value(&self) -> i32 {
         self.0
     }
-    pub fn into_inner(self) -> i32 {
-        self.0
+    pub fn validate(id: i32) -> Result<(), String> {
+        match id > 0 {
+            true => Ok(()),
+            false => Err("id must be greater than 0".to_string()),
+        }
     }
 }
 
@@ -22,15 +29,34 @@ impl Display for ArticleId {
     }
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+impl TryFrom<i32> for ArticleId {
+    type Error = String;
+    fn try_from(value: i32) -> Result<Self, Self::Error> {
+        Self::validate(value)?;
+        Ok(ArticleId(value))
+    }
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone, PartialEq, Eq)]
 pub struct ArticleTitle(String);
 
 impl ArticleTitle {
+    pub fn new(title: impl Into<String>) -> Self {
+        let title = title.into();
+        Self::validate(&title).unwrap();
+        Self(title)
+    }
     pub fn as_slug(&self) -> ArticleSlug {
-        ArticleSlug(slugify!(&self.0, separator = "-"))
+        self.clone().into()
     }
     pub fn value(&self) -> String {
         self.0.clone()
+    }
+    fn validate(title: &str) -> Result<(), String> {
+        match title.trim().is_empty() {
+            true => Err("title is empty".to_string()),
+            false => Ok(()),
+        }
     }
 }
 
@@ -40,8 +66,56 @@ impl Display for ArticleTitle {
     }
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+impl TryFrom<String> for ArticleTitle {
+    type Error = String;
+    fn try_from(value: String) -> Result<Self, Self::Error> {
+        Self::validate(&value)?;
+        Ok(ArticleTitle(value))
+    }
+}
+
+impl TryFrom<&str> for ArticleTitle {
+    type Error = String;
+    fn try_from(value: &str) -> Result<Self, Self::Error> {
+        value.to_string().try_into()
+    }
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone, PartialEq, Eq)]
 pub struct ArticleSlug(String);
+
+impl ArticleSlug {
+    pub fn value(&self) -> String {
+        self.0.clone()
+    }
+    fn validate(slug: &String) -> Result<(), String> {
+        match slug.trim().is_empty() {
+            true => Err("slug is empty".to_string()),
+            false => Ok(()),
+        }
+    }
+}
+
+impl TryFrom<String> for ArticleSlug {
+    type Error = String;
+    fn try_from(value: String) -> Result<Self, Self::Error> {
+        Self::validate(&value)?;
+        Ok(ArticleSlug(value))
+    }
+}
+
+impl TryFrom<&str> for ArticleSlug {
+    type Error = String;
+    fn try_from(value: &str) -> Result<Self, Self::Error> {
+        value.to_string().try_into()
+    }
+}
+
+impl From<ArticleTitle> for ArticleSlug {
+    fn from(value: ArticleTitle) -> Self {
+        Self(slugify!(&value.to_string(), separator = "-"))
+    }
+}
 
 impl Display for ArticleSlug {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -49,23 +123,155 @@ impl Display for ArticleSlug {
     }
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Clone, PartialEq, Eq)]
 pub struct ArticleDescription(String);
 
-#[derive(Debug, Serialize, Deserialize)]
+impl ArticleDescription {
+    pub fn new(description: impl Into<String>) -> Self {
+        Self(description.into())
+    }
+    pub fn value(&self) -> String {
+        self.0.clone()
+    }
+}
+
+impl From<String> for ArticleDescription {
+    fn from(value: String) -> Self {
+        Self(value)
+    }
+}
+
+impl From<&str> for ArticleDescription {
+    fn from(value: &str) -> Self {
+        value.to_string().into()
+    }
+}
+
+impl Display for ArticleDescription {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.0)
+    }
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone, PartialEq, Eq)]
 pub struct ArticleContent(String);
 
-#[derive(Debug, Serialize, Deserialize)]
+impl ArticleContent {
+    pub fn new(content: impl Into<String>) -> Self {
+        Self(content.into())
+    }
+    pub fn value(&self) -> String {
+        self.0.clone()
+    }
+}
+
+impl From<String> for ArticleContent {
+    fn from(value: String) -> Self {
+        Self(value)
+    }
+}
+
+impl From<&str> for ArticleContent {
+    fn from(value: &str) -> Self {
+        value.to_string().into()
+    }
+}
+
+impl Display for ArticleContent {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.0)
+    }
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone, PartialEq, Eq)]
 pub struct ArticleCreatedAt(chrono::DateTime<chrono::Utc>);
 
-#[derive(Debug, Serialize, Deserialize)]
+impl ArticleCreatedAt {
+    pub fn new(created_at: chrono::DateTime<chrono::Utc>) -> Self {
+        Self(created_at)
+    }
+    pub fn value(&self) -> chrono::DateTime<chrono::Utc> {
+        self.0
+    }
+}
+
+impl From<chrono::DateTime<chrono::Utc>> for ArticleCreatedAt {
+    fn from(value: chrono::DateTime<chrono::Utc>) -> Self {
+        Self(value)
+    }
+}
+
+impl Display for ArticleCreatedAt {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.0)
+    }
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone, PartialEq, Eq)]
 pub struct ArticlePublishedAt(chrono::DateTime<chrono::Utc>);
 
-#[derive(Debug, Serialize, Deserialize)]
+impl ArticlePublishedAt {
+    pub fn new(published_at: chrono::DateTime<chrono::Utc>) -> Self {
+        Self(published_at)
+    }
+}
+
+impl From<chrono::DateTime<chrono::Utc>> for ArticlePublishedAt {
+    fn from(value: chrono::DateTime<chrono::Utc>) -> Self {
+        Self(value)
+    }
+}
+
+impl Display for ArticlePublishedAt {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.0)
+    }
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone, PartialEq, Eq)]
 pub struct ArticleUpdatedAt(chrono::DateTime<chrono::Utc>);
 
-#[derive(Debug, Serialize, Deserialize)]
+impl ArticleUpdatedAt {
+    pub fn new(updated_at: chrono::DateTime<chrono::Utc>) -> Self {
+        Self(updated_at)
+    }
+    pub fn value(&self) -> chrono::DateTime<chrono::Utc> {
+        self.0
+    }
+}
+
+impl From<chrono::DateTime<chrono::Utc>> for ArticleUpdatedAt {
+    fn from(value: chrono::DateTime<chrono::Utc>) -> Self {
+        Self(value)
+    }
+}
+
+impl Display for ArticleUpdatedAt {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.0)
+    }
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone, PartialEq, Eq)]
 pub struct ArticleDeletedAt(chrono::DateTime<chrono::Utc>);
+
+impl ArticleDeletedAt {
+    pub fn new(deleted_at: chrono::DateTime<chrono::Utc>) -> Self {
+        Self(deleted_at)
+    }
+}
+
+impl From<chrono::DateTime<chrono::Utc>> for ArticleDeletedAt {
+    fn from(value: chrono::DateTime<chrono::Utc>) -> Self {
+        Self(value)
+    }
+}
+
+impl Display for ArticleDeletedAt {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.0)
+    }
+}
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Article {
@@ -78,11 +284,12 @@ pub struct Article {
     pub published_at: Option<ArticlePublishedAt>,
     pub updated_at: ArticleUpdatedAt,
     pub deleted_at: Option<ArticleDeletedAt>,
-    pub series: Option<series::Series>,
-    pub categories: Vec<category::Category>,
-    pub tags: Vec<tag::Tag>,
+    pub series_id: Option<series::SeriesId>,
+    pub category_ids: Vec<category::CategoryId>,
+    pub tag_ids: Vec<tag::TagId>,
 }
 
+#[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct ArticleCreate {
     pub title: ArticleTitle,
     pub description: ArticleDescription,
@@ -465,5 +672,33 @@ impl std::fmt::Display for Identifier {
             Identifier::Id(id) => write!(f, "id={}", id),
             Identifier::Slug(slug) => write!(f, "slug={}", slug),
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::ArticleTitle;
+
+    #[test]
+    fn test_article_title() {
+        let title = ArticleTitle::new(String::from("title"));
+        assert_eq!(title.value(), "title");
+    }
+
+    #[test]
+    #[should_panic(expected = "title is empty")]
+    fn test_article_title_panic() {
+        let _ = ArticleTitle::new(String::from("  "));
+    }
+
+    #[test]
+    fn test_article_title_convert() {
+        let title = TryInto::<ArticleTitle>::try_into(String::from("title"));
+        assert_eq!(title.is_ok(), true);
+        assert_eq!(title.unwrap().value(), "title");
+
+        let title: Result<ArticleTitle, _> = String::from("  ").try_into();
+        assert_eq!(title.is_err(), true);
+        assert_eq!(title.unwrap_err(), "title is empty");
     }
 }

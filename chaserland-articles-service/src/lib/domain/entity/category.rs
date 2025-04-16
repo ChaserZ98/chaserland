@@ -3,8 +3,35 @@ use std::fmt::Display;
 use serde::{Deserialize, Serialize};
 use slugify::slugify;
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Clone, PartialEq, Eq)]
 pub struct CategoryId(i32);
+
+impl CategoryId {
+    pub fn new(id: i32) -> Self {
+        Self::validate(id).unwrap();
+        Self(id)
+    }
+
+    pub fn value(&self) -> i32 {
+        self.0
+    }
+
+    pub fn validate(id: i32) -> Result<(), String> {
+        match id > 0 {
+            true => Ok(()),
+            false => Err("id must be greater than 0".to_string()),
+        }
+    }
+}
+
+impl TryFrom<i32> for CategoryId {
+    type Error = String;
+
+    fn try_from(value: i32) -> Result<Self, Self::Error> {
+        Self::validate(value)?;
+        Ok(CategoryId(value))
+    }
+}
 
 impl Display for CategoryId {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
