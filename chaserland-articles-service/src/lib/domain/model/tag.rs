@@ -92,11 +92,3 @@ impl std::fmt::Display for Identifier {
         }
     }
 }
-
-#[derive(Debug, thiserror::Error)]
-pub enum GetTagError {
-    #[error("Tag with identifier not found: {identifier}")]
-    NotFound { identifier: Identifier },
-    #[error(transparent)]
-    Unknown(#[from] anyhow::Error),
-}

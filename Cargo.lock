@@ -214,6 +214,7 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "async-trait",
+ "chaserland-common",
  "chaserland-logger",
  "chaserland-protos",
  "chrono",
@@ -226,6 +227,13 @@ dependencies = [
  "tokio",
  "tonic",
  "tracing",
+]
+
+[[package]]
+name = "chaserland-common"
+version = "0.1.0"
+dependencies = [
+ "serde",
 ]
 
 [[package]]

@@ -23,6 +23,7 @@ path = "src/bin/init.rs"
 [dependencies]
 chaserland-protos = { path = "../chaserland-protos" }
 chaserland-logger = { path = "../chaserland-logger" }
+chaserland-common = { path = "../chaserland-common" }
 tokio = { version = "1.44.1", features = [
     "macros",
     "signal",

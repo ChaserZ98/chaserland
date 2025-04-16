@@ -467,36 +467,3 @@ impl std::fmt::Display for Identifier {
         }
     }
 }
-
-#[derive(Debug, thiserror::Error)]
-pub enum GetArticleError {
-    #[error("Article with identifier not found: {identifier}")]
-    NotFound { identifier: Identifier },
-    #[error(transparent)]
-    Unknown(#[from] anyhow::Error),
-}
-
-#[derive(Debug, thiserror::Error)]
-pub enum CreateArticleError {
-    #[error("Article with slug {slug} already exists")]
-    DuplicateSlug { slug: ArticleSlug },
-    #[error(transparent)]
-    Unknown(#[from] anyhow::Error),
-}
-
-#[derive(Debug, thiserror::Error)]
-pub enum DeleteArticleError {
-    #[error("Article with identifier not found: {identifier}")]
-    NotFound { identifier: Identifier },
-    #[error(transparent)]
-    Unknown(#[from] anyhow::Error),
-}
-
-#[derive(Debug)]
-pub enum ArticlesFilter {
-    SeriesFilter(String),
-    CategoryFilter {
-        category_slugs: Vec<String>,
-        tag_slugs: Vec<String>,
-    },
-}

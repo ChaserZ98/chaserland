@@ -23,7 +23,11 @@ impl Display for CategorySlug {
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct CategoryName(String);
-
+impl Display for CategoryName {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.0)
+    }
+}
 impl CategoryName {
     pub fn as_slug(&self) -> CategorySlug {
         CategorySlug(slugify!(&self.0, separator = "-"))
@@ -94,12 +98,4 @@ impl std::fmt::Display for Identifier {
             Identifier::Slug(slug) => write!(f, "slug={}", slug),
         }
     }
-}
-
-#[derive(Debug, thiserror::Error)]
-pub enum GetCategoryError {
-    #[error("Category with identifier {identifier} not found")]
-    NotFound { identifier: Identifier },
-    #[error(transparent)]
-    Unknown(#[from] anyhow::Error),
 }
