@@ -1,9 +1,9 @@
 use super::{category, series, tag};
 use serde::{Deserialize, Serialize};
 use slugify::slugify;
-use std::{fmt::Display, ops::Sub};
+use std::fmt::Display;
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Clone, Copy, PartialEq, Eq)]
 pub struct ArticleId(i32);
 
 impl ArticleId {
@@ -660,7 +660,7 @@ pub struct ArticleCreate {
 //     }
 // }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum Identifier {
     Id(ArticleId),
     Slug(ArticleSlug),

@@ -1,8 +1,8 @@
-use crate::domain::entity::article;
+use crate::domain::{entity::article, repository::article::GetArticleError};
 use crate::domain::repository::article as domain_repo;
 use async_trait::async_trait;
 use chaserland_common::pagination::{Page, PageSize};
-use sqlx::{PgPool, QueryBuilder};
+use sqlx::{PgPool, Postgres, QueryBuilder};
 use crate::domain::repository::article::ArticleRepository;
 
 pub struct PgArticleRepository {
@@ -122,8 +122,58 @@ impl ArticleRepository for PgArticleRepository {
         public_only: bool,
         with_content: bool,
     ) -> Result<article::Article, domain_repo::GetArticleError> {
-        // Implement the logic for fetching a single article from the database
-        unimplemented!()
+        let mut query = QueryBuilder::<Postgres>::new("SELECT * FROM ");
+        match (public_only, with_content) {
+            (true, true) => {
+                query.push("article.public_articles ");
+            }
+            (true, false) => {
+                query.push("article.public_articles_meta ");
+            }
+            (false, true) => {
+                query.push("article.articles ");
+            }
+            (false, false) => {
+                query.push("article.articles_meta ");
+            }
+        }
+        match identifier.clone() {
+            article::Identifier::Id(id) => {
+                query.push("WHERE id = ");
+                query.push_bind(id.value());
+            }
+            article::Identifier::Slug(slug) => {
+                query.push("WHERE slug = ");
+                query.push_bind(slug.value());
+            }
+        }
+
+        let pg_article: Option<PgArticle> = query.build_query_as().fetch_optional(&self.pool).await.map_err(|why| GetArticleError::Unknown(why.into()))?;
+        if pg_article.is_none() {
+            return Err(GetArticleError::NotFound(identifier));
+        }
+
+        let pg_article = pg_article.unwrap();
+
+        let category_ids: Vec<i32> = sqlx::query_scalar(
+            "SELECT category_id FROM article.article_categories WHERE article_id = $1").bind(pg_article.id).fetch_all(&self.pool).await.map_err(|why| GetArticleError::Unknown(why.into()))?;
+
+        let tag_ids: Vec<i32> = sqlx::query_scalar("SELECT tag_id FROM article.article_tags WHERE article_id = $1").bind(pg_article.id).fetch_all(&self.pool).await.map_err(|why| GetArticleError::Unknown(why.into()))?;
+
+        Ok(article::Article {
+            id: pg_article.id.try_into().unwrap(),
+            title: pg_article.title.try_into().unwrap(),
+            slug: pg_article.slug.try_into().unwrap(),
+            description: pg_article.description.into(),
+            content: Some(pg_article.content.into()),
+            created_at: pg_article.created_at.into(),
+            published_at: pg_article.published_at.map(|v| v.into()),
+            updated_at: pg_article.updated_at.into(),
+            deleted_at: pg_article.deleted_at.map(|v| v.into()),
+            series_id: pg_article.series_id.map(|v| v.try_into().unwrap()),
+            category_ids: category_ids.iter().map(|v| v.try_into().unwrap()).collect(),
+            tag_ids: tag_ids.iter().map(|v| v.try_into().unwrap()).collect(),
+        })
     }
 
     async fn get_many(
@@ -149,102 +199,139 @@ impl ArticleRepository for PgArticleRepository {
 
 #[cfg(test)]
 mod tests {
-    use super::PgArticleRepository;
-    use crate::domain::entity::article;
-    use crate::domain::repository::article::{ArticleRepository, CreateArticleError};
+    // create test case
+    mod test_create {
+        use crate::infra::repository::postgres::article::PgArticleRepository;
+        use crate::domain::entity::article;
+        use crate::domain::repository::article::{ArticleRepository, CreateArticleError};
 
-    #[sqlx::test(fixtures(
-        path = "../../../../../tests/fixtures",
-        scripts("tags", "series", "categories")
-    ))]
-    async fn create_article_case_1(pool: sqlx::PgPool) {
-        let repo = PgArticleRepository { pool };
-
-        let article = article::ArticleCreate {
-            title: "title".try_into().unwrap(),
-            description: "description".into(),
-            content: Some("content".into()),
-            series_id: None,
-            category_ids: vec![],
-            tag_ids: vec![],
-        };
-
-        let res = repo.create(article.clone()).await;
-
-        assert!(res.is_ok());
-
-        let res = res.unwrap();
-
-        assert_eq!(res.title, article.title);
-        assert_eq!(res.slug, article.title.as_slug());
-        assert_eq!(res.description, article.description);
-        assert_eq!(res.content, article.content);
-        assert!(chrono::Utc::now() - res.created_at.value() <= chrono::Duration::seconds(5));
-        assert!(chrono::Utc::now() - res.updated_at.value() <= chrono::Duration::seconds(5));
-        assert_eq!(res.deleted_at, None);
-        assert_eq!(res.published_at, None);
-        assert_eq!(res.series_id, article.series_id);
-        assert_eq!(res.category_ids, article.category_ids);
-        assert_eq!(res.tag_ids, article.tag_ids);
+        #[sqlx::test(fixtures(
+            path = "../../../../../tests/fixtures",
+            scripts("tags", "series", "categories")
+        ))]
+        async fn create_article_case_1(pool: sqlx::PgPool) {
+            let repo = PgArticleRepository { pool };
+    
+            let article = article::ArticleCreate {
+                title: "title".try_into().unwrap(),
+                description: "description".into(),
+                content: Some("content".into()),
+                series_id: None,
+                category_ids: vec![],
+                tag_ids: vec![],
+            };
+    
+            let res = repo.create(article.clone()).await;
+    
+            assert!(res.is_ok());
+    
+            let res = res.unwrap();
+    
+            assert_eq!(res.title, article.title);
+            assert_eq!(res.slug, article.title.as_slug());
+            assert_eq!(res.description, article.description);
+            assert_eq!(res.content, article.content);
+            assert!(chrono::Utc::now() - res.created_at.value() <= chrono::Duration::seconds(5));
+            assert!(chrono::Utc::now() - res.updated_at.value() <= chrono::Duration::seconds(5));
+            assert_eq!(res.deleted_at, None);
+            assert_eq!(res.published_at, None);
+            assert_eq!(res.series_id, article.series_id);
+            assert_eq!(res.category_ids, article.category_ids);
+            assert_eq!(res.tag_ids, article.tag_ids);
+        }
+    
+        #[sqlx::test(fixtures(
+            path = "../../../../../tests/fixtures",
+            scripts("tags", "series", "categories")
+        ))]
+        async fn create_article_case_2(pool: sqlx::PgPool) {
+            let repo = PgArticleRepository { pool };
+    
+            let article = article::ArticleCreate {
+                title: "title 1".try_into().unwrap(),
+                description: "description".into(),
+                content: Some("content".into()),
+                series_id: Some(1.try_into().unwrap()),
+                category_ids: vec![1.try_into().unwrap(), 2.try_into().unwrap()],
+                tag_ids: vec![2.try_into().unwrap(), 3.try_into().unwrap()],
+            };
+    
+            let res = repo.create(article.clone()).await;
+    
+            assert!(res.is_ok());
+    
+            let res = res.unwrap();
+    
+            assert_eq!(res.title, article.title);
+            assert_eq!(res.slug, article.title.as_slug());
+            assert_eq!(res.description, article.description);
+            assert_eq!(res.content, article.content);
+            assert!(chrono::Utc::now() - res.created_at.value() <= chrono::Duration::seconds(5));
+            assert!(chrono::Utc::now() - res.updated_at.value() <= chrono::Duration::seconds(5));
+            assert_eq!(res.deleted_at, None);
+            assert_eq!(res.published_at, None);
+            assert_eq!(res.series_id, article.series_id);
+            assert_eq!(res.category_ids, article.category_ids);
+            assert_eq!(res.tag_ids, article.tag_ids);
+        }
+    
+        #[sqlx::test(fixtures(
+            path = "../../../../../tests/fixtures",
+            scripts("tags", "series", "categories", "articles")
+        ))]
+        async fn create_article_case_3(pool: sqlx::PgPool) {
+            let repo = PgArticleRepository { pool };
+    
+            let article = article::ArticleCreate {
+                title: "article title".try_into().unwrap(),
+                description: "description".into(),
+                content: Some("content".into()),
+                series_id: Some(1.try_into().unwrap()),
+                category_ids: vec![1.try_into().unwrap(), 2.try_into().unwrap()],
+                tag_ids: vec![2.try_into().unwrap(), 3.try_into().unwrap()],
+            };
+    
+            let res = repo.create(article.clone()).await;
+    
+            assert!(res.is_err());
+    
+            let err = res.unwrap_err();
+    
+            assert!(matches!(err, CreateArticleError::DuplicateSlug(_)));
+        }
     }
+    // get_one test case
+    mod test_get_one{
+        use crate::domain::entity::article;
+        use crate::infra::repository::postgres::article::PgArticleRepository;
+        use crate::domain::repository::article::{ArticleRepository, GetArticleError};
 
-    #[sqlx::test(fixtures(
-        path = "../../../../../tests/fixtures",
-        scripts("tags", "series", "categories")
-    ))]
-    async fn create_article_case_2(pool: sqlx::PgPool) {
-        let repo = PgArticleRepository { pool };
+        #[sqlx::test(fixtures(
+            path = "../../../../../tests/fixtures",
+            scripts("tags", "series", "categories", "articles")
+        ))]
+        async fn get_one_case_1(pool: sqlx::PgPool) {
+            let repo = PgArticleRepository { pool };
 
-        let article = article::ArticleCreate {
-            title: "title 1".try_into().unwrap(),
-            description: "description".into(),
-            content: Some("content".into()),
-            series_id: Some(1.try_into().unwrap()),
-            category_ids: vec![1.try_into().unwrap(), 2.try_into().unwrap()],
-            tag_ids: vec![2.try_into().unwrap(), 3.try_into().unwrap()],
-        };
+            let res = repo.get_one(article::Identifier::Id(1.try_into().unwrap()), false, true).await;
 
-        let res = repo.create(article.clone()).await;
+            assert!(res.is_ok());
 
-        assert!(res.is_ok());
+            let res = res.unwrap();
 
-        let res = res.unwrap();
-
-        assert_eq!(res.title, article.title);
-        assert_eq!(res.slug, article.title.as_slug());
-        assert_eq!(res.description, article.description);
-        assert_eq!(res.content, article.content);
-        assert!(chrono::Utc::now() - res.created_at.value() <= chrono::Duration::seconds(5));
-        assert!(chrono::Utc::now() - res.updated_at.value() <= chrono::Duration::seconds(5));
-        assert_eq!(res.deleted_at, None);
-        assert_eq!(res.published_at, None);
-        assert_eq!(res.series_id, article.series_id);
-        assert_eq!(res.category_ids, article.category_ids);
-        assert_eq!(res.tag_ids, article.tag_ids);
+            assert_eq!(res.id, 1.try_into().unwrap());
+            assert_eq!(res.title, "article title".try_into().unwrap());
+            assert_eq!(res.slug, "article-title".try_into().unwrap());
+            assert_eq!(res.description, "article description".into());
+            assert_eq!(res.content, Some("article content".into()));
+            assert!(chrono::Utc::now() - res.created_at.value() <= chrono::Duration::seconds(5));
+            assert!(chrono::Utc::now() - res.updated_at.value() <= chrono::Duration::seconds(5));
+            assert_eq!(res.deleted_at, None);
+            assert_eq!(res.published_at, None);
+            assert_eq!(res.series_id, Some(1.try_into().unwrap()));
+            assert_eq!(res.category_ids, vec![]);
+            assert_eq!(res.tag_ids, vec![]);
+        }
     }
-
-    #[sqlx::test(fixtures(
-        path = "../../../../../tests/fixtures",
-        scripts("tags", "series", "categories", "articles")
-    ))]
-    async fn create_article_case_3(pool: sqlx::PgPool) {
-        let repo = PgArticleRepository { pool };
-
-        let article = article::ArticleCreate {
-            title: "article title".try_into().unwrap(),
-            description: "description".into(),
-            content: Some("content".into()),
-            series_id: Some(1.try_into().unwrap()),
-            category_ids: vec![1.try_into().unwrap(), 2.try_into().unwrap()],
-            tag_ids: vec![2.try_into().unwrap(), 3.try_into().unwrap()],
-        };
-
-        let res = repo.create(article.clone()).await;
-
-        assert!(res.is_err());
-
-        let err = res.unwrap_err();
-
-        assert!(matches!(err, CreateArticleError::DuplicateSlug(_)));
-    }
+    
 }

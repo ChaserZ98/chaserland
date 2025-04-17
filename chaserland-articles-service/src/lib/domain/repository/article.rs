@@ -34,8 +34,8 @@ pub struct ArticlesFilter {
 
 #[derive(Debug, thiserror::Error)]
 pub enum GetArticleError {
-    #[error("Article with identifier not found: {identifier}")]
-    NotFound { identifier: article::Identifier },
+    #[error("Article with identifier {0} not found")]
+    NotFound(article::Identifier),
     #[error(transparent)]
     Unknown(#[from] anyhow::Error),
 }
@@ -50,8 +50,8 @@ pub enum CreateArticleError {
 
 #[derive(Debug, thiserror::Error)]
 pub enum DeleteArticleError {
-    #[error("Article with identifier not found: {identifier}")]
-    NotFound { identifier: article::Identifier },
+    #[error("Article with identifier {0} not found")]
+    NotFound(article::Identifier),
     #[error(transparent)]
     Unknown(#[from] anyhow::Error),
 }

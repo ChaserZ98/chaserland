@@ -32,6 +32,13 @@ impl TryFrom<i32> for CategoryId {
         Ok(CategoryId(value))
     }
 }
+impl TryFrom<&i32> for CategoryId {
+    type Error = String;
+
+    fn try_from(value: &i32) -> Result<Self, Self::Error> {
+        Self::try_from(*value)
+    }
+}
 
 impl Display for CategoryId {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {

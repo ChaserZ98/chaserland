@@ -33,6 +33,14 @@ impl TryFrom<i32> for TagId {
     }
 }
 
+impl TryFrom<&i32> for TagId {
+    type Error = String;
+
+    fn try_from(value: &i32) -> Result<Self, Self::Error> {
+        Self::try_from(*value)
+    }
+}
+
 impl Display for TagId {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "{}", self.0)
