@@ -259,6 +259,9 @@ impl ArticleDeletedAt {
     pub fn new(deleted_at: chrono::DateTime<chrono::Utc>) -> Self {
         Self(deleted_at)
     }
+    pub fn value(&self) -> chrono::DateTime<chrono::Utc> {
+        self.0
+    }
 }
 
 impl From<chrono::DateTime<chrono::Utc>> for ArticleDeletedAt {
@@ -273,7 +276,7 @@ impl Display for ArticleDeletedAt {
     }
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, PartialEq, Eq, Clone)]
 pub struct Article {
     pub id: ArticleId,
     pub title: ArticleTitle,
@@ -287,6 +290,36 @@ pub struct Article {
     pub series_id: Option<series::SeriesId>,
     pub category_ids: Vec<category::CategoryId>,
     pub tag_ids: Vec<tag::TagId>,
+}
+
+impl Article {
+    pub fn new(
+        id: ArticleId,
+        title: ArticleTitle,
+        description: ArticleDescription,
+        content: Option<ArticleContent>,
+        created_at: ArticleCreatedAt,
+        updated_at: ArticleUpdatedAt,
+        series_id: Option<series::SeriesId>,
+        category_ids: Vec<category::CategoryId>,
+        tag_ids: Vec<tag::TagId>,
+    ) -> Self {
+        let slug = title.as_slug();
+        Self {
+            id,
+            title,
+            description,
+            content,
+            created_at,
+            updated_at,
+            deleted_at: None,
+            published_at: None,
+            slug,
+            series_id,
+            category_ids,
+            tag_ids,
+        }
+    }
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
@@ -660,7 +693,7 @@ pub struct ArticleCreate {
 //     }
 // }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Identifier {
     Id(ArticleId),
     Slug(ArticleSlug),

@@ -22,14 +22,52 @@ pub trait ArticleRepository {
         with_content: bool,
         filter: Option<ArticlesFilter>,
     ) -> Result<Vec<article::Article>, GetArticleError>;
-    async fn delete(&self, identifier: article::Identifier) -> Result<(), DeleteArticleError>;
+    async fn delete(
+        &self,
+        identifier: article::Identifier,
+        hard: bool,
+    ) -> Result<(), DeleteArticleError>;
 }
 
-#[derive(Debug, Default)]
+#[derive(Debug, PartialEq, Eq, Clone)]
 pub struct ArticlesFilter {
-    pub series_id: Option<series::SeriesId>,
-    pub category_ids: Vec<category::CategoryId>,
-    pub tag_ids: Vec<tag::TagId>,
+    series_id: Option<series::Identifier>,
+    category_ids: Vec<category::CategoryId>,
+    tag_ids: Vec<tag::TagId>,
+}
+
+impl ArticlesFilter {
+    pub fn new(
+        series_id: Option<series::Identifier>,
+        category_ids: Vec<category::CategoryId>,
+        tag_ids: Vec<tag::TagId>,
+    ) -> Self {
+        Self::validate(&series_id, &category_ids, &tag_ids).unwrap();
+        Self {
+            series_id,
+            category_ids,
+            tag_ids,
+        }
+    }
+    pub fn series_id(&self) -> &Option<series::Identifier> {
+        &self.series_id
+    }
+    pub fn category_ids(&self) -> &Vec<category::CategoryId> {
+        &self.category_ids
+    }
+    pub fn tag_ids(&self) -> &Vec<tag::TagId> {
+        &self.tag_ids
+    }
+    fn validate(
+        series_id: &Option<series::Identifier>,
+        category_ids: &Vec<category::CategoryId>,
+        tag_ids: &Vec<tag::TagId>,
+    ) -> Result<(), String> {
+        if series_id.is_none() && category_ids.is_empty() && tag_ids.is_empty() {
+            return Err("At least one filter must be specified".to_string());
+        }
+        Ok(())
+    }
 }
 
 #[derive(Debug, thiserror::Error)]

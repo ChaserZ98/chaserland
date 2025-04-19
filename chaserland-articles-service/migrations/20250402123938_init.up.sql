@@ -17,7 +17,7 @@ CREATE TABLE IF NOT EXISTS article.articles (
     title VARCHAR(255) NOT NULL,
     slug VARCHAR(255) NOT NULL UNIQUE,
     description TEXT,
-    content TEXT NOT NULL,
+    content TEXT,
     series_id INT REFERENCES article.series(id) ON DELETE SET NULL,
     created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP,
     published_at TIMESTAMP WITH TIME ZONE,

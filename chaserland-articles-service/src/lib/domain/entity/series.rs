@@ -38,8 +38,14 @@ impl Display for SeriesId {
     }
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, PartialEq, Eq, Clone)]
 pub struct SeriesSlug(String);
+
+impl SeriesSlug {
+    pub fn value(&self) -> String {
+        self.0.clone()
+    }
+}
 
 impl Display for SeriesSlug {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -69,7 +75,7 @@ pub struct Series {
     pub name: SeriesName,
 }
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq, Eq, Clone)]
 pub enum Identifier {
     Id(SeriesId),
     Slug(SeriesSlug),
