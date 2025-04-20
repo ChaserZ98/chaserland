@@ -325,11 +325,17 @@ impl ArticleRepository for PgArticleRepository {
 
         // query.push(" AND published_at IS NULL");
 
-        // let res = query.build().execute(&mut *tx).await.map_err(|why|
-        //     match why {
+        // let res = query.build().execute(&mut *tx).await.map_err(|why| PublishArticleError::Unknown(why.into()))?;
 
-        //     }
-        // )
+        // if res.rows_affected() == 0{
+        //     return Err(PublishArticleError::NotFound(identifier));
+        // }
+
+        // tx.commit().await.map_err(|why| PublishArticleError::Unknown(why.into()))?;
+
+        // let article = self.get_one(identifier, public_only, with_content).await.map_err(|why| PublishArticleError::Unknown(why.into()))?;
+
+        // Ok(article)
     }
     async fn soft_delete(&self, identifier: article::Identifier) -> Result<(), SoftDeleteArticleError> {
         let mut tx = self.pool.begin().await.map_err(|why| SoftDeleteArticleError::Unknown(why.into()))?;
@@ -346,7 +352,7 @@ impl ArticleRepository for PgArticleRepository {
                 query.push_bind(slug.value());
             }
         }
-        query.push(" AND deleted_at IS NULL");
+        query.push(" AND deleted_at IS NULL RETURNING *");
 
         let res = query.build().execute(&mut *tx).await.map_err(|why| SoftDeleteArticleError::Unknown(why.into()))?;
 
@@ -391,7 +397,6 @@ impl ArticleRepository for PgArticleRepository {
 
 #[cfg(test)]
 mod tests {
-    // create test case
     mod test_create {
         use crate::infra::repository::postgres::article::PgArticleRepository;
         use crate::domain::entity::article;
@@ -494,7 +499,6 @@ mod tests {
             assert!(matches!(err, CreateArticleError::DuplicateSlug(_)));
         }
     }
-    // get_one test case
     mod test_get_one{
         use crate::domain::entity::article;
         use crate::infra::repository::postgres::article::PgArticleRepository;
