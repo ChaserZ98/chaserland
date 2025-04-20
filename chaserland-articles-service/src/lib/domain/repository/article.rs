@@ -22,35 +22,39 @@ pub trait ArticleRepository {
         with_content: bool,
         filter: Option<ArticlesFilter>,
     ) -> Result<Vec<article::Article>, GetArticleError>;
-    async fn delete(
+    async fn publish(
         &self,
         identifier: article::Identifier,
-        hard: bool,
-    ) -> Result<(), DeleteArticleError>;
+    ) -> Result<article::Article, PublishArticleError>;
+    async fn soft_delete(
+        &self,
+        identifier: article::Identifier,
+    ) -> Result<(), SoftDeleteArticleError>;
+    async fn delete(&self, identifier: article::Identifier) -> Result<(), DeleteArticleError>;
 }
 
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub struct ArticlesFilter {
-    series_id: Option<series::Identifier>,
+    series_identifier: Option<series::Identifier>,
     category_ids: Vec<category::CategoryId>,
     tag_ids: Vec<tag::TagId>,
 }
 
 impl ArticlesFilter {
     pub fn new(
-        series_id: Option<series::Identifier>,
+        series_identifier: Option<series::Identifier>,
         category_ids: Vec<category::CategoryId>,
         tag_ids: Vec<tag::TagId>,
     ) -> Self {
-        Self::validate(&series_id, &category_ids, &tag_ids).unwrap();
+        Self::validate(&series_identifier, &category_ids, &tag_ids).unwrap();
         Self {
-            series_id,
+            series_identifier,
             category_ids,
             tag_ids,
         }
     }
-    pub fn series_id(&self) -> &Option<series::Identifier> {
-        &self.series_id
+    pub fn series_identifier(&self) -> &Option<series::Identifier> {
+        &self.series_identifier
     }
     pub fn category_ids(&self) -> &Vec<category::CategoryId> {
         &self.category_ids
@@ -59,11 +63,11 @@ impl ArticlesFilter {
         &self.tag_ids
     }
     fn validate(
-        series_id: &Option<series::Identifier>,
+        series_identifier: &Option<series::Identifier>,
         category_ids: &Vec<category::CategoryId>,
         tag_ids: &Vec<tag::TagId>,
     ) -> Result<(), String> {
-        if series_id.is_none() && category_ids.is_empty() && tag_ids.is_empty() {
+        if series_identifier.is_none() && category_ids.is_empty() && tag_ids.is_empty() {
             return Err("At least one filter must be specified".to_string());
         }
         Ok(())
@@ -82,6 +86,24 @@ pub enum GetArticleError {
 pub enum CreateArticleError {
     #[error("Article with slug {0} already exists")]
     DuplicateSlug(String),
+    #[error(transparent)]
+    Unknown(#[from] anyhow::Error),
+}
+
+#[derive(Debug, thiserror::Error)]
+pub enum PublishArticleError {
+    #[error("Article with identifier {0} not found")]
+    NotFound(article::Identifier),
+    #[error("Article with identifier {0} is already published")]
+    AlreadyPublished(article::Identifier),
+    #[error(transparent)]
+    Unknown(#[from] anyhow::Error),
+}
+
+#[derive(Debug, thiserror::Error)]
+pub enum SoftDeleteArticleError {
+    #[error("Article with identifier {0} not found")]
+    NotFound(article::Identifier),
     #[error(transparent)]
     Unknown(#[from] anyhow::Error),
 }

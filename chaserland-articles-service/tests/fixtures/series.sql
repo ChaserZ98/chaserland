@@ -1,1 +1,1 @@
-INSERT INTO article.series (slug, name) VALUES ('thrown-softly-avoid-friendly-distant-previous-wrong', 'thrown softly avoid friendly distant previous wrong'), ('turn-settlers-such-steady-traffic', 'turn settlers such steady traffic')
+INSERT INTO article.series (slug, name) VALUES ('series-1', 'series 1'), ('series-2', 'series 2')

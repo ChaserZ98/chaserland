@@ -57,8 +57,33 @@ impl Display for SeriesSlug {
 pub struct SeriesName(String);
 
 impl SeriesName {
+    pub fn new(name: impl Into<String>) -> Self {
+        let name = name.into();
+        Self::validate(&name).unwrap();
+        Self(name)
+    }
+    pub fn value(&self) -> &str {
+        &self.0
+    }
     pub fn as_slug(&self) -> SeriesSlug {
         SeriesSlug(slugify!(&self.0, separator = "-"))
+    }
+
+    pub fn validate(name: impl Into<String>) -> Result<(), String> {
+        let name = name.into();
+        match name.len() > 0 {
+            true => Ok(()),
+            false => Err("name must not be empty".to_string()),
+        }
+    }
+}
+
+impl TryFrom<String> for SeriesName {
+    type Error = String;
+
+    fn try_from(value: String) -> Result<Self, Self::Error> {
+        Self::validate(&value)?;
+        Ok(SeriesName(value))
     }
 }
 
