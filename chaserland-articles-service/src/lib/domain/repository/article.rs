@@ -22,14 +22,14 @@ pub trait ArticleRepository {
         with_content: bool,
         filter: Option<ArticlesFilter>,
     ) -> Result<Vec<article::Article>, GetArticleError>;
-    async fn publish(
-        &self,
-        identifier: article::Identifier,
-    ) -> Result<article::Article, PublishArticleError>;
+    async fn publish(&self, identifier: article::Identifier) -> Result<(), PublishArticleError>;
+    async fn unpublish(&self, identifier: article::Identifier)
+    -> Result<(), UnpublishArticleError>;
     async fn soft_delete(
         &self,
         identifier: article::Identifier,
     ) -> Result<(), SoftDeleteArticleError>;
+    async fn restore(&self, identifier: article::Identifier) -> Result<(), RestoreArticleError>;
     async fn delete(&self, identifier: article::Identifier) -> Result<(), DeleteArticleError>;
 }
 
@@ -101,9 +101,31 @@ pub enum PublishArticleError {
 }
 
 #[derive(Debug, thiserror::Error)]
+pub enum UnpublishArticleError {
+    #[error("Article with identifier {0} not found")]
+    NotFound(article::Identifier),
+    #[error("Article with identifier {0} is already unpublished")]
+    AlreadyUnpublished(article::Identifier),
+    #[error(transparent)]
+    Unknown(#[from] anyhow::Error),
+}
+
+#[derive(Debug, thiserror::Error)]
 pub enum SoftDeleteArticleError {
     #[error("Article with identifier {0} not found")]
     NotFound(article::Identifier),
+    #[error("Article with identifier {0} is already soft deleted")]
+    AlreadySoftDeleted(article::Identifier),
+    #[error(transparent)]
+    Unknown(#[from] anyhow::Error),
+}
+
+#[derive(Debug, thiserror::Error)]
+pub enum RestoreArticleError {
+    #[error("Article with identifier {0} not found")]
+    NotFound(article::Identifier),
+    #[error("Article with identifier {0} is already restored")]
+    AlreadyRestored(article::Identifier),
     #[error(transparent)]
     Unknown(#[from] anyhow::Error),
 }

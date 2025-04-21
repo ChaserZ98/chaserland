@@ -699,6 +699,18 @@ pub enum Identifier {
     Slug(ArticleSlug),
 }
 
+impl From<ArticleId> for Identifier {
+    fn from(id: ArticleId) -> Self {
+        Identifier::Id(id)
+    }
+}
+
+impl From<ArticleSlug> for Identifier {
+    fn from(slug: ArticleSlug) -> Self {
+        Identifier::Slug(slug)
+    }
+}
+
 impl std::fmt::Display for Identifier {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {

@@ -1,5 +1,5 @@
 use crate::domain::entity::{article, series};
-use crate::domain::repository::article::{ArticlesFilter, CreateArticleError, DeleteArticleError, GetArticleError, PublishArticleError, SoftDeleteArticleError};
+use crate::domain::repository::article::{ArticlesFilter, CreateArticleError, DeleteArticleError, GetArticleError, PublishArticleError, RestoreArticleError, SoftDeleteArticleError, UnpublishArticleError};
 use async_trait::async_trait;
 use chaserland_common::pagination::{Offset, Page, PageSize};
 use sqlx::{PgPool, Postgres, QueryBuilder};
@@ -161,7 +161,6 @@ impl ArticleRepository for PgArticleRepository {
             tag_ids: article.tag_ids,
         })
     }
-
     async fn get_one(
         &self,
         identifier: article::Identifier,
@@ -221,7 +220,6 @@ impl ArticleRepository for PgArticleRepository {
             tag_ids: tag_ids.iter().map(|v| v.try_into().unwrap()).collect(),
         })
     }
-
     async fn get_many(
         &self,
         page: Page,
@@ -305,62 +303,165 @@ impl ArticleRepository for PgArticleRepository {
 
         Ok(res)
     }
+    async fn publish(&self, identifier: article::Identifier) -> Result<(), PublishArticleError> {
+        let mut tx = self.pool.begin().await.map_err(|why| PublishArticleError::Unknown(why.into()))?;
 
-    async fn publish(&self, identifier: article::Identifier) -> Result<article::Article, PublishArticleError> {
-        todo!()
-        // let mut tx = self.pool.begin().await.map_err(|why| PublishArticleError::Unknown(why.into()))?;
-
-        // let mut query = QueryBuilder::<Postgres>::new("UPDATE article.articles SET published_at = now() WHERE ");
-
-        // match identifier.clone() {
-        //     article::Identifier::Id(id) => {
-        //         query.push("id = ");
-        //         query.push_bind(id.value());
-        //     }
-        //     article::Identifier::Slug(slug) => {
-        //         query.push("slug = ");
-        //         query.push_bind(slug.value());
-        //     }
-        // };
-
-        // query.push(" AND published_at IS NULL");
-
-        // let res = query.build().execute(&mut *tx).await.map_err(|why| PublishArticleError::Unknown(why.into()))?;
-
-        // if res.rows_affected() == 0{
-        //     return Err(PublishArticleError::NotFound(identifier));
-        // }
-
-        // tx.commit().await.map_err(|why| PublishArticleError::Unknown(why.into()))?;
-
-        // let article = self.get_one(identifier, public_only, with_content).await.map_err(|why| PublishArticleError::Unknown(why.into()))?;
-
-        // Ok(article)
-    }
-    async fn soft_delete(&self, identifier: article::Identifier) -> Result<(), SoftDeleteArticleError> {
-        let mut tx = self.pool.begin().await.map_err(|why| SoftDeleteArticleError::Unknown(why.into()))?;
-
-        let mut query = QueryBuilder::<Postgres>::new("UPDATE article.articles SET deleted_at = now() WHERE ");
+        let mut query = QueryBuilder::<Postgres>::new("UPDATE article.articles SET published_at = COALESCE(published_at, NOW()) WHERE ");
+        let mut subquery = QueryBuilder::<Postgres>::new("SELECT published_at FROM article.articles WHERE ");
 
         match identifier.clone() {
             article::Identifier::Id(id) => {
                 query.push("id = ");
                 query.push_bind(id.value());
+                subquery.push("id = ");
+                subquery.push_bind(id.value());
             }
             article::Identifier::Slug(slug) => {
                 query.push("slug = ");
                 query.push_bind(slug.value());
+                subquery.push("slug = ");
+                subquery.push_bind(slug.value());
+            }
+        };
+
+        query.push(" RETURNING published_at as new_published_at, (");
+        query.push(subquery.into_sql());
+        query.push(") as old_published_at");
+
+        let res: Option<(chrono::DateTime<chrono::Utc>, Option<chrono::DateTime<chrono::Utc>>)> = query.build_query_as().fetch_optional(&mut *tx).await.map_err(|why| PublishArticleError::Unknown(why.into()))?;
+
+        if res.is_none(){
+            return Err(PublishArticleError::NotFound(identifier));
+        }
+
+        let res = res.unwrap();
+
+        if res.1.is_some() {
+            return Err(PublishArticleError::AlreadyPublished(identifier));
+        }
+
+        tx.commit().await.map_err(|why| PublishArticleError::Unknown(why.into()))?;
+
+        Ok(())
+    }
+    async fn unpublish(&self, identifier: article::Identifier) -> Result<(), UnpublishArticleError> {
+        let mut tx = self.pool.begin().await.map_err(|why| UnpublishArticleError::Unknown(why.into()))?;
+
+        let mut query = QueryBuilder::<Postgres>::new("UPDATE article.articles SET published_at = NULL WHERE ");
+        let mut subquery = QueryBuilder::<Postgres>::new("SELECT published_at FROM article.articles WHERE ");
+
+        match identifier.clone() {
+            article::Identifier::Id(id) => {
+                query.push("id = ");
+                query.push_bind(id.value());
+                subquery.push("id = ");
+                subquery.push_bind(id.value());
+            }
+            article::Identifier::Slug(slug) => {
+                query.push("slug = ");
+                query.push_bind(slug.value());
+                subquery.push("slug = ");
+                subquery.push_bind(slug.value());
+            }
+        };
+
+        query.push(" RETURNING published_at AS new_published_at, (");
+        query.push(subquery.into_sql());
+        query.push(") AS old_published_at");
+
+        let res: Option<(Option<chrono::DateTime<chrono::Utc>>, Option<chrono::DateTime<chrono::Utc>>)> = query.build_query_as().fetch_optional(&mut *tx).await.map_err(|why| UnpublishArticleError::Unknown(why.into()))?;
+
+        if res.is_none(){
+            return Err(UnpublishArticleError::NotFound(identifier));
+        }
+
+        let res = res.unwrap();
+
+        if res.1.is_none() {
+            return Err(UnpublishArticleError::AlreadyUnpublished(identifier));
+        }
+
+        tx.commit().await.map_err(|why| UnpublishArticleError::Unknown(why.into()))?;
+
+        Ok(())
+    }
+    async fn soft_delete(&self, identifier: article::Identifier) -> Result<(), SoftDeleteArticleError> {
+        let mut tx = self.pool.begin().await.map_err(|why| SoftDeleteArticleError::Unknown(why.into()))?;
+
+        let mut query = QueryBuilder::<Postgres>::new("UPDATE article.articles SET deleted_at = COALESCE(deleted_at, now()) WHERE ");
+        let mut subquery = QueryBuilder::<Postgres>::new("SELECT deleted_at FROM article.articles WHERE ");
+
+        match identifier.clone() {
+            article::Identifier::Id(id) => {
+                query.push("id = ");
+                query.push_bind(id.value());
+                subquery.push("id = ");
+                subquery.push_bind(id.value());
+            }
+            article::Identifier::Slug(slug) => {
+                query.push("slug = ");
+                query.push_bind(slug.value());
+                subquery.push("slug = ");
+                subquery.push_bind(slug.value());
             }
         }
-        query.push(" AND deleted_at IS NULL RETURNING *");
+        query.push(" RETURNING deleted_at as new_deleted_at, (");
+        query.push(subquery.into_sql());
+        query.push(") as old_deleted_at");
 
-        let res = query.build().execute(&mut *tx).await.map_err(|why| SoftDeleteArticleError::Unknown(why.into()))?;
+        let res: Option<(chrono::DateTime<chrono::Utc>, Option<chrono::DateTime<chrono::Utc>>)> = query.build_query_as().fetch_optional(&mut *tx).await.map_err(|why| SoftDeleteArticleError::Unknown(why.into()))?;
 
-        if res.rows_affected() == 0{
+        if res.is_none() {
             return Err(SoftDeleteArticleError::NotFound(identifier));
         }
 
+        let res = res.unwrap();
+
+        if res.1.is_some() {
+            return Err(SoftDeleteArticleError::AlreadySoftDeleted(identifier));
+        }
+
         tx.commit().await.map_err(|why| SoftDeleteArticleError::Unknown(why.into()))?;
+
+        Ok(())
+    }
+    async fn restore(&self, identifier: article::Identifier) -> Result<(), RestoreArticleError> {
+        let mut tx = self.pool.begin().await.map_err(|why| RestoreArticleError::Unknown(why.into()))?;
+
+        let mut query = QueryBuilder::<Postgres>::new("UPDATE article.articles SET deleted_at = NULL WHERE ");
+        let mut subquery = QueryBuilder::<Postgres>::new("SELECT deleted_at FROM article.articles WHERE ");
+
+        match identifier.clone() {
+            article::Identifier::Id(id) => {
+                query.push("id = ");
+                query.push_bind(id.value());
+                subquery.push("id = ");
+                subquery.push_bind(id.value());
+            }
+            article::Identifier::Slug(slug) => {
+                query.push("slug = ");
+                query.push_bind(slug.value());
+                subquery.push("slug = ");
+                subquery.push_bind(slug.value());
+            }
+        }
+        query.push(" RETURNING deleted_at as new_deleted_at, (");
+        query.push(subquery.into_sql());
+        query.push(") as old_deleted_at");
+
+        let res: Option<(Option<chrono::DateTime<chrono::Utc>>, Option<chrono::DateTime<chrono::Utc>>)> = query.build_query_as().fetch_optional(&mut *tx).await.map_err(|why| RestoreArticleError::Unknown(why.into()))?;
+
+        if res.is_none() {
+            return Err(RestoreArticleError::NotFound(identifier));
+        }
+
+        let res = res.unwrap();
+
+        if res.1.is_none() {
+            return Err(RestoreArticleError::AlreadyRestored(identifier));
+        }
+
+        tx.commit().await.map_err(|why| RestoreArticleError::Unknown(why.into()))?;
 
         Ok(())
     }
@@ -436,7 +537,6 @@ mod tests {
             assert_eq!(res.category_ids, article.category_ids);
             assert_eq!(res.tag_ids, article.tag_ids);
         }
-    
         #[sqlx::test(fixtures(
             path = "../../../../../tests/fixtures",
             scripts("tags", "series", "categories")
@@ -471,7 +571,6 @@ mod tests {
             assert_eq!(res.category_ids, article.category_ids);
             assert_eq!(res.tag_ids, article.tag_ids);
         }
-    
         #[sqlx::test(fixtures(
             path = "../../../../../tests/fixtures",
             scripts("tags", "series", "categories", "articles")
@@ -489,8 +588,6 @@ mod tests {
             };
     
             let res = repo.create(article.clone()).await;
-
-            println!("{:?}", res);
     
             assert!(res.is_err());
     
@@ -979,6 +1076,250 @@ mod tests {
             assert_eq!(res.len(), 0);
         }
     }
+    mod test_publish {
+        use crate::infra::repository::postgres::article::PgArticleRepository;
+        use crate::domain::repository::article::{ArticleRepository, PublishArticleError};
+        use crate::domain::entity::article;
+
+        #[sqlx::test(fixtures(
+            path = "../../../../../tests/fixtures",
+            scripts("tags", "series", "categories", "articles", "article_categories", "article_tags")
+        ))]
+        async fn test_publish_case_id(pool: sqlx::PgPool) {
+            let repo = PgArticleRepository { pool };
+
+            let id = 1.try_into().unwrap();
+            let identifier = article::Identifier::Id(id);
+
+            let res = repo.publish(identifier.clone()).await;
+
+            assert!(res.is_ok());
+        }
+        #[sqlx::test(fixtures(
+            path = "../../../../../tests/fixtures",
+            scripts("tags", "series", "categories", "articles", "article_categories", "article_tags")
+        ))]
+        async fn test_publish_case_slug(pool: sqlx::PgPool) {
+            let repo = PgArticleRepository { pool };
+
+            let slug = "article-title-1".try_into().unwrap();
+            let identifier = article::Identifier::Slug(slug);
+
+            let res = repo.publish(identifier.clone()).await;
+
+            assert!(res.is_ok());
+        }
+        #[sqlx::test(fixtures(
+            path = "../../../../../tests/fixtures",
+            scripts("tags", "series", "categories", "articles", "article_categories", "article_tags")
+        ))]
+        async fn test_publish_case_id_not_found(pool: sqlx::PgPool) {
+            let repo = PgArticleRepository { pool };
+
+            let id = 4.try_into().unwrap();
+            let identifier = article::Identifier::Id(id);
+
+            let res = repo.publish(identifier.clone()).await;
+
+            assert!(res.is_err());
+
+            let err = res.unwrap_err();
+
+            assert!(match err {
+                PublishArticleError::NotFound(value) => value == identifier,
+                _ => false
+            });
+        }
+        #[sqlx::test(fixtures(
+            path = "../../../../../tests/fixtures",
+            scripts("tags", "series", "categories", "articles", "article_categories", "article_tags")
+        ))]
+        async fn test_publish_case_slug_not_found(pool: sqlx::PgPool) {
+            let repo = PgArticleRepository { pool };
+
+            let slug = "article-title-4".try_into().unwrap();
+            let identifier = article::Identifier::Slug(slug);
+
+            let res = repo.publish(identifier.clone()).await;
+
+            assert!(res.is_err());
+
+            let err = res.unwrap_err();
+
+            assert!(match err {
+                PublishArticleError::NotFound(value) => value == identifier,
+                _ => false
+            });
+        }
+        #[sqlx::test(fixtures(
+            path = "../../../../../tests/fixtures",
+            scripts("tags", "series", "categories", "articles", "article_categories", "article_tags")
+        ))]
+        async fn test_publish_case_id_already_published(pool: sqlx::PgPool) {
+            let repo = PgArticleRepository { pool };
+
+            let id = 2.try_into().unwrap();
+            let identifier = article::Identifier::Id(id);
+
+            let res = repo.publish(identifier.clone()).await;
+
+            assert!(res.is_ok());
+
+            let res = repo.publish(identifier.clone()).await;
+
+            assert!(res.is_err());
+
+            let err = res.unwrap_err();
+
+            assert!(match err {
+                PublishArticleError::AlreadyPublished(value) => value == identifier,
+                _ => false
+            });
+        }
+        #[sqlx::test(fixtures(
+            path = "../../../../../tests/fixtures",
+            scripts("tags", "series", "categories", "articles", "article_categories", "article_tags")
+        ))]
+        async fn test_publish_case_slug_already_published(pool: sqlx::PgPool) {
+            let repo = PgArticleRepository { pool };
+
+            let slug = "article-title-2".try_into().unwrap();
+            let identifier = article::Identifier::Slug(slug);
+
+            let res = repo.publish(identifier.clone()).await;
+
+            assert!(res.is_ok());
+
+            let res = repo.publish(identifier.clone()).await;
+
+            assert!(res.is_err());
+
+            let err = res.unwrap_err();
+
+            assert!(match err {
+                PublishArticleError::AlreadyPublished(value) => value == identifier,
+                _ => false
+            });
+        }
+    }
+    mod test_unpublish {
+        use crate::infra::repository::postgres::article::PgArticleRepository;
+        use crate::domain::entity::article;
+        use crate::domain::repository::article::{ArticleRepository, UnpublishArticleError};
+
+        #[sqlx::test(fixtures(
+            path = "../../../../../tests/fixtures",
+            scripts("tags", "series", "categories", "articles", "article_categories", "article_tags", "publish_article")
+        ))]
+        async fn test_unpublish_case_id(pool: sqlx::PgPool) {
+            let repo = PgArticleRepository { pool };
+
+            let id = 1.try_into().unwrap();
+            let identifier = article::Identifier::Id(id);
+
+            let res = repo.unpublish(identifier.clone()).await;
+
+            assert!(res.is_ok());
+        }
+        #[sqlx::test(fixtures(
+            path = "../../../../../tests/fixtures",
+            scripts("tags", "series", "categories", "articles", "article_categories", "article_tags", "publish_article")
+        ))]
+        async fn test_unpublish_case_slug(pool: sqlx::PgPool) {
+            let repo = PgArticleRepository { pool };
+
+            let slug = "article-title-1".try_into().unwrap();
+            let identifier = article::Identifier::Slug(slug);
+
+            let res = repo.unpublish(identifier.clone()).await;
+
+            assert!(res.is_ok());
+        }
+        #[sqlx::test(fixtures(
+            path = "../../../../../tests/fixtures",
+            scripts("tags", "series", "categories", "articles", "article_categories", "article_tags", "publish_article")
+        ))]
+        async fn test_unpublish_case_id_not_found(pool: sqlx::PgPool) {
+            let repo = PgArticleRepository { pool };
+
+            let id = 4.try_into().unwrap();
+            let identifier = article::Identifier::Id(id);
+
+            let res = repo.unpublish(identifier.clone()).await;
+
+            assert!(res.is_err());
+
+            let err = res.unwrap_err();
+
+            assert!(match err {
+                UnpublishArticleError::NotFound(value) => value == identifier,
+                _ => false
+            });
+        }
+        #[sqlx::test(fixtures(
+            path = "../../../../../tests/fixtures",
+            scripts("tags", "series", "categories", "articles", "article_categories", "article_tags", "publish_article")
+        ))]
+        async fn test_unpublish_case_slug_not_found(pool: sqlx::PgPool) {
+            let repo = PgArticleRepository { pool };
+
+            let slug = "article-title-4".try_into().unwrap();
+            let identifier = article::Identifier::Slug(slug);
+
+            let res = repo.unpublish(identifier.clone()).await;
+
+            assert!(res.is_err());
+
+            let err = res.unwrap_err();
+
+            assert!(match err {
+                UnpublishArticleError::NotFound(value) => value == identifier,
+                _ => false
+            });
+        }
+        #[sqlx::test(fixtures(
+            path = "../../../../../tests/fixtures",
+            scripts("tags", "series", "categories", "articles", "article_categories", "article_tags", "publish_article")
+        ))]
+        async fn test_unpublish_case_id_already_unpublished(pool: sqlx::PgPool) {
+            let repo = PgArticleRepository { pool };
+
+            let id = 2.try_into().unwrap();
+            let identifier = article::Identifier::Id(id);
+
+            let res = repo.unpublish(identifier.clone()).await;
+
+            assert!(res.is_err());
+
+            let err = res.unwrap_err();
+
+            assert!(match err {
+                UnpublishArticleError::AlreadyUnpublished(value) => value == identifier,
+                _ => false
+            })
+        }
+        #[sqlx::test(fixtures(
+            path = "../../../../../tests/fixtures",
+            scripts("tags", "series", "categories", "articles", "article_categories", "article_tags", "publish_article")
+        ))]
+        async fn test_unpublish_case_slug_already_unpublished(pool: sqlx::PgPool) {
+            let repo = PgArticleRepository { pool };
+
+            let slug = "article-title-2".try_into().unwrap();
+            let identifier = article::Identifier::Slug(slug);
+
+            let res = repo.unpublish(identifier.clone()).await;
+
+            assert!(res.is_err());
+
+            let err = res.unwrap_err();
+
+            assert!(match err {
+                UnpublishArticleError::AlreadyUnpublished(value) => value == identifier,
+                _ => false
+            })
+        }
+    }
     mod test_soft_delete {
         use crate::infra::repository::postgres::article::PgArticleRepository;
         use crate::domain::repository::article::{ArticleRepository, SoftDeleteArticleError};
@@ -1088,6 +1429,182 @@ mod tests {
 
             assert!(match err {
                 SoftDeleteArticleError::NotFound(value) => value == identifier,
+                _ => false
+            });
+        }
+        #[sqlx::test(fixtures(
+            path = "../../../../../tests/fixtures",
+            scripts("tags", "series", "categories", "articles", "article_categories", "article_tags")
+        ))]
+        async fn soft_delete_case_id_already_soft_deleted(pool: sqlx::PgPool) {
+            let repo = PgArticleRepository { pool };
+
+            let id = 2.try_into().unwrap();
+            let identifier = article::Identifier::Id(id);
+
+            let res = repo.soft_delete(identifier.clone()).await;
+
+            assert!(res.is_ok());
+
+            let res = repo.soft_delete(identifier.clone()).await;
+
+            assert!(res.is_err());
+
+            let err = res.unwrap_err();
+
+            assert!(match err {
+                SoftDeleteArticleError::AlreadySoftDeleted(value) => value == identifier,
+                _ => false
+            });
+        }
+        #[sqlx::test(fixtures(
+            path = "../../../../../tests/fixtures",
+            scripts("tags", "series", "categories", "articles", "article_categories", "article_tags")
+        ))]
+        async fn soft_delete_case_slug_already_soft_deleted(pool: sqlx::PgPool) {
+            let repo = PgArticleRepository { pool };
+
+            let slug = "article-title-2".try_into().unwrap();
+            let identifier = article::Identifier::Slug(slug);
+
+            let res = repo.soft_delete(identifier.clone()).await;
+
+            assert!(res.is_ok());
+
+            let res = repo.soft_delete(identifier.clone()).await;
+
+            assert!(res.is_err());
+
+            let err = res.unwrap_err();
+
+            assert!(match err {
+                SoftDeleteArticleError::AlreadySoftDeleted(value) => value == identifier,
+                _ => false
+            });
+        }
+    }
+    mod test_restore {
+        use crate::infra::repository::postgres::article::PgArticleRepository;
+        use crate::domain::repository::article::{ArticleRepository, RestoreArticleError};
+        use crate::domain::entity::article;
+
+        #[sqlx::test(fixtures(
+            path = "../../../../../tests/fixtures",
+            scripts("tags", "series", "categories", "articles", "article_categories", "article_tags", "soft_delete_article")
+        ))]
+        async fn restore_case_id(pool: sqlx::PgPool) {
+            let repo = PgArticleRepository { pool };
+
+            let id = 1.try_into().unwrap();
+            let identifier = article::Identifier::Id(id);
+
+            let res = repo.restore(identifier.clone()).await;
+
+            assert!(res.is_ok());
+        }
+        #[sqlx::test(fixtures(
+            path = "../../../../../tests/fixtures",
+            scripts("tags", "series", "categories", "articles", "article_categories", "article_tags", "soft_delete_article")
+        ))]
+        async fn restore_case_slug(pool: sqlx::PgPool) {
+            let repo = PgArticleRepository { pool };
+
+            let slug = "article-title-1".try_into().unwrap();
+            let identifier = article::Identifier::Slug(slug);
+
+            let res = repo.restore(identifier.clone()).await;
+
+            assert!(res.is_ok());
+        }
+        #[sqlx::test(fixtures(
+            path = "../../../../../tests/fixtures",
+            scripts("tags", "series", "categories", "articles", "article_categories", "article_tags")
+        ))]
+        async fn restore_case_id_not_found(pool: sqlx::PgPool) {
+            let repo = PgArticleRepository { pool };
+
+            let id = 4.try_into().unwrap();
+            let identifier = article::Identifier::Id(id);
+
+            let res = repo.restore(identifier.clone()).await;
+
+            assert!(res.is_err());
+
+            let err = res.unwrap_err();
+
+            assert!(match err {
+                RestoreArticleError::NotFound(value) => value == identifier,
+                _ => false
+            });
+        }
+        #[sqlx::test(fixtures(
+            path = "../../../../../tests/fixtures",
+            scripts("tags", "series", "categories", "articles", "article_categories", "article_tags")
+        ))]
+        async fn restore_case_slug_not_found(pool: sqlx::PgPool) {
+            let repo = PgArticleRepository { pool };
+
+            let slug = "article-title-4".try_into().unwrap();
+            let identifier = article::Identifier::Slug(slug);
+
+            let res = repo.restore(identifier.clone()).await;
+
+            assert!(res.is_err());
+
+            let err = res.unwrap_err();
+
+            assert!(match err {
+                RestoreArticleError::NotFound(value) => value == identifier,
+                _ => false
+            });
+        }
+        #[sqlx::test(fixtures(
+            path = "../../../../../tests/fixtures",
+            scripts("tags", "series", "categories", "articles", "article_categories", "article_tags", "soft_delete_article")
+        ))]
+        async fn restore_case_id_already_restored(pool: sqlx::PgPool) {
+            let repo = PgArticleRepository { pool };
+
+            let id = 1.try_into().unwrap();
+            let identifier = article::Identifier::Id(id);
+
+            let res = repo.restore(identifier.clone()).await;
+
+            assert!(res.is_ok());
+
+            let res = repo.restore(identifier.clone()).await;
+
+            assert!(res.is_err());
+
+            let err = res.unwrap_err();
+
+            assert!(match err {
+                RestoreArticleError::AlreadyRestored(value) => value == identifier,
+                _ => false
+            });
+        }
+        #[sqlx::test(fixtures(
+            path = "../../../../../tests/fixtures",
+            scripts("tags", "series", "categories", "articles", "article_categories", "article_tags", "soft_delete_article")
+        ))]
+        async fn restore_case_slug_already_restored(pool: sqlx::PgPool) {
+            let repo = PgArticleRepository { pool };
+
+            let slug = "article-title-1".try_into().unwrap();
+            let identifier = article::Identifier::Slug(slug);
+
+            let res = repo.restore(identifier.clone()).await;
+
+            assert!(res.is_ok());
+
+            let res = repo.restore(identifier.clone()).await;
+
+            assert!(res.is_err());
+
+            let err = res.unwrap_err();
+
+            assert!(match err {
+                RestoreArticleError::AlreadyRestored(value) => value == identifier,
                 _ => false
             });
         }
