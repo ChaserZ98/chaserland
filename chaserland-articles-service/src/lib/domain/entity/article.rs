@@ -238,6 +238,12 @@ impl ArticleUpdatedAt {
     pub fn value(&self) -> chrono::DateTime<chrono::Utc> {
         self.0
     }
+    pub fn update(&mut self) {
+        self.0 = chrono::Utc::now();
+    }
+    pub fn set(&mut self, updated_at: chrono::DateTime<chrono::Utc>) {
+        self.0 = updated_at;
+    }
 }
 
 impl From<chrono::DateTime<chrono::Utc>> for ArticleUpdatedAt {
@@ -256,8 +262,8 @@ impl Display for ArticleUpdatedAt {
 pub struct ArticleDeletedAt(chrono::DateTime<chrono::Utc>);
 
 impl ArticleDeletedAt {
-    pub fn new(deleted_at: chrono::DateTime<chrono::Utc>) -> Self {
-        Self(deleted_at)
+    pub fn new() -> Self {
+        Self(chrono::Utc::now())
     }
     pub fn value(&self) -> chrono::DateTime<chrono::Utc> {
         self.0
@@ -276,11 +282,66 @@ impl Display for ArticleDeletedAt {
     }
 }
 
+/**
+    ## ArticleVersion
+    * A chrono::DateTime<chrono::Utc> that represents the version of the article
+    * It is used for optimistic concurrency control
+    * Any time the article aggregate is updated, the version should be updated with chrono::Utc::now()
+*/
+#[derive(Debug, Serialize, Deserialize, Clone, Copy, PartialEq, Eq)]
+pub struct ArticleVersion(chrono::DateTime<chrono::Utc>);
+
+impl ArticleVersion {
+    pub fn new(version: chrono::DateTime<chrono::Utc>) -> Self {
+        Self(version)
+    }
+    pub fn value(&self) -> chrono::DateTime<chrono::Utc> {
+        self.0
+    }
+    fn bump(&mut self) {
+        self.0 = chrono::Utc::now();
+    }
+}
+
+impl Default for ArticleVersion {
+    fn default() -> Self {
+        Self(chrono::Utc::now())
+    }
+}
+
+impl From<chrono::DateTime<chrono::Utc>> for ArticleVersion {
+    fn from(value: chrono::DateTime<chrono::Utc>) -> Self {
+        Self(value)
+    }
+}
+
+impl TryFrom<String> for ArticleVersion {
+    type Error = chrono::ParseError;
+    fn try_from(value: String) -> Result<Self, Self::Error> {
+        let value: chrono::DateTime<chrono::Utc> = value.parse()?;
+        Ok(value.into())
+    }
+}
+
+impl TryFrom<&str> for ArticleVersion {
+    type Error = chrono::ParseError;
+    fn try_from(value: &str) -> Result<Self, Self::Error> {
+        let value: chrono::DateTime<chrono::Utc> = value.parse()?;
+        Ok(value.into())
+    }
+}
+
+impl Display for ArticleVersion {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.0)
+    }
+}
+
 #[derive(Debug, Serialize, Deserialize, PartialEq, Eq, Clone)]
 pub struct Article {
     pub id: ArticleId,
     pub title: ArticleTitle,
-    pub slug: ArticleSlug,
+    slug: ArticleSlug,
     pub description: ArticleDescription,
     pub content: Option<ArticleContent>,
     pub created_at: ArticleCreatedAt,
@@ -290,6 +351,7 @@ pub struct Article {
     pub series_id: Option<series::SeriesId>,
     pub category_ids: Vec<category::CategoryId>,
     pub tag_ids: Vec<tag::TagId>,
+    pub version: ArticleVersion,
 }
 
 impl Article {
@@ -303,6 +365,7 @@ impl Article {
         series_id: Option<series::SeriesId>,
         category_ids: Vec<category::CategoryId>,
         tag_ids: Vec<tag::TagId>,
+        version: ArticleVersion,
     ) -> Self {
         let slug = title.as_slug();
         Self {
@@ -318,7 +381,91 @@ impl Article {
             series_id,
             category_ids,
             tag_ids,
+            version,
         }
+    }
+    pub fn set_title(&mut self, title: ArticleTitle) {
+        self.slug = title.as_slug();
+        self.title = title;
+    }
+    pub fn set_description(&mut self, description: ArticleDescription) {
+        self.description = description;
+    }
+    pub fn set_content(&mut self, content: Option<ArticleContent>) {
+        self.content = content;
+    }
+    pub fn slug(&self) -> &ArticleSlug {
+        &self.slug
+    }
+    pub fn publish(&mut self) -> Result<(), DomainError> {
+        match self.published_at {
+            Some(_) => Err(DomainError::AlreadyPublished(self.id)),
+            None => {
+                let utc_now = chrono::Utc::now();
+                self.published_at = Some(ArticlePublishedAt::new(utc_now));
+                Ok(())
+            }
+        }
+    }
+    pub fn unpublish(&mut self) -> Result<(), DomainError> {
+        match self.published_at {
+            Some(_) => {
+                self.published_at = None;
+                Ok(())
+            }
+            None => Err(DomainError::NotPublished(self.id)),
+        }
+    }
+    pub fn soft_delete(&mut self) -> Result<(), DomainError> {
+        match self.deleted_at {
+            Some(_) => Err(DomainError::AlreadySoftDeleted(self.id)),
+            None => {
+                self.deleted_at = Some(ArticleDeletedAt::new());
+                Ok(())
+            }
+        }
+    }
+    pub fn revoke_soft_delete(&mut self) -> Result<(), DomainError> {
+        match self.deleted_at {
+            Some(_) => {
+                self.deleted_at = None;
+                Ok(())
+            }
+            None => Err(DomainError::NotSoftDeleted(self.id)),
+        }
+    }
+    pub fn bump_updated_at(&mut self) {
+        self.updated_at.update();
+    }
+    pub fn bump_version(&mut self) {
+        self.version.bump();
+    }
+}
+
+impl Default for Article {
+    fn default() -> Self {
+        let id = ArticleId::new(1);
+        let title = ArticleTitle::new("Default Title");
+        let description = ArticleDescription::new("");
+        let content = None;
+        let created_at = ArticleCreatedAt::new(chrono::Utc::now());
+        let updated_at = ArticleUpdatedAt::new(chrono::Utc::now());
+        let series_id = None;
+        let category_ids = vec![];
+        let tag_ids = vec![];
+        let version = ArticleVersion::new(chrono::Utc::now());
+        Self::new(
+            id,
+            title,
+            description,
+            content,
+            created_at,
+            updated_at,
+            series_id,
+            category_ids,
+            tag_ids,
+            version,
+        )
     }
 }
 
@@ -330,6 +477,21 @@ pub struct ArticleCreate {
     pub series_id: Option<series::SeriesId>,
     pub category_ids: Vec<category::CategoryId>,
     pub tag_ids: Vec<tag::TagId>,
+    pub version: ArticleVersion,
+}
+
+#[derive(Debug, thiserror::Error)]
+pub enum DomainError {
+    #[error("Article with id {0} is already published")]
+    AlreadyPublished(ArticleId),
+    #[error("Article with id {0} has not been published")]
+    NotPublished(ArticleId),
+    #[error("Article with id {0} is already soft deleted")]
+    AlreadySoftDeleted(ArticleId),
+    #[error("Article with id {0} has not been soft deleted")]
+    NotSoftDeleted(ArticleId),
+    #[error(transparent)]
+    Unknown(#[from] anyhow::Error),
 }
 
 // #[allow(dead_code)]

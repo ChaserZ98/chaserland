@@ -22,9 +22,8 @@ pub trait ArticleRepository {
         with_content: bool,
         filter: Option<ArticlesFilter>,
     ) -> Result<Vec<article::Article>, GetArticleError>;
-    async fn publish(&self, identifier: article::Identifier) -> Result<(), PublishArticleError>;
-    async fn unpublish(&self, identifier: article::Identifier)
-    -> Result<(), UnpublishArticleError>;
+    async fn publish(&self, article: article::Article) -> Result<(), PublishArticleError>;
+    async fn unpublish(&self, article: article::Article) -> Result<(), UnpublishArticleError>;
     async fn soft_delete(
         &self,
         identifier: article::Identifier,
@@ -92,20 +91,32 @@ pub enum CreateArticleError {
 
 #[derive(Debug, thiserror::Error)]
 pub enum PublishArticleError {
-    #[error("Article with identifier {0} not found")]
-    NotFound(article::Identifier),
-    #[error("Article with identifier {0} is already published")]
-    AlreadyPublished(article::Identifier),
+    #[error("Article with id {0} not found")]
+    NotFound(article::ArticleId),
+    #[error(
+        "Article with id {0} has mismatched version: current article version {1} != transaction article version {2}"
+    )]
+    VersionMismatch(
+        article::ArticleId,
+        article::ArticleVersion,
+        chrono::DateTime<chrono::Utc>,
+    ),
     #[error(transparent)]
     Unknown(#[from] anyhow::Error),
 }
 
 #[derive(Debug, thiserror::Error)]
 pub enum UnpublishArticleError {
-    #[error("Article with identifier {0} not found")]
-    NotFound(article::Identifier),
-    #[error("Article with identifier {0} is already unpublished")]
-    AlreadyUnpublished(article::Identifier),
+    #[error("Article with id {0} not found")]
+    NotFound(article::ArticleId),
+    #[error(
+        "Article with id {0} has mismatched version: current article version {1} != transaction article version {2}"
+    )]
+    VersionMismatch(
+        article::ArticleId,
+        article::ArticleVersion,
+        chrono::DateTime<chrono::Utc>,
+    ),
     #[error(transparent)]
     Unknown(#[from] anyhow::Error),
 }
