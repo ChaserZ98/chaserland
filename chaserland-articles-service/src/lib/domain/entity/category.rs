@@ -1,5 +1,3 @@
-use std::fmt::Display;
-
 use serde::{Deserialize, Serialize};
 use slugify::slugify;
 
@@ -32,6 +30,7 @@ impl TryFrom<i32> for Id {
         Ok(Self(value))
     }
 }
+
 impl TryFrom<&i32> for Id {
     type Error = String;
 
@@ -40,89 +39,47 @@ impl TryFrom<&i32> for Id {
     }
 }
 
-impl Display for Id {
+impl std::fmt::Display for Id {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "{}", self.0)
     }
 }
 
-#[derive(Debug, Serialize, Deserialize)]
-pub struct CategorySlug(String);
+#[derive(Debug, Serialize, Deserialize, PartialEq, Eq, Clone)]
+pub struct Slug(String);
 
-impl Display for CategorySlug {
+impl std::fmt::Display for Slug {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "{}", self.0)
     }
 }
 
-#[derive(Debug, Serialize, Deserialize)]
-pub struct CategoryName(String);
-impl Display for CategoryName {
+#[derive(Debug, Serialize, Deserialize, PartialEq, Eq, Clone)]
+pub struct Name(String);
+
+impl Name {
+    pub fn as_slug(&self) -> Slug {
+        Slug(slugify!(&self.0, separator = "-"))
+    }
+}
+
+impl std::fmt::Display for Name {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "{}", self.0)
     }
 }
-impl CategoryName {
-    pub fn as_slug(&self) -> CategorySlug {
-        CategorySlug(slugify!(&self.0, separator = "-"))
-    }
-}
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, PartialEq, Eq, Clone)]
 pub struct Category {
     pub id: Id,
-    pub slug: CategorySlug,
-    pub name: CategoryName,
+    pub slug: Slug,
+    pub name: Name,
 }
 
-// #[allow(dead_code)]
-// impl Category {
-//     pub async fn create(
-//         transaction: &mut Transaction<'_, Postgres>,
-//         category: CategoryCreate,
-//     ) -> Result<Self> {
-//         let name = category.name;
-//         let slug = slugify!(&name, separator = "-");
-//         let category = sqlx::query_as("INSERT INTO article.categories (slug, name) VALUES ($1, $2) ON CONFLICT (slug) DO UPDATE SET slug = EXCLUDED.slug RETURNING *").bind(slug).bind(name).fetch_one(&mut **transaction).await?;
-//         Ok(category)
-//     }
-
-//     pub async fn get(db: &PgPool) -> Result<Vec<Self>> {
-//         let res = sqlx::query_as("SELECT * FROM article.categories")
-//             .fetch_all(db)
-//             .await?;
-//         Ok(res)
-//     }
-
-//     pub async fn get_all_by_article_id(db: &PgPool, id: i32) -> Result<Vec<Category>> {
-//         let res = sqlx::query_as("SELECT a.id, a.slug, a.name FROM article.categories AS a JOIN article.article_categories AS b ON a.id = b.category_id WHERE b.article_id = $1").bind(id).fetch_all(db).await?;
-//         Ok(res)
-//     }
-
-//     pub async fn delete_by_id(transaction: &mut Transaction<'_, Postgres>, id: i32) -> Result<u64> {
-//         let row_count = sqlx::query("DELETE FROM article.categories WHERE id = $1")
-//             .bind(id)
-//             .execute(&mut **transaction)
-//             .await?
-//             .rows_affected();
-//         Ok(row_count)
-//     }
-// }
-
-// impl Into<chaserland_protos::article::v1::Category> for Category {
-//     fn into(self) -> chaserland_protos::article::v1::Category {
-//         chaserland_protos::article::v1::Category {
-//             id: self.id,
-//             slug: self.slug,
-//             name: self.name,
-//         }
-//     }
-// }
-
-#[derive(Debug)]
+#[derive(Debug, PartialEq, Eq, Clone)]
 pub enum Identifier {
     Id(Id),
-    Slug(CategorySlug),
+    Slug(Slug),
 }
 
 impl std::fmt::Display for Identifier {

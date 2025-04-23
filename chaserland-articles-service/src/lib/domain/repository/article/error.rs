@@ -71,7 +71,7 @@ pub enum AddCategoryError {
 #[derive(Debug, thiserror::Error)]
 pub enum RemoveCategoryError {
     #[error("Article with id {0} not found")]
-    NotFound(article::Id),
+    ArticleNotFound(article::Id),
     #[error("Category with id {0} not found")]
     CategoryNotFound(category::Id),
     #[error(
@@ -89,7 +89,7 @@ pub enum RemoveCategoryError {
 #[derive(Debug, thiserror::Error)]
 pub enum AddTagError {
     #[error("Article with id {0} not found")]
-    NotFound(article::Id),
+    ArticleNotFound(article::Id),
     #[error("Tag with id {0} not found")]
     TagNotFound(tag::Id),
     #[error(
@@ -107,7 +107,7 @@ pub enum AddTagError {
 #[derive(Debug, thiserror::Error)]
 pub enum RemoveTagError {
     #[error("Article with id {0} not found")]
-    NotFound(article::Id),
+    ArticleNotFound(article::Id),
     #[error("Tag with id {0} not found")]
     TagNotFound(tag::Id),
     #[error(

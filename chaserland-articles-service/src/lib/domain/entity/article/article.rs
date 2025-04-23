@@ -137,7 +137,7 @@ impl Article {
         self.tag_ids.push(tag_id);
         Ok(())
     }
-    pub fn remove_add_id(&mut self, tag_id: tag::Id) -> Result<(), DomainError> {
+    pub fn remove_tag_id(&mut self, tag_id: tag::Id) -> Result<(), DomainError> {
         if !self.tag_ids.contains(&tag_id) {
             return Err(DomainError::TagNotFound(self.id, tag_id));
         }

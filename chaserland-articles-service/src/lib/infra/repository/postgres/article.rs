@@ -378,13 +378,113 @@ impl ArticleRepository for PgArticleRepository {
         Ok(())
     }
     async fn remove_category(&self, id: article::Id, category_id: category::Id, version: article::Version) -> Result<(), error::RemoveCategoryError> {
-        todo!()
+        let mut tx = self.pool.begin().await.map_err(|why| error::RemoveCategoryError::Unknown(why.into()))?;
+
+        let db_article_version: Option<chrono::DateTime<chrono::Utc>> = sqlx::query_scalar("UPDATE article.articles SET version = NOW() WHERE id = $1 RETURNING (SELECT version FROM article.articles WHERE id = $1) as version").bind(id.value()).fetch_optional(&mut *tx).await.map_err(|why| error::RemoveCategoryError::Unknown(why.into()))?;
+
+        if db_article_version.is_none() {
+            return Err(error::RemoveCategoryError::ArticleNotFound(id));
+        }
+
+        let db_article_version = db_article_version.unwrap();
+
+        if db_article_version != version.value() {
+            return Err(error::RemoveCategoryError::VersionMismatch{
+                id,
+                current_version: version,
+                db_version: db_article_version.into()
+            });
+        }
+
+        let rows_affected = sqlx::query("DELETE FROM article.article_categories WHERE article_id = $1 AND category_id = $2")
+        .bind(id.value())
+        .bind(category_id.value())
+        .execute(&mut *tx)
+        .await
+        .map_err(|why| error::RemoveCategoryError::Unknown(why.into()))?
+        .rows_affected();
+
+        if rows_affected == 0 {
+            return Err(error::RemoveCategoryError::CategoryNotFound(category_id));
+        }
+
+        tx.commit().await.map_err(|why| error::RemoveCategoryError::Unknown(why.into()))?;
+
+        Ok(())
     }
     async fn add_tag(&self, id: article::Id, tag_id: tag::Id, version: article::Version) -> Result<(), error::AddTagError> {
-        todo!()
+        let mut tx = self.pool.begin().await.map_err(|why| error::AddTagError::Unknown(why.into()))?;
+
+        sqlx::query("INSERT INTO article.article_tags (article_id, tag_id) VALUES ($1, $2) ON CONFLICT (article_id, tag_id) DO NOTHING")
+        .bind(id.value())
+        .bind(tag_id.value())
+        .execute(&mut *tx)
+        .await
+        .map_err(
+            |why| {
+                if !matches!(why, sqlx::Error::Database(_)) {
+                    return error::AddTagError::Unknown(why.into());
+                }
+                let db_err = why.as_database_error().unwrap();
+                if !db_err.is_foreign_key_violation() {
+                    return error::AddTagError::Unknown(why.into());
+                }
+                match db_err.constraint() {
+                    Some("article_tags_article_id_fkey") => error::AddTagError::ArticleNotFound(id),
+                    Some("article_tags_tag_id_fkey") => error::AddTagError::TagNotFound(tag_id),
+                    _ => error::AddTagError::Unknown(why.into())
+                }
+            }
+        )?;
+        
+        let db_article_version: chrono::DateTime<chrono::Utc> = sqlx::query_scalar("UPDATE article.articles SET version = NOW() WHERE id = $1 RETURNING (SELECT version FROM article.articles WHERE id = $1) as version").bind(id.value()).fetch_one(&mut *tx).await.map_err(|why| error::AddTagError::Unknown(why.into()))?;
+
+        if db_article_version != version.value() {
+            return Err(error::AddTagError::VersionMismatch{
+                id,
+                current_version: version,
+                db_version: db_article_version.into()
+            });
+        }
+
+        tx.commit().await.map_err(|why| error::AddTagError::Unknown(why.into()))?;
+
+        Ok(())
     }
     async fn remove_tag(&self, id: article::Id, tag_id: tag::Id, version: article::Version) -> Result<(), error::RemoveTagError> {
-        todo!()
+        let mut tx = self.pool.begin().await.map_err(|why| error::RemoveTagError::Unknown(why.into()))?;
+
+        let db_article_version: Option<chrono::DateTime<chrono::Utc>> = sqlx::query_scalar("UPDATE article.articles SET version = NOW() WHERE id = $1 RETURNING (SELECT version FROM article.articles WHERE id = $1) as version").bind(id.value()).fetch_optional(&mut *tx).await.map_err(|why| error::RemoveTagError::Unknown(why.into()))?;
+
+        if db_article_version.is_none() {
+            return Err(error::RemoveTagError::ArticleNotFound(id));
+        }
+
+        let db_article_version = db_article_version.unwrap();
+
+        if db_article_version != version.value() {
+            return Err(error::RemoveTagError::VersionMismatch{
+                id,
+                current_version: version,
+                db_version: db_article_version.into()
+            });
+        }
+
+        let rows_affected = sqlx::query("DELETE FROM article.article_tags WHERE article_id = $1 AND tag_id = $2")
+        .bind(id.value())
+        .bind(tag_id.value())
+        .execute(&mut *tx)
+        .await
+        .map_err(|why| error::RemoveTagError::Unknown(why.into()))?
+        .rows_affected();
+
+        if rows_affected == 0 {
+            return Err(error::RemoveTagError::TagNotFound(tag_id));
+        }
+
+        tx.commit().await.map_err(|why| error::RemoveTagError::Unknown(why.into()))?;
+
+        Ok(())
     }
     async fn publish(&self, id: article::Id, published_at: article::PublishedAt, version: article::Version) -> Result<(), error::PublishArticleError> {
         let mut tx = self.pool.begin().await.map_err(|why| error::PublishArticleError::Unknown(why.into()))?;
