@@ -22,13 +22,28 @@ pub trait ArticleRepository {
         with_content: bool,
         filter: Option<ArticlesFilter>,
     ) -> Result<Vec<article::Article>, GetArticleError>;
-    async fn publish(&self, article: article::Article) -> Result<(), PublishArticleError>;
-    async fn unpublish(&self, article: article::Article) -> Result<(), UnpublishArticleError>;
+    async fn publish(
+        &self,
+        id: article::Id,
+        published_at: article::PublishedAt,
+        version: article::Version,
+    ) -> Result<(), PublishArticleError>;
+    async fn unpublish(
+        &self,
+        id: article::Id,
+        version: article::Version,
+    ) -> Result<(), UnpublishArticleError>;
     async fn soft_delete(
         &self,
-        identifier: article::Identifier,
+        id: article::Id,
+        deleted_at: article::DeletedAt,
+        version: article::Version,
     ) -> Result<(), SoftDeleteArticleError>;
-    async fn restore(&self, identifier: article::Identifier) -> Result<(), RestoreArticleError>;
+    async fn revoke_soft_delete(
+        &self,
+        id: article::Id,
+        version: article::Version,
+    ) -> Result<(), RestoreArticleError>;
     async fn delete(&self, identifier: article::Identifier) -> Result<(), DeleteArticleError>;
 }
 
@@ -92,15 +107,11 @@ pub enum CreateArticleError {
 #[derive(Debug, thiserror::Error)]
 pub enum PublishArticleError {
     #[error("Article with id {0} not found")]
-    NotFound(article::ArticleId),
+    NotFound(article::Id),
     #[error(
         "Article with id {0} has mismatched version: current article version {1} != transaction article version {2}"
     )]
-    VersionMismatch(
-        article::ArticleId,
-        article::ArticleVersion,
-        chrono::DateTime<chrono::Utc>,
-    ),
+    VersionMismatch(article::Id, article::Version, chrono::DateTime<chrono::Utc>),
     #[error(transparent)]
     Unknown(#[from] anyhow::Error),
 }
@@ -108,35 +119,35 @@ pub enum PublishArticleError {
 #[derive(Debug, thiserror::Error)]
 pub enum UnpublishArticleError {
     #[error("Article with id {0} not found")]
-    NotFound(article::ArticleId),
+    NotFound(article::Id),
     #[error(
         "Article with id {0} has mismatched version: current article version {1} != transaction article version {2}"
     )]
-    VersionMismatch(
-        article::ArticleId,
-        article::ArticleVersion,
-        chrono::DateTime<chrono::Utc>,
-    ),
+    VersionMismatch(article::Id, article::Version, chrono::DateTime<chrono::Utc>),
     #[error(transparent)]
     Unknown(#[from] anyhow::Error),
 }
 
 #[derive(Debug, thiserror::Error)]
 pub enum SoftDeleteArticleError {
-    #[error("Article with identifier {0} not found")]
-    NotFound(article::Identifier),
-    #[error("Article with identifier {0} is already soft deleted")]
-    AlreadySoftDeleted(article::Identifier),
+    #[error("Article with id {0} not found")]
+    NotFound(article::Id),
+    #[error(
+        "Article with id {0} has mismatched version: current article version {1} != transaction article version {2}"
+    )]
+    VersionMismatch(article::Id, article::Version, chrono::DateTime<chrono::Utc>),
     #[error(transparent)]
     Unknown(#[from] anyhow::Error),
 }
 
 #[derive(Debug, thiserror::Error)]
 pub enum RestoreArticleError {
-    #[error("Article with identifier {0} not found")]
-    NotFound(article::Identifier),
-    #[error("Article with identifier {0} is already restored")]
-    AlreadyRestored(article::Identifier),
+    #[error("Article with id {0} not found")]
+    NotFound(article::Id),
+    #[error(
+        "Article with id {0} has mismatched version: current article version {1} != transaction article version {2}"
+    )]
+    VersionMismatch(article::Id, article::Version, chrono::DateTime<chrono::Utc>),
     #[error(transparent)]
     Unknown(#[from] anyhow::Error),
 }
