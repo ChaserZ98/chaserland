@@ -1,5 +1,5 @@
 use crate::domain::entity::article;
-use crate::domain::repository::article::{ArticleRepository, RestoreArticleError};
+use crate::domain::repository::article::{ArticleRepository, RevokeSoftDeleteError};
 use crate::infra::repository::postgres::article::PgArticleRepository;
 
 #[sqlx::test(fixtures(
@@ -14,8 +14,8 @@ use crate::infra::repository::postgres::article::PgArticleRepository;
         "soft_delete_article"
     )
 ))]
-async fn restore_case_id(pool: sqlx::PgPool) {
-    let repo = PgArticleRepository { pool };
+async fn revoke_soft_delete_case_id(pool: sqlx::PgPool) {
+    let repo = PgArticleRepository::new(pool);
 
     let mut article = article::Article::default();
     article.id = 1.try_into().unwrap();
@@ -40,8 +40,8 @@ async fn restore_case_id(pool: sqlx::PgPool) {
         "article_tags"
     )
 ))]
-async fn restore_case_id_not_found(pool: sqlx::PgPool) {
-    let repo = PgArticleRepository { pool };
+async fn revoke_soft_delete_case_id_not_found(pool: sqlx::PgPool) {
+    let repo = PgArticleRepository::new(pool);
 
     let mut article = article::Article::default();
     article.id = 4.try_into().unwrap();
@@ -55,7 +55,7 @@ async fn restore_case_id_not_found(pool: sqlx::PgPool) {
     let err = res.unwrap_err();
 
     assert!(match err {
-        RestoreArticleError::NotFound(id) => id == article.id,
+        RevokeSoftDeleteError::NotFound(id) => id == article.id,
         _ => false,
     });
 }
@@ -71,8 +71,8 @@ async fn restore_case_id_not_found(pool: sqlx::PgPool) {
         "soft_delete_article"
     )
 ))]
-async fn restore_case_version_mismatch(pool: sqlx::PgPool) {
-    let repo = PgArticleRepository { pool };
+async fn revoke_soft_delete_case_version_mismatch(pool: sqlx::PgPool) {
+    let repo = PgArticleRepository::new(pool);
 
     let mut article = article::Article::default();
     article.id = 2.try_into().unwrap();
@@ -91,8 +91,12 @@ async fn restore_case_version_mismatch(pool: sqlx::PgPool) {
     let err = res.unwrap_err();
 
     assert!(match err {
-        RestoreArticleError::VersionMismatch(id, version, db_version) =>
-            id == article.id && version == article.version && db_version != article.version.value(),
+        RevokeSoftDeleteError::VersionMismatch {
+            id,
+            current_version,
+            db_version,
+        } =>
+            id == article.id && current_version == article.version && db_version != article.version,
         _ => false,
     });
 }

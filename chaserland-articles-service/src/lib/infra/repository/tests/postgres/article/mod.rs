@@ -1,8 +1,11 @@
+mod add_category;
 mod create;
 mod delete;
 mod get_many;
 mod get_one;
 mod publish;
+mod remove_series;
 mod revoke_soft_delete;
+mod set_series;
 mod soft_delete;
 mod unpublish;

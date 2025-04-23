@@ -15,9 +15,9 @@ pub struct Article {
     pub published_at: Option<PublishedAt>,
     pub updated_at: UpdatedAt,
     pub deleted_at: Option<DeletedAt>,
-    pub series_id: Option<series::SeriesId>,
-    pub category_ids: Vec<category::CategoryId>,
-    pub tag_ids: Vec<tag::TagId>,
+    pub series_id: Option<series::Id>,
+    pub category_ids: Vec<category::Id>,
+    pub tag_ids: Vec<tag::Id>,
     pub version: Version,
 }
 
@@ -29,9 +29,9 @@ impl Article {
         content: Option<Content>,
         created_at: CreatedAt,
         updated_at: UpdatedAt,
-        series_id: Option<series::SeriesId>,
-        category_ids: Vec<category::CategoryId>,
-        tag_ids: Vec<tag::TagId>,
+        series_id: Option<series::Id>,
+        category_ids: Vec<category::Id>,
+        tag_ids: Vec<tag::Id>,
         version: Version,
     ) -> Self {
         let slug = title.as_slug();
@@ -110,6 +110,40 @@ impl Article {
     pub fn bump_version(&mut self) {
         self.version.bump();
     }
+    pub fn set_series_id(&mut self, series_id: series::Id) {
+        self.series_id = Some(series_id);
+    }
+    pub fn remove_series_id(&mut self) {
+        self.series_id = None;
+    }
+    pub fn add_category_id(&mut self, category_id: category::Id) -> Result<(), DomainError> {
+        if self.category_ids.contains(&category_id) {
+            return Err(DomainError::CategoryAlreadyAttached(self.id, category_id));
+        }
+        self.category_ids.push(category_id);
+        Ok(())
+    }
+    pub fn remove_category_id(&mut self, category_id: category::Id) -> Result<(), DomainError> {
+        if !self.category_ids.contains(&category_id) {
+            return Err(DomainError::CategoryNotFound(self.id, category_id));
+        }
+        self.category_ids.retain(|id| *id != category_id);
+        Ok(())
+    }
+    pub fn add_tag_id(&mut self, tag_id: tag::Id) -> Result<(), DomainError> {
+        if self.tag_ids.contains(&tag_id) {
+            return Err(DomainError::TagAlreadyAttached(self.id, tag_id));
+        }
+        self.tag_ids.push(tag_id);
+        Ok(())
+    }
+    pub fn remove_add_id(&mut self, tag_id: tag::Id) -> Result<(), DomainError> {
+        if !self.tag_ids.contains(&tag_id) {
+            return Err(DomainError::TagNotFound(self.id, tag_id));
+        }
+        self.tag_ids.retain(|id| *id != tag_id);
+        Ok(())
+    }
 }
 
 impl Default for Article {
@@ -144,9 +178,9 @@ pub struct ArticleCreate {
     pub title: Title,
     pub description: Description,
     pub content: Option<Content>,
-    pub series_id: Option<series::SeriesId>,
-    pub category_ids: Vec<category::CategoryId>,
-    pub tag_ids: Vec<tag::TagId>,
+    pub series_id: Option<series::Id>,
+    pub category_ids: Vec<category::Id>,
+    pub tag_ids: Vec<tag::Id>,
     pub version: Version,
 }
 
@@ -160,6 +194,14 @@ pub enum DomainError {
     AlreadySoftDeleted(Id),
     #[error("Article with id {0} has not been soft deleted")]
     NotSoftDeleted(Id),
+    #[error("Article with id {0} already has category with id {1} attached")]
+    CategoryAlreadyAttached(Id, category::Id),
+    #[error("Article with id {0} does not have category with id {1} attached")]
+    CategoryNotFound(Id, category::Id),
+    #[error("Article with id {0} already has tag with id {1} attached")]
+    TagAlreadyAttached(Id, tag::Id),
+    #[error("Article with id {0} does not have tag with id {1} attached")]
+    TagNotFound(Id, tag::Id),
     #[error(transparent)]
     Unknown(#[from] anyhow::Error),
 }

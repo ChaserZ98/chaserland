@@ -14,7 +14,7 @@ use crate::infra::repository::postgres::article::PgArticleRepository;
     )
 ))]
 async fn test_get_many_case_pagination(pool: sqlx::PgPool) {
-    let repo = PgArticleRepository { pool };
+    let repo = PgArticleRepository::new(pool);
 
     let page = 1.try_into().unwrap();
     let page_size = 1.try_into().unwrap();
@@ -114,7 +114,7 @@ async fn test_get_many_case_pagination(pool: sqlx::PgPool) {
     )
 ))]
 async fn test_get_many_case_all_with_content_no_filter(pool: sqlx::PgPool) {
-    let repo = PgArticleRepository { pool };
+    let repo = PgArticleRepository::new(pool);
 
     let page = 1.try_into().unwrap();
     let page_size = 10.try_into().unwrap();
@@ -206,7 +206,7 @@ async fn test_get_many_case_all_with_content_no_filter(pool: sqlx::PgPool) {
     )
 ))]
 async fn test_get_many_case_all_with_content_with_series_filter(pool: sqlx::PgPool) {
-    let repo = PgArticleRepository { pool };
+    let repo = PgArticleRepository::new(pool);
 
     let target = article::Article::new(
         2.try_into().unwrap(),
@@ -297,7 +297,7 @@ async fn test_get_many_case_all_with_content_with_series_filter(pool: sqlx::PgPo
     )
 ))]
 async fn test_get_many_case_all_with_content_with_category_filter(pool: sqlx::PgPool) {
-    let repo = PgArticleRepository { pool };
+    let repo = PgArticleRepository::new(pool);
 
     let page = 1.try_into().unwrap();
     let page_size = 10.try_into().unwrap();
@@ -372,7 +372,7 @@ async fn test_get_many_case_all_with_content_with_category_filter(pool: sqlx::Pg
     )
 ))]
 async fn test_get_many_case_all_with_content_with_tag_filter(pool: sqlx::PgPool) {
-    let repo = PgArticleRepository { pool };
+    let repo = PgArticleRepository::new(pool);
 
     let page = 1.try_into().unwrap();
     let page_size = 10.try_into().unwrap();
@@ -447,7 +447,7 @@ async fn test_get_many_case_all_with_content_with_tag_filter(pool: sqlx::PgPool)
     )
 ))]
 async fn test_get_many_case_public_no_content_no_filter(pool: sqlx::PgPool) {
-    let repo = PgArticleRepository { pool };
+    let repo = PgArticleRepository::new(pool);
 
     let page = 1.try_into().unwrap();
     let page_size = 10.try_into().unwrap();

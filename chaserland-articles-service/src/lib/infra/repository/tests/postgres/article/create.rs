@@ -7,7 +7,7 @@ use crate::infra::repository::postgres::article::PgArticleRepository;
     scripts("tags", "series", "categories")
 ))]
 async fn create_article_case_1(pool: sqlx::PgPool) {
-    let repo = PgArticleRepository { pool };
+    let repo = PgArticleRepository::new(pool);
 
     let article = article::ArticleCreate {
         title: "title".try_into().unwrap(),
@@ -42,7 +42,7 @@ async fn create_article_case_1(pool: sqlx::PgPool) {
     scripts("tags", "series", "categories")
 ))]
 async fn create_article_case_2(pool: sqlx::PgPool) {
-    let repo = PgArticleRepository { pool };
+    let repo = PgArticleRepository::new(pool);
 
     let article = article::ArticleCreate {
         title: "title 1".try_into().unwrap(),
@@ -77,7 +77,7 @@ async fn create_article_case_2(pool: sqlx::PgPool) {
     scripts("tags", "series", "categories", "articles")
 ))]
 async fn create_article_case_duplicate_slug(pool: sqlx::PgPool) {
-    let repo = PgArticleRepository { pool };
+    let repo = PgArticleRepository::new(pool);
 
     let article = article::ArticleCreate {
         title: "article title 1".try_into().unwrap(),

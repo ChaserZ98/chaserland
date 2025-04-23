@@ -14,7 +14,7 @@ use crate::infra::repository::postgres::article::PgArticleRepository;
     )
 ))]
 async fn get_one_case_1(pool: sqlx::PgPool) {
-    let repo = PgArticleRepository { pool };
+    let repo = PgArticleRepository::new(pool);
 
     let res = repo
         .get_one(article::Identifier::Id(1.try_into().unwrap()), false, true)
@@ -62,7 +62,7 @@ async fn get_one_case_1(pool: sqlx::PgPool) {
     )
 ))]
 async fn get_one_case_2(pool: sqlx::PgPool) {
-    let repo = PgArticleRepository { pool };
+    let repo = PgArticleRepository::new(pool);
 
     let res = repo
         .get_one(article::Identifier::Id(2.try_into().unwrap()), false, true)
@@ -110,7 +110,7 @@ async fn get_one_case_2(pool: sqlx::PgPool) {
     )
 ))]
 async fn get_one_case_3(pool: sqlx::PgPool) {
-    let repo = PgArticleRepository { pool };
+    let repo = PgArticleRepository::new(pool);
 
     let identifier = article::Identifier::Id(3.try_into().unwrap());
 

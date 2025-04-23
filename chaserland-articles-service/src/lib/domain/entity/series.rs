@@ -3,12 +3,12 @@ use slugify::slugify;
 use std::fmt::Display;
 
 #[derive(Debug, Serialize, Deserialize, PartialEq, Eq, Clone, Copy)]
-pub struct SeriesId(i32);
+pub struct Id(i32);
 
-impl SeriesId {
+impl Id {
     pub fn new(id: i32) -> Self {
         Self::validate(id).unwrap();
-        SeriesId(id)
+        Self(id)
     }
 
     pub fn value(&self) -> i32 {
@@ -23,16 +23,16 @@ impl SeriesId {
     }
 }
 
-impl TryFrom<i32> for SeriesId {
+impl TryFrom<i32> for Id {
     type Error = String;
 
     fn try_from(value: i32) -> Result<Self, Self::Error> {
         Self::validate(value)?;
-        Ok(SeriesId(value))
+        Ok(Self(value))
     }
 }
 
-impl Display for SeriesId {
+impl Display for Id {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "{}", self.0)
     }
@@ -95,14 +95,14 @@ impl Display for SeriesName {
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Series {
-    pub id: SeriesId,
+    pub id: Id,
     pub slug: SeriesSlug,
     pub name: SeriesName,
 }
 
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub enum Identifier {
-    Id(SeriesId),
+    Id(Id),
     Slug(SeriesSlug),
 }
 

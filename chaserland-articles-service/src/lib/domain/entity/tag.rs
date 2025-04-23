@@ -1,15 +1,13 @@
-use std::fmt::Display;
-
 use serde::{Deserialize, Serialize};
 use slugify::slugify;
 
 #[derive(Debug, Serialize, Deserialize, PartialEq, Eq, Clone, Copy)]
-pub struct TagId(i32);
+pub struct Id(i32);
 
-impl TagId {
+impl Id {
     pub fn new(id: i32) -> Self {
         Self::validate(id).unwrap();
-        TagId(id)
+        Self(id)
     }
 
     pub fn value(&self) -> i32 {
@@ -24,16 +22,16 @@ impl TagId {
     }
 }
 
-impl TryFrom<i32> for TagId {
+impl TryFrom<i32> for Id {
     type Error = String;
 
     fn try_from(value: i32) -> Result<Self, Self::Error> {
         Self::validate(value)?;
-        Ok(TagId(value))
+        Ok(Self(value))
     }
 }
 
-impl TryFrom<&i32> for TagId {
+impl TryFrom<&i32> for Id {
     type Error = String;
 
     fn try_from(value: &i32) -> Result<Self, Self::Error> {
@@ -41,7 +39,7 @@ impl TryFrom<&i32> for TagId {
     }
 }
 
-impl Display for TagId {
+impl std::fmt::Display for Id {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "{}", self.0)
     }
@@ -50,7 +48,7 @@ impl Display for TagId {
 #[derive(Debug, Serialize, Deserialize)]
 pub struct TagSlug(String);
 
-impl Display for TagSlug {
+impl std::fmt::Display for TagSlug {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "{}", self.0)
     }
@@ -65,7 +63,7 @@ impl TagName {
     }
 }
 
-impl Display for TagName {
+impl std::fmt::Display for TagName {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "{}", self.0)
     }
@@ -73,7 +71,7 @@ impl Display for TagName {
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Tag {
-    pub id: TagId,
+    pub id: Id,
     pub slug: TagSlug,
     pub name: TagName,
 }
@@ -121,7 +119,7 @@ pub struct Tag {
 
 #[derive(Debug)]
 pub enum Identifier {
-    Id(TagId),
+    Id(Id),
     Slug(TagSlug),
 }
 

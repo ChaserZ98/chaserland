@@ -1,13 +1,10 @@
-use crate::domain::entity::{article, series};
-use crate::domain::repository::article::{ArticlesFilter, CreateArticleError, DeleteArticleError, GetArticleError, PublishArticleError, RestoreArticleError, SoftDeleteArticleError, UnpublishArticleError};
+use crate::domain::entity::{article, series, category, tag};
+use crate::domain::repository::article::ArticlesFilter;
+use crate::domain::repository::article::error;
 use async_trait::async_trait;
 use chaserland_common::pagination::{Offset, Page, PageSize};
 use sqlx::{PgPool, Postgres, QueryBuilder};
 use crate::domain::repository::article::ArticleRepository;
-
-pub struct PgArticleRepository {
-    pub pool: PgPool,
-}
 
 #[derive(sqlx::FromRow)]
 pub struct PgArticle {
@@ -61,17 +58,27 @@ impl TryInto<article::Article> for PgArticle {
     }
 }
 
+pub struct PgArticleRepository {
+    pool: PgPool,
+}
+
+impl PgArticleRepository {
+    pub fn new(pool: PgPool) -> Self {
+        Self { pool }
+    }
+}
+
 #[async_trait]
 impl ArticleRepository for PgArticleRepository {
     async fn create(
         &self,
         article: article::ArticleCreate,
-    ) -> Result<article::Article, CreateArticleError> {
+    ) -> Result<article::Article, error::CreateArticleError> {
         let mut tx = self
             .pool
             .begin()
             .await
-            .map_err(|why| CreateArticleError::Unknown(why.into()))?;
+            .map_err(|why| error::CreateArticleError::Unknown(why.into()))?;
 
         let title = article.title.value();
         let slug = article.title.as_slug().value();
@@ -98,8 +105,8 @@ impl ArticleRepository for PgArticleRepository {
         .await.map_err(|why| 
             match why {
                 sqlx::Error::Database(db_err) if db_err.is_unique_violation() => 
-                    CreateArticleError::DuplicateSlug(slug),
-                _ => CreateArticleError::Unknown(why.into()),
+                    error::CreateArticleError::DuplicateSlug(slug),
+                _ => error::CreateArticleError::Unknown(why.into()),
             }
         )?;
 
@@ -117,7 +124,7 @@ impl ArticleRepository for PgArticleRepository {
                 .build()
                 .execute(&mut *tx)
                 .await
-                .map_err(|why| CreateArticleError::Unknown(why.into()))?;
+                .map_err(|why| error::CreateArticleError::Unknown(why.into()))?;
         }
 
         if !article.tag_ids.is_empty() {
@@ -133,14 +140,14 @@ impl ArticleRepository for PgArticleRepository {
                 .build()
                 .execute(&mut *tx)
                 .await
-                .map_err(|why| CreateArticleError::Unknown(why.into()))?;
+                .map_err(|why| error::CreateArticleError::Unknown(why.into()))?;
         }
 
         tx.commit()
             .await
-            .map_err(|why| CreateArticleError::Unknown(why.into()))?;
+            .map_err(|why| error::CreateArticleError::Unknown(why.into()))?;
 
-        let mut new_article: article::Article = pg_article.try_into().map_err(|why: String| CreateArticleError::Unknown(anyhow::anyhow!(why)))?;
+        let mut new_article: article::Article = pg_article.try_into().map_err(|why: String| error::CreateArticleError::Unknown(anyhow::anyhow!(why)))?;
         new_article.category_ids = article.category_ids;
         new_article.tag_ids = article.tag_ids;
 
@@ -151,7 +158,7 @@ impl ArticleRepository for PgArticleRepository {
         identifier: article::Identifier,
         public_only: bool,
         with_content: bool,
-    ) -> Result<article::Article, GetArticleError> {
+    ) -> Result<article::Article, error::GetArticleError> {
         let mut query = QueryBuilder::<Postgres>::new("SELECT * FROM ");
         match (public_only, with_content) {
             (true, true) => {
@@ -178,20 +185,20 @@ impl ArticleRepository for PgArticleRepository {
             }
         }
 
-        let pg_article: Option<PgArticle> = query.build_query_as().fetch_optional(&self.pool).await.map_err(|why| GetArticleError::Unknown(why.into()))?;
+        let pg_article: Option<PgArticle> = query.build_query_as().fetch_optional(&self.pool).await.map_err(|why| error::GetArticleError::Unknown(why.into()))?;
         if pg_article.is_none() {
-            return Err(GetArticleError::NotFound(identifier));
+            return Err(error::GetArticleError::NotFound(identifier));
         }
 
         let pg_article = pg_article.unwrap();
 
         let category_ids: Vec<i32> = sqlx::query_scalar(
-            "SELECT category_id FROM article.article_categories WHERE article_id = $1").bind(pg_article.id).fetch_all(&self.pool).await.map_err(|why| GetArticleError::Unknown(why.into()))?;
+            "SELECT category_id FROM article.article_categories WHERE article_id = $1").bind(pg_article.id).fetch_all(&self.pool).await.map_err(|why| error::GetArticleError::Unknown(why.into()))?;
 
-        let tag_ids: Vec<i32> = sqlx::query_scalar("SELECT tag_id FROM article.article_tags WHERE article_id = $1").bind(pg_article.id).fetch_all(&self.pool).await.map_err(|why| GetArticleError::Unknown(why.into()))?;
+        let tag_ids: Vec<i32> = sqlx::query_scalar("SELECT tag_id FROM article.article_tags WHERE article_id = $1").bind(pg_article.id).fetch_all(&self.pool).await.map_err(|why| error::GetArticleError::Unknown(why.into()))?;
 
 
-        let mut article: article::Article = pg_article.try_into().map_err(|why: String| GetArticleError::Unknown(anyhow::anyhow!(why)))?;
+        let mut article: article::Article = pg_article.try_into().map_err(|why: String| error::GetArticleError::Unknown(anyhow::anyhow!(why)))?;
         article.category_ids = category_ids.iter().map(|v| v.try_into().unwrap()).collect();
         article.tag_ids = tag_ids.iter().map(|v| v.try_into().unwrap()).collect();
 
@@ -204,7 +211,7 @@ impl ArticleRepository for PgArticleRepository {
         public_only: bool,
         with_content: bool,
         filter: Option<ArticlesFilter>,
-    ) -> Result<Vec<article::Article>, GetArticleError> {
+    ) -> Result<Vec<article::Article>, error::GetArticleError> {
         let offset = Offset::from((page, page_size));
         let mut query = QueryBuilder::<Postgres>::new("SELECT a.*, COALESCE(c.category_ids, '{}') as category_ids, COALESCE(d.tag_ids, '{}') as tag_ids FROM ");
 
@@ -274,107 +281,222 @@ impl ArticleRepository for PgArticleRepository {
         query.push(" OFFSET ");
         query.push_bind(offset.value());
 
-        let articles: Vec<PgArticle> = query.build_query_as().fetch_all(&self.pool).await.map_err(|why| GetArticleError::Unknown(why.into()))?;
+        let articles: Vec<PgArticle> = query.build_query_as().fetch_all(&self.pool).await.map_err(|why| error::GetArticleError::Unknown(why.into()))?;
 
-        let res = articles.into_iter().map(|v| v.try_into()).collect::<Result<Vec<article::Article>, String>>().map_err(|why| GetArticleError::Unknown(anyhow::anyhow!(why)))?;
+        let res = articles.into_iter().map(|v| v.try_into()).collect::<Result<Vec<article::Article>, String>>().map_err(|why| error::GetArticleError::Unknown(anyhow::anyhow!(why)))?;
 
         Ok(res)
     }
-    async fn publish(&self, id: article::Id, published_at: article::PublishedAt, version: article::Version) -> Result<(), PublishArticleError> {
-        let mut tx = self.pool.begin().await.map_err(|why| PublishArticleError::Unknown(why.into()))?;
+    async fn set_series(&self, id: article::Id, series_id: series::Id, version: article::Version) -> Result<(), error::SetSeriesError> {
+        let mut tx = self.pool.begin().await.map_err(|why| error::SetSeriesError::Unknown(why.into()))?;
+
+        let db_article_version: Option<chrono::DateTime<chrono::Utc>> = sqlx::query_scalar("UPDATE article.articles SET series_id = $1, version = NOW() WHERE id = $2 RETURNING (SELECT version FROM article.articles WHERE id = $2) as version").bind(series_id.value()).bind(id.value()).fetch_optional(&mut *tx).await.map_err(|why|
+            match why {
+                sqlx::Error::Database(db_err) if db_err.is_foreign_key_violation() => error::SetSeriesError::SeriesNotFound(series_id),
+                _ => error::SetSeriesError::Unknown(why.into())
+            }
+        )?;
+
+        if db_article_version.is_none() {
+            return Err(error::SetSeriesError::NotFound(id));
+        }
+
+        let db_article_version = db_article_version.unwrap();
+
+        if db_article_version != version.value() {
+            return Err(error::SetSeriesError::VersionMismatch{
+                id,
+                current_version: version,
+                db_version: db_article_version.into()
+            });
+        }
+
+        tx.commit().await.map_err(|why| error::SetSeriesError::Unknown(why.into()))?;
+
+        Ok(())
+    }
+    async fn remove_series(&self, id: article::Id, version: article::Version) -> Result<(), error::RemoveSeriesError> {
+        let mut tx = self.pool.begin().await.map_err(|why| error::RemoveSeriesError::Unknown(why.into()))?;
+
+        let db_article_version: Option<chrono::DateTime<chrono::Utc>> = sqlx::query_scalar("UPDATE article.articles SET series_id = NULL, version = NOW() WHERE id = $1 RETURNING (SELECT version FROM article.articles WHERE id = $1) as version").bind(id.value()).fetch_optional(&mut *tx).await.map_err(|why| error::RemoveSeriesError::Unknown(why.into()))?;
+
+        if db_article_version.is_none() {
+            return Err(error::RemoveSeriesError::NotFound(id));
+        }
+
+        let db_article_version = db_article_version.unwrap();
+
+        if db_article_version != version.value() {
+            return Err(error::RemoveSeriesError::VersionMismatch{
+                id,
+                current_version: version,
+                db_version: db_article_version.into()
+            });
+        }
+
+        tx.commit().await.map_err(|why| error::RemoveSeriesError::Unknown(why.into()))?;
+
+        Ok(())
+    }
+    async fn add_category(&self, id: article::Id, category_id: category::Id, version: article::Version) -> Result<(), error::AddCategoryError> {
+        let mut tx = self.pool.begin().await.map_err(|why| error::AddCategoryError::Unknown(why.into()))?;
+
+        sqlx::query("INSERT INTO article.article_categories (article_id, category_id) VALUES ($1, $2) ON CONFLICT (article_id, category_id) DO NOTHING")
+        .bind(id.value())
+        .bind(category_id.value())
+        .execute(&mut *tx)
+        .await
+        .map_err(
+            |why| {
+                if !matches!(why, sqlx::Error::Database(_)) {
+                    return error::AddCategoryError::Unknown(why.into());
+                }
+                let db_err = why.as_database_error().unwrap();
+                if !db_err.is_foreign_key_violation() {
+                    return error::AddCategoryError::Unknown(why.into());
+                }
+                match db_err.constraint() {
+                    Some("article_categories_article_id_fkey") => error::AddCategoryError::ArticleNotFound(id),
+                    Some("article_categories_category_id_fkey") => error::AddCategoryError::CategoryNotFound(category_id),
+                    _ => error::AddCategoryError::Unknown(why.into())
+                }
+            }
+        )?;
+        
+        let db_article_version: chrono::DateTime<chrono::Utc> = sqlx::query_scalar("UPDATE article.articles SET version = NOW() WHERE id = $1 RETURNING (SELECT version FROM article.articles WHERE id = $1) as version").bind(id.value()).fetch_one(&mut *tx).await.map_err(|why| error::AddCategoryError::Unknown(why.into()))?;
+
+        if db_article_version != version.value() {
+            return Err(error::AddCategoryError::VersionMismatch{
+                id,
+                current_version: version,
+                db_version: db_article_version.into()
+            });
+        }
+
+        tx.commit().await.map_err(|why| error::AddCategoryError::Unknown(why.into()))?;
+
+        Ok(())
+    }
+    async fn remove_category(&self, id: article::Id, category_id: category::Id, version: article::Version) -> Result<(), error::RemoveCategoryError> {
+        todo!()
+    }
+    async fn add_tag(&self, id: article::Id, tag_id: tag::Id, version: article::Version) -> Result<(), error::AddTagError> {
+        todo!()
+    }
+    async fn remove_tag(&self, id: article::Id, tag_id: tag::Id, version: article::Version) -> Result<(), error::RemoveTagError> {
+        todo!()
+    }
+    async fn publish(&self, id: article::Id, published_at: article::PublishedAt, version: article::Version) -> Result<(), error::PublishArticleError> {
+        let mut tx = self.pool.begin().await.map_err(|why| error::PublishArticleError::Unknown(why.into()))?;
         
         let db_article_version: Option<chrono::DateTime<chrono::Utc>> = sqlx::query_scalar("UPDATE article.articles SET published_at = $1, version = NOW() WHERE id = $2 RETURNING (SELECT version FROM article.articles WHERE id = $2) as version")
         .bind(published_at.value())
         .bind(id.value())
         .fetch_optional(&mut *tx)
-        .await.map_err(|why| PublishArticleError::Unknown(why.into()))?;
+        .await.map_err(|why| error::PublishArticleError::Unknown(why.into()))?;
 
         if db_article_version.is_none() {
-            return Err(PublishArticleError::NotFound(id));
+            return Err(error::PublishArticleError::NotFound(id));
         }
 
         let db_article_version = db_article_version.unwrap();
 
         if db_article_version != version.value() {
-            return Err(PublishArticleError::VersionMismatch(id, version, db_article_version));
+            return Err(error::PublishArticleError::VersionMismatch{
+                id,
+                current_version: version,
+                db_version: db_article_version.into()
+            });
         }
 
-        tx.commit().await.map_err(|why| PublishArticleError::Unknown(why.into()))?;
+        tx.commit().await.map_err(|why| error::PublishArticleError::Unknown(why.into()))?;
 
         Ok(())
     }
-    async fn unpublish(&self, id: article::Id, version: article::Version) -> Result<(), UnpublishArticleError> {
-        let mut tx = self.pool.begin().await.map_err(|why| UnpublishArticleError::Unknown(why.into()))?;
+    async fn unpublish(&self, id: article::Id, version: article::Version) -> Result<(), error::UnpublishArticleError> {
+        let mut tx = self.pool.begin().await.map_err(|why| error::UnpublishArticleError::Unknown(why.into()))?;
 
         let db_article_version: Option<chrono::DateTime<chrono::Utc>> = sqlx::query_scalar("UPDATE article.articles SET published_at = NULL, version = NOW() WHERE id = $1 RETURNING (SELECT version FROM article.articles WHERE id = $1) as version")
         .bind(id.value())
         .fetch_optional(&mut *tx)
-        .await.map_err(|why| UnpublishArticleError::Unknown(why.into()))?;
+        .await.map_err(|why| error::UnpublishArticleError::Unknown(why.into()))?;
 
         if db_article_version.is_none() {
-            return Err(UnpublishArticleError::NotFound(id));
+            return Err(error::UnpublishArticleError::NotFound(id));
         }
 
         let db_article_version = db_article_version.unwrap();
 
         if db_article_version != version.value() {
-            return Err(UnpublishArticleError::VersionMismatch(id, version, db_article_version));
+            return Err(error::UnpublishArticleError::VersionMismatch{
+                id,
+                current_version: version,
+                db_version: db_article_version.into()
+            });
         }
 
-        tx.commit().await.map_err(|why| UnpublishArticleError::Unknown(why.into()))?;
+        tx.commit().await.map_err(|why| error::UnpublishArticleError::Unknown(why.into()))?;
 
         Ok(())
     }
-    async fn soft_delete(&self, id: article::Id, deleted_at: article::DeletedAt, version: article::Version) -> Result<(), SoftDeleteArticleError> {
-        let mut tx = self.pool.begin().await.map_err(|why| SoftDeleteArticleError::Unknown(why.into()))?;
+    async fn soft_delete(&self, id: article::Id, deleted_at: article::DeletedAt, version: article::Version) -> Result<(), error::SoftDeleteArticleError> {
+        let mut tx = self.pool.begin().await.map_err(|why| error::SoftDeleteArticleError::Unknown(why.into()))?;
 
         let db_article_version: Option<chrono::DateTime<chrono::Utc>> = sqlx::query_scalar("UPDATE article.articles SET deleted_at = $1, version = NOW() WHERE id = $2 RETURNING (SELECT version FROM article.articles WHERE id = $2) as version")
         .bind(deleted_at.value())
         .bind(id.value())
         .fetch_optional(&mut *tx)
-        .await.map_err(|why| SoftDeleteArticleError::Unknown(why.into()))?;
+        .await.map_err(|why| error::SoftDeleteArticleError::Unknown(why.into()))?;
 
         if db_article_version.is_none() {
-            return Err(SoftDeleteArticleError::NotFound(id));
+            return Err(error::SoftDeleteArticleError::NotFound(id));
         }
 
         let db_article_version = db_article_version.unwrap();
 
         if db_article_version != version.value() {
-            return Err(SoftDeleteArticleError::VersionMismatch(id, version, db_article_version));
+            return Err(error::SoftDeleteArticleError::VersionMismatch{
+                id,
+                current_version: version,
+                db_version: db_article_version.into()
+            });
         }
 
-        tx.commit().await.map_err(|why| SoftDeleteArticleError::Unknown(why.into()))?;
+        tx.commit().await.map_err(|why| error::SoftDeleteArticleError::Unknown(why.into()))?;
 
         Ok(())
     }
-    async fn revoke_soft_delete(&self, id: article::Id, version: article::Version) -> Result<(), RestoreArticleError> {
-        let mut tx = self.pool.begin().await.map_err(|why| RestoreArticleError::Unknown(why.into()))?;
+    async fn revoke_soft_delete(&self, id: article::Id, version: article::Version) -> Result<(), error::RevokeSoftDeleteError> {
+        let mut tx = self.pool.begin().await.map_err(|why| error::RevokeSoftDeleteError::Unknown(why.into()))?;
 
         let db_article_version: Option<chrono::DateTime<chrono::Utc>> = sqlx::query_scalar("UPDATE article.articles SET deleted_at = NULL, version = NOW() WHERE id = $1 RETURNING (SELECT version FROM article.articles WHERE id = $1) as version")
         .bind(id.value())
         .fetch_optional(&mut *tx)
-        .await.map_err(|why| RestoreArticleError::Unknown(why.into()))?;
+        .await.map_err(|why| error::RevokeSoftDeleteError::Unknown(why.into()))?;
 
         if db_article_version.is_none() {
-            return Err(RestoreArticleError::NotFound(id));
+            return Err(error::RevokeSoftDeleteError::NotFound(id));
         }
 
         let db_article_version = db_article_version.unwrap();
 
         if db_article_version != version.value() {
-            return Err(RestoreArticleError::VersionMismatch(id, version, db_article_version));
+            return Err(error::RevokeSoftDeleteError::VersionMismatch{
+                id,
+                current_version: version,
+                db_version: db_article_version.into()
+            });
         }
 
-        tx.commit().await.map_err(|why| RestoreArticleError::Unknown(why.into()))?;
+        tx.commit().await.map_err(|why| error::RevokeSoftDeleteError::Unknown(why.into()))?;
 
         Ok(())
     }
     async fn delete(
         &self,
         identifier: article::Identifier,
-    ) -> Result<(), DeleteArticleError> {
-        let mut tx = self.pool.begin().await.map_err(|why| DeleteArticleError::Unknown(why.into()))?;
+    ) -> Result<(), error::DeleteArticleError> {
+        let mut tx = self.pool.begin().await.map_err(|why| error::DeleteArticleError::Unknown(why.into()))?;
 
         let mut query = QueryBuilder::<Postgres>::new("DELETE FROM article.articles WHERE ");
 
@@ -389,13 +511,13 @@ impl ArticleRepository for PgArticleRepository {
             }
         };
 
-        let res = query.build().execute(&mut *tx).await.map_err(|why| DeleteArticleError::Unknown(why.into()))?;
+        let res = query.build().execute(&mut *tx).await.map_err(|why| error::DeleteArticleError::Unknown(why.into()))?;
         
         if res.rows_affected() == 0 {
-            return Err(DeleteArticleError::NotFound(identifier));
+            return Err(error::DeleteArticleError::NotFound(identifier));
         }
 
-        tx.commit().await.map_err(|why| DeleteArticleError::Unknown(why.into()))?;
+        tx.commit().await.map_err(|why| error::DeleteArticleError::Unknown(why.into()))?;
 
         Ok(())
     }

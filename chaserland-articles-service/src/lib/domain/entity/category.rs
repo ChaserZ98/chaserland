@@ -3,10 +3,10 @@ use std::fmt::Display;
 use serde::{Deserialize, Serialize};
 use slugify::slugify;
 
-#[derive(Debug, Serialize, Deserialize, Clone, PartialEq, Eq)]
-pub struct CategoryId(i32);
+#[derive(Debug, Serialize, Deserialize, Clone, Copy, PartialEq, Eq)]
+pub struct Id(i32);
 
-impl CategoryId {
+impl Id {
     pub fn new(id: i32) -> Self {
         Self::validate(id).unwrap();
         Self(id)
@@ -24,15 +24,15 @@ impl CategoryId {
     }
 }
 
-impl TryFrom<i32> for CategoryId {
+impl TryFrom<i32> for Id {
     type Error = String;
 
     fn try_from(value: i32) -> Result<Self, Self::Error> {
         Self::validate(value)?;
-        Ok(CategoryId(value))
+        Ok(Self(value))
     }
 }
-impl TryFrom<&i32> for CategoryId {
+impl TryFrom<&i32> for Id {
     type Error = String;
 
     fn try_from(value: &i32) -> Result<Self, Self::Error> {
@@ -40,7 +40,7 @@ impl TryFrom<&i32> for CategoryId {
     }
 }
 
-impl Display for CategoryId {
+impl Display for Id {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "{}", self.0)
     }
@@ -70,7 +70,7 @@ impl CategoryName {
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Category {
-    pub id: CategoryId,
+    pub id: Id,
     pub slug: CategorySlug,
     pub name: CategoryName,
 }
@@ -121,7 +121,7 @@ pub struct Category {
 
 #[derive(Debug)]
 pub enum Identifier {
-    Id(CategoryId),
+    Id(Id),
     Slug(CategorySlug),
 }
 

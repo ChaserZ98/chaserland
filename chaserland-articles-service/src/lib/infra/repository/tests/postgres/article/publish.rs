@@ -14,7 +14,7 @@ use crate::infra::repository::postgres::article::PgArticleRepository;
     )
 ))]
 async fn test_publish_case_id(pool: sqlx::PgPool) {
-    let repo = PgArticleRepository { pool };
+    let repo = PgArticleRepository::new(pool);
 
     let mut article = article::Article::new(
         1.try_into().unwrap(),
@@ -53,7 +53,7 @@ async fn test_publish_case_id(pool: sqlx::PgPool) {
     )
 ))]
 async fn test_publish_case_id_not_found(pool: sqlx::PgPool) {
-    let repo = PgArticleRepository { pool };
+    let repo = PgArticleRepository::new(pool);
 
     let mut article = article::Article::new(
         4.try_into().unwrap(),
@@ -99,7 +99,7 @@ async fn test_publish_case_id_not_found(pool: sqlx::PgPool) {
     )
 ))]
 async fn test_publish_case_version_mismatch(pool: sqlx::PgPool) {
-    let repo = PgArticleRepository { pool };
+    let repo = PgArticleRepository::new(pool);
 
     let mut article = article::Article::default();
     article.id = 1.try_into().unwrap();
@@ -130,8 +130,12 @@ async fn test_publish_case_version_mismatch(pool: sqlx::PgPool) {
     let err = res.unwrap_err();
 
     assert!(match err {
-        PublishArticleError::VersionMismatch(id, version, db_version) =>
-            id == article.id && version == article.version && db_version != article.version.value(),
+        PublishArticleError::VersionMismatch {
+            id,
+            current_version,
+            db_version,
+        } =>
+            id == article.id && current_version == article.version && db_version != article.version,
         _ => false,
     });
 }

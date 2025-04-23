@@ -14,7 +14,7 @@ use crate::infra::repository::postgres::article::PgArticleRepository;
     )
 ))]
 async fn delete_hard_case_id(pool: sqlx::PgPool) {
-    let repo = PgArticleRepository { pool };
+    let repo = PgArticleRepository::new(pool);
     let id = 1.try_into().unwrap();
     let identifier = article::Identifier::Id(id);
 
@@ -53,7 +53,7 @@ async fn delete_hard_case_id(pool: sqlx::PgPool) {
     )
 ))]
 async fn delete_hard_case_slug(pool: sqlx::PgPool) {
-    let repo = PgArticleRepository { pool };
+    let repo = PgArticleRepository::new(pool);
 
     let slug: article::Slug = "article-title-1".try_into().unwrap();
     let identifier = article::Identifier::Slug(slug.clone());
@@ -93,7 +93,7 @@ async fn delete_hard_case_slug(pool: sqlx::PgPool) {
     )
 ))]
 async fn delete_hard_case_id_not_found(pool: sqlx::PgPool) {
-    let repo = PgArticleRepository { pool };
+    let repo = PgArticleRepository::new(pool);
 
     let id = 4.try_into().unwrap();
     let identifier = article::Identifier::Id(id);
@@ -135,7 +135,7 @@ async fn delete_hard_case_id_not_found(pool: sqlx::PgPool) {
     )
 ))]
 async fn delete_hard_case_slug_not_found(pool: sqlx::PgPool) {
-    let repo = PgArticleRepository { pool };
+    let repo = PgArticleRepository::new(pool);
 
     let slug = "article-title-4".try_into().unwrap();
     let identifier = article::Identifier::Slug(slug);
