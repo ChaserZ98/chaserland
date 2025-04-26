@@ -9,11 +9,12 @@ impl Id {
         Self::validate(id).unwrap();
         Self(id)
     }
-
     pub fn value(&self) -> i32 {
         self.0
     }
-
+    pub fn as_identifier(&self) -> Identifier {
+        self.clone().into()
+    }
     pub fn validate(id: i32) -> Result<(), String> {
         match id > 0 {
             true => Ok(()),
@@ -48,6 +49,15 @@ impl std::fmt::Display for Id {
 #[derive(Debug, Serialize, Deserialize, PartialEq, Eq, Clone)]
 pub struct Slug(String);
 
+impl Slug {
+    pub fn value(&self) -> String {
+        self.0.clone()
+    }
+    pub fn as_identifier(&self) -> Identifier {
+        self.clone().into()
+    }
+}
+
 impl std::fmt::Display for Slug {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "{}", self.0)
@@ -58,8 +68,40 @@ impl std::fmt::Display for Slug {
 pub struct Name(String);
 
 impl Name {
+    pub fn new(name: impl Into<String>) -> Self {
+        let name = name.into();
+        Self::validate(&name).unwrap();
+        Self(name)
+    }
+    pub fn value(&self) -> String {
+        self.0.clone()
+    }
     pub fn as_slug(&self) -> Slug {
         Slug(slugify!(&self.0, separator = "-"))
+    }
+    pub fn validate(name: impl Into<String>) -> Result<(), String> {
+        let name: String = name.into();
+        match name.trim().is_empty() {
+            true => Err("name is empty".to_string()),
+            false => Ok(()),
+        }
+    }
+}
+
+impl TryFrom<String> for Name {
+    type Error = String;
+
+    fn try_from(value: String) -> Result<Self, Self::Error> {
+        Self::validate(&value)?;
+        Ok(Self(value))
+    }
+}
+
+impl TryFrom<&str> for Name {
+    type Error = String;
+
+    fn try_from(value: &str) -> Result<Self, Self::Error> {
+        Self::try_from(value.to_string())
     }
 }
 
@@ -76,10 +118,29 @@ pub struct Category {
     pub name: Name,
 }
 
+impl Category {
+    pub fn new(id: Id, name: Name) -> Self {
+        let slug = name.as_slug();
+        Self { id, slug, name }
+    }
+}
+
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub enum Identifier {
     Id(Id),
     Slug(Slug),
+}
+
+impl From<Id> for Identifier {
+    fn from(id: Id) -> Self {
+        Self::Id(id)
+    }
+}
+
+impl From<Slug> for Identifier {
+    fn from(slug: Slug) -> Self {
+        Self::Slug(slug)
+    }
 }
 
 impl std::fmt::Display for Identifier {

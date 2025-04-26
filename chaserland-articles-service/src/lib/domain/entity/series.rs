@@ -14,6 +14,10 @@ impl Id {
         self.0
     }
 
+    pub fn as_identifier(&self) -> Identifier {
+        self.clone().into()
+    }
+
     fn validate(id: i32) -> Result<(), String> {
         match id > 0 {
             true => Ok(()),
@@ -44,6 +48,9 @@ impl Slug {
     pub fn value(&self) -> String {
         self.0.clone()
     }
+    pub fn as_identifier(&self) -> Identifier {
+        self.clone().into()
+    }
 }
 
 impl std::fmt::Display for Slug {
@@ -52,7 +59,7 @@ impl std::fmt::Display for Slug {
     }
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Clone, PartialEq, Eq)]
 pub struct Name(String);
 
 impl Name {
@@ -76,12 +83,20 @@ impl Name {
     }
 }
 
+impl TryFrom<&str> for Name {
+    type Error = String;
+
+    fn try_from(value: &str) -> Result<Self, Self::Error> {
+        Self::validate(value)?;
+        Ok(Self(value.to_string()))
+    }
+}
+
 impl TryFrom<String> for Name {
     type Error = String;
 
     fn try_from(value: String) -> Result<Self, Self::Error> {
-        Self::validate(&value)?;
-        Ok(Self(value))
+        Self::try_from(value.as_ref())
     }
 }
 
@@ -91,17 +106,44 @@ impl std::fmt::Display for Name {
     }
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Clone, PartialEq, Eq)]
 pub struct Series {
     pub id: Id,
     pub slug: Slug,
     pub name: Name,
 }
 
+impl Series {
+    pub fn new(id: Id, name: Name) -> Self {
+        let slug = name.as_slug();
+        Self { id, slug, name }
+    }
+}
+
+impl Default for Series {
+    fn default() -> Self {
+        let id = Id::new(1);
+        let name = Name::new("default");
+        Self::new(id, name)
+    }
+}
+
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub enum Identifier {
     Id(Id),
     Slug(Slug),
+}
+
+impl From<Id> for Identifier {
+    fn from(id: Id) -> Self {
+        Self::Id(id)
+    }
+}
+
+impl From<Slug> for Identifier {
+    fn from(slug: Slug) -> Self {
+        Self::Slug(slug)
+    }
 }
 
 impl std::fmt::Display for Identifier {
