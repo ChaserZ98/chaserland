@@ -87,7 +87,7 @@ async fn set_series_case_id_not_found(pool: sqlx::PgPool) {
     let err = res.unwrap_err();
 
     assert!(match err {
-        SetSeriesError::NotFound(value) => value == article.id,
+        SetSeriesError::ArticleNotFound(value) => value == article.id,
         _ => false,
     });
 }

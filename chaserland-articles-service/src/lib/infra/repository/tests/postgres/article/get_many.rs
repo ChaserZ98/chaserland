@@ -257,7 +257,7 @@ async fn test_get_many_case_all_with_content_with_series_filter(pool: sqlx::PgPo
     let public_only = false;
     let with_content = true;
     let series_identifier = Some(series::Identifier::Slug(
-        series::SeriesName::new("series 2").as_slug(),
+        series::Name::new("series 2").as_slug(),
     ));
     let filter = Some(ArticlesFilter::new(series_identifier, vec![], vec![]));
 

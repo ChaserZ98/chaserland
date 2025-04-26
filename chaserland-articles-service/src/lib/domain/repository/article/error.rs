@@ -19,7 +19,7 @@ pub enum GetArticleError {
 #[derive(Debug, thiserror::Error)]
 pub enum SetSeriesError {
     #[error("Article with id {0} not found")]
-    NotFound(article::Id),
+    ArticleNotFound(article::Id),
     #[error("Series with id {0} not found")]
     SeriesNotFound(series::Id),
     #[error(

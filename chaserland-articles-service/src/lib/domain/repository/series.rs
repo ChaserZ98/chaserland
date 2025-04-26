@@ -1,35 +1,36 @@
-use async_trait::async_trait;
-
 use crate::domain::entity::series;
+use async_trait::async_trait;
 
 #[async_trait]
 pub trait SeriesRepository {
-    type Tx;
-
-    async fn create(
-        &self,
-        name: series::SeriesName,
-        tx: &mut Self::Tx,
-    ) -> Result<series::Series, CreateSeriesError>;
+    async fn create(&self, name: series::Name) -> Result<series::Series, CreateSeriesError>;
     async fn get_one(
         &self,
         identifier: series::Identifier,
-        tx: &mut Self::Tx,
     ) -> Result<series::Series, GetSeriesError>;
+    async fn delete(&self, identifier: series::Identifier) -> Result<(), DeleteSeriesError>;
 }
 
 #[derive(Debug, thiserror::Error)]
 pub enum CreateSeriesError {
-    #[error("Series {} already exists or slug {} is already taken", name, name.as_slug())]
-    AlreadyExists { name: series::SeriesName },
+    #[error("Series {0} already exists or slug {1} is already taken")]
+    AlreadyExists(series::Name, series::Slug),
     #[error(transparent)]
     Unknown(#[from] anyhow::Error),
 }
 
 #[derive(Debug, thiserror::Error)]
 pub enum GetSeriesError {
-    #[error("Series with identifier {identifier} not found")]
-    NotFound { identifier: series::Identifier },
+    #[error("Series with identifier {0} not found")]
+    NotFound(series::Identifier),
+    #[error(transparent)]
+    Unknown(#[from] anyhow::Error),
+}
+
+#[derive(Debug, thiserror::Error)]
+pub enum DeleteSeriesError {
+    #[error("Series with identifier {0} not found")]
+    NotFound(series::Identifier),
     #[error(transparent)]
     Unknown(#[from] anyhow::Error),
 }

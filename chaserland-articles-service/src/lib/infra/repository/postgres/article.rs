@@ -298,7 +298,7 @@ impl ArticleRepository for PgArticleRepository {
         )?;
 
         if db_article_version.is_none() {
-            return Err(error::SetSeriesError::NotFound(id));
+            return Err(error::SetSeriesError::ArticleNotFound(id));
         }
 
         let db_article_version = db_article_version.unwrap();

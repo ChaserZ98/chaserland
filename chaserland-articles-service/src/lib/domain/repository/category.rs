@@ -1,10 +1,10 @@
 use crate::domain::entity::category;
 use async_trait::async_trait;
-use chaserland_protos::article::v1::Category;
 
 #[async_trait]
 pub trait CategoryRepository {
-    async fn create(&self, name: category::Name) -> Result<Category, CreateCategoryError>;
+    async fn create(&self, name: category::Name)
+    -> Result<category::Category, CreateCategoryError>;
     async fn get_one(
         &self,
         identifier: category::Identifier,
