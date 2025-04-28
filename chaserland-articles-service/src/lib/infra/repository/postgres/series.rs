@@ -1,5 +1,5 @@
 use crate::domain::entity::series;
-use crate::domain::repository::series::{SeriesRepository, error};
+use crate::domain::repository::series::{SeriesRepository, SeriesRepositoryError};
 use async_trait::async_trait;
 use chaserland_common::pagination::{Offset, Page, PageSize};
 use sqlx::{Postgres, QueryBuilder};
@@ -36,12 +36,12 @@ impl PgSeriesRepository {
 
 #[async_trait]
 impl SeriesRepository for PgSeriesRepository {
-    async fn create(&self, name: series::Name) -> Result<series::Series, error::CreateSeriesError> {
+    async fn create(&self, name: series::Name) -> Result<series::Series, SeriesRepositoryError> {
         let mut tx = self
             .pool
             .begin()
             .await
-            .map_err(|why| error::CreateSeriesError::Unknown(why.into()))?;
+            .map_err(|why| SeriesRepositoryError::Transaction(why.to_string()))?;
 
         let slug = name.as_slug();
 
@@ -53,27 +53,27 @@ impl SeriesRepository for PgSeriesRepository {
                 .await
                 .map_err(|why| match why {
                     sqlx::Error::Database(db_err) if db_err.is_unique_violation() => {
-                        error::CreateSeriesError::AlreadyExists(name, slug)
+                        SeriesRepositoryError::DuplicateSeriesSlug(name, slug)
                     }
-                    _ => error::CreateSeriesError::Unknown(why.into()),
+                    _ => SeriesRepositoryError::Unknown(why.into()),
                 })?;
 
         let series = series
             .try_into()
-            .map_err(|why: String| error::CreateSeriesError::Unknown(anyhow::anyhow!(why)))?;
+            .map_err(|why: String| SeriesRepositoryError::DOConversion(why))?;
 
         tx.commit()
             .await
-            .map_err(|why| error::CreateSeriesError::Unknown(why.into()))?;
+            .map_err(|why| SeriesRepositoryError::Transaction(why.to_string()))?;
 
         Ok(series)
     }
     async fn get_one(
         &self,
         identifier: series::Identifier,
-    ) -> Result<series::Series, error::GetSeriesError> {
+    ) -> Result<series::Series, SeriesRepositoryError> {
         let mut query = QueryBuilder::<Postgres>::new("SELECT * FROM article.series WHERE ");
-        match identifier.clone() {
+        match &identifier {
             series::Identifier::Id(id) => {
                 query.push("id = ");
                 query.push_bind(id.value());
@@ -88,17 +88,17 @@ impl SeriesRepository for PgSeriesRepository {
             .build_query_as()
             .fetch_optional(&self.pool)
             .await
-            .map_err(|why| error::GetSeriesError::Unknown(why.into()))?;
+            .map_err(|why| SeriesRepositoryError::Unknown(why.into()))?;
 
         if series.is_none() {
-            return Err(error::GetSeriesError::NotFound(identifier));
+            return Err(SeriesRepositoryError::SeriesNotFound(identifier));
         }
 
         let series = series.unwrap();
 
         let series = series
             .try_into()
-            .map_err(|why: String| error::GetSeriesError::Unknown(anyhow::anyhow!(why)))?;
+            .map_err(|why: String| SeriesRepositoryError::DOConversion(why))?;
 
         Ok(series)
     }
@@ -106,7 +106,7 @@ impl SeriesRepository for PgSeriesRepository {
         &self,
         page: Page,
         page_size: PageSize,
-    ) -> Result<Vec<series::Series>, error::GetSeriesError> {
+    ) -> Result<Vec<series::Series>, SeriesRepositoryError> {
         let offset = Offset::from((page, page_size));
 
         let series: Vec<PgSeries> =
@@ -115,28 +115,28 @@ impl SeriesRepository for PgSeriesRepository {
                 .bind(offset.value())
                 .fetch_all(&self.pool)
                 .await
-                .map_err(|why| error::GetSeriesError::Unknown(why.into()))?;
+                .map_err(|why| SeriesRepositoryError::Unknown(why.into()))?;
 
         let series = series
             .into_iter()
             .map(|x| {
                 x.try_into()
-                    .map_err(|why: String| error::GetSeriesError::Unknown(anyhow::anyhow!(why)))
+                    .map_err(|why: String| SeriesRepositoryError::DOConversion(why))
             })
-            .collect::<Result<Vec<series::Series>, error::GetSeriesError>>()?;
+            .collect::<Result<Vec<series::Series>, SeriesRepositoryError>>()?;
 
         Ok(series)
     }
-    async fn delete(&self, identifier: series::Identifier) -> Result<(), error::DeleteSeriesError> {
+    async fn delete(&self, identifier: series::Identifier) -> Result<(), SeriesRepositoryError> {
         let mut tx = self
             .pool
             .begin()
             .await
-            .map_err(|why| error::DeleteSeriesError::Unknown(why.into()))?;
+            .map_err(|why| SeriesRepositoryError::Transaction(why.to_string()))?;
 
         let mut query = QueryBuilder::<Postgres>::new("DELETE FROM article.series WHERE ");
 
-        match identifier.clone() {
+        match &identifier {
             series::Identifier::Id(id) => {
                 query.push("id = ");
                 query.push_bind(id.value());
@@ -151,16 +151,16 @@ impl SeriesRepository for PgSeriesRepository {
             .build()
             .execute(&mut *tx)
             .await
-            .map_err(|why| error::DeleteSeriesError::Unknown(why.into()))?
+            .map_err(|why| SeriesRepositoryError::Unknown(why.into()))?
             .rows_affected();
 
         if rows_affected == 0 {
-            return Err(error::DeleteSeriesError::NotFound(identifier));
+            return Err(SeriesRepositoryError::SeriesNotFound(identifier));
         }
 
         tx.commit()
             .await
-            .map_err(|why| error::DeleteSeriesError::Unknown(why.into()))?;
+            .map_err(|why| SeriesRepositoryError::Transaction(why.to_string()))?;
 
         Ok(())
     }

@@ -1,5 +1,5 @@
 use crate::domain::entity::series;
-use crate::domain::repository::series::{CreateSeriesError, SeriesRepository};
+use crate::domain::repository::series::{SeriesRepository, SeriesRepositoryError};
 use crate::infra::repository::postgres::series::PgSeriesRepository;
 
 #[sqlx::test(fixtures(path = "../../../../../../../tests/fixtures", scripts("series")))]
@@ -61,7 +61,8 @@ async fn create_series_case_already_exists(pool: sqlx::PgPool) {
     let err = res.unwrap_err();
 
     assert!(match err {
-        CreateSeriesError::AlreadyExists(name, slug) => name == series.name && slug == series.slug,
+        SeriesRepositoryError::DuplicateSeriesSlug(name, slug) =>
+            name == series.name && slug == series.slug,
         _ => false,
     })
 }

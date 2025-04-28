@@ -1,5 +1,5 @@
 use crate::domain::entity::category;
-use crate::domain::repository::category::{CategoryRepository, CreateCategoryError};
+use crate::domain::repository::category::{CategoryRepository, CategoryRepositoryError};
 use crate::infra::repository::postgres::category::PgCategoryRepository;
 use sqlx::PgPool;
 
@@ -37,7 +37,7 @@ async fn create_category_case_already_exists(pool: PgPool) {
     let err = res.unwrap_err();
 
     assert!(match err {
-        CreateCategoryError::AlreadyExists(name, slug) =>
+        CategoryRepositoryError::DuplicateCategorySlug(name, slug) =>
             name == category.name && slug == category.slug,
         _ => false,
     });

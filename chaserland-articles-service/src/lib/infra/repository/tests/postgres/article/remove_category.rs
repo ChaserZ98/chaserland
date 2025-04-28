@@ -1,5 +1,5 @@
 use crate::domain::entity::{article, category};
-use crate::domain::repository::article::{ArticleRepository, error};
+use crate::domain::repository::article::{ArticleRepository, ArticleRepositoryError};
 use crate::infra::repository::postgres::article::PgArticleRepository;
 
 #[sqlx::test(fixtures(
@@ -61,7 +61,7 @@ async fn remove_category_case_article_not_found(pool: sqlx::PgPool) {
     let res = res.unwrap_err();
 
     assert!(match res {
-        error::RemoveCategoryError::ArticleNotFound(id) => id == article.id,
+        ArticleRepositoryError::ArticleNotFound(id) => id == article.id.as_identifier(),
         _ => false,
     });
 }
@@ -95,7 +95,7 @@ async fn remove_category_case_category_not_found(pool: sqlx::PgPool) {
     let res = res.unwrap_err();
 
     assert!(match res {
-        error::RemoveCategoryError::CategoryNotFound(id) => id == category_id,
+        ArticleRepositoryError::CategoryNotFound(id) => id == category_id.as_identifier(),
         _ => false,
     });
 }
@@ -136,7 +136,7 @@ async fn remove_category_case_version_mismatch(pool: sqlx::PgPool) {
     let res = res.unwrap_err();
 
     assert!(match res {
-        error::RemoveCategoryError::VersionMismatch {
+        ArticleRepositoryError::VersionMismatch {
             id,
             current_version,
             db_version,

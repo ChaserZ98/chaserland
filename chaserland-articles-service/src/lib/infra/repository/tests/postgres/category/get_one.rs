@@ -1,5 +1,5 @@
 use crate::domain::entity::category;
-use crate::domain::repository::category::{CategoryRepository, GetCategoryError};
+use crate::domain::repository::category::{CategoryRepository, CategoryRepositoryError};
 use crate::infra::repository::postgres::category::PgCategoryRepository;
 use sqlx::PgPool;
 
@@ -49,7 +49,7 @@ async fn get_one_case_id_not_found(pool: PgPool) {
     let err = res.unwrap_err();
 
     assert!(match err {
-        GetCategoryError::NotFound(value) => value == identifier,
+        CategoryRepositoryError::CategoryNotFound(value) => value == identifier,
         _ => false,
     });
 }
@@ -67,7 +67,7 @@ async fn get_one_case_slug_not_found(pool: PgPool) {
     let err = res.unwrap_err();
 
     assert!(match err {
-        GetCategoryError::NotFound(value) => value == identifier,
+        CategoryRepositoryError::CategoryNotFound(value) => value == identifier,
         _ => false,
     });
 }

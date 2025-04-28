@@ -1,5 +1,5 @@
 use crate::domain::entity::article;
-use crate::domain::repository::article::{ArticleRepository, GetArticleError};
+use crate::domain::repository::article::{ArticleRepository, ArticleRepositoryError};
 use crate::infra::repository::postgres::article::PgArticleRepository;
 
 #[sqlx::test(fixtures(
@@ -121,7 +121,7 @@ async fn get_one_case_3(pool: sqlx::PgPool) {
     let err = res.unwrap_err();
 
     assert!(match err {
-        GetArticleError::NotFound(value) => value == identifier,
+        ArticleRepositoryError::ArticleNotFound(value) => value == identifier,
         _ => false,
     });
 }

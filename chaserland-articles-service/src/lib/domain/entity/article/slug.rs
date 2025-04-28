@@ -10,8 +10,8 @@ impl Slug {
     pub fn value(&self) -> String {
         self.0.clone()
     }
-    fn validate(slug: &String) -> Result<(), String> {
-        match slug.trim().is_empty() {
+    fn validate(value: impl AsRef<str>) -> Result<(), String> {
+        match value.as_ref().trim().is_empty() {
             true => Err("slug is empty".to_string()),
             false => Ok(()),
         }

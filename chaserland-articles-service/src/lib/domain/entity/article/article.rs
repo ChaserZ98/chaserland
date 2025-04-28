@@ -58,8 +58,8 @@ impl Article {
     pub fn set_description(&mut self, description: Description) {
         self.description = description;
     }
-    pub fn set_content(&mut self, content: Option<Content>) {
-        self.content = content;
+    pub fn set_content(&mut self, content: Content) {
+        self.content = Some(content);
     }
     pub fn slug(&self) -> &Slug {
         &self.slug

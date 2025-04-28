@@ -1,5 +1,5 @@
 use crate::domain::entity::series;
-use crate::domain::repository::series::{DeleteSeriesError, SeriesRepository};
+use crate::domain::repository::series::{SeriesRepository, SeriesRepositoryError};
 use crate::infra::repository::postgres::series::PgSeriesRepository;
 
 #[sqlx::test(fixtures(path = "../../../../../../../tests/fixtures", scripts("series")))]
@@ -38,7 +38,7 @@ async fn delete_series_case_id_not_found(pool: sqlx::PgPool) {
     let res = res.unwrap_err();
 
     assert!(match res {
-        DeleteSeriesError::NotFound(value) => value == identifier,
+        SeriesRepositoryError::SeriesNotFound(value) => value == identifier,
         _ => false,
     });
 }
@@ -56,7 +56,7 @@ async fn delete_series_case_slug_not_found(pool: sqlx::PgPool) {
     let res = res.unwrap_err();
 
     assert!(match res {
-        DeleteSeriesError::NotFound(value) => value == identifier,
+        SeriesRepositoryError::SeriesNotFound(value) => value == identifier,
         _ => false,
     });
 }

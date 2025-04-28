@@ -1,5 +1,5 @@
 use crate::domain::entity::article;
-use crate::domain::repository::article::{ArticleRepository, UnpublishArticleError};
+use crate::domain::repository::article::{ArticleRepository, ArticleRepositoryError};
 use crate::infra::repository::postgres::article::PgArticleRepository;
 
 #[sqlx::test(fixtures(
@@ -54,7 +54,7 @@ async fn test_unpublish_case_id_not_found(pool: sqlx::PgPool) {
     let err = res.unwrap_err();
 
     assert!(match err {
-        UnpublishArticleError::NotFound(value) => value == article.id,
+        ArticleRepositoryError::ArticleNotFound(value) => value == article.id.as_identifier(),
         _ => false,
     });
 }
@@ -90,7 +90,7 @@ async fn test_unpublish_case_version_mismatch(pool: sqlx::PgPool) {
     let err = res.unwrap_err();
 
     assert!(match err {
-        UnpublishArticleError::VersionMismatch {
+        ArticleRepositoryError::VersionMismatch {
             id,
             current_version,
             db_version,

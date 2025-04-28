@@ -1,5 +1,5 @@
 use crate::domain::entity::article;
-use crate::domain::repository::article::{ArticleRepository, DeleteArticleError, GetArticleError};
+use crate::domain::repository::article::{ArticleRepository, ArticleRepositoryError};
 use crate::infra::repository::postgres::article::PgArticleRepository;
 
 #[sqlx::test(fixtures(
@@ -37,7 +37,7 @@ async fn delete_hard_case_id(pool: sqlx::PgPool) {
     let err = res.unwrap_err();
 
     assert!(match err {
-        GetArticleError::NotFound(value) => value == identifier,
+        ArticleRepositoryError::ArticleNotFound(value) => value == identifier,
         _ => false,
     });
 }
@@ -77,7 +77,7 @@ async fn delete_hard_case_slug(pool: sqlx::PgPool) {
     let err = res.unwrap_err();
 
     assert!(match err {
-        GetArticleError::NotFound(value) => value == identifier,
+        ArticleRepositoryError::ArticleNotFound(value) => value == identifier,
         _ => false,
     });
 }
@@ -105,7 +105,7 @@ async fn delete_hard_case_id_not_found(pool: sqlx::PgPool) {
     let err = res.unwrap_err();
 
     assert!(match err {
-        DeleteArticleError::NotFound(value) => value == identifier,
+        ArticleRepositoryError::ArticleNotFound(value) => value == identifier,
         _ => false,
     });
 
@@ -119,7 +119,7 @@ async fn delete_hard_case_id_not_found(pool: sqlx::PgPool) {
     let err = res.unwrap_err();
 
     assert!(match err {
-        DeleteArticleError::NotFound(value) => value == identifier,
+        ArticleRepositoryError::ArticleNotFound(value) => value == identifier,
         _ => false,
     });
 }
@@ -147,7 +147,7 @@ async fn delete_hard_case_slug_not_found(pool: sqlx::PgPool) {
     let err = res.unwrap_err();
 
     assert!(match err {
-        DeleteArticleError::NotFound(value) => value == identifier,
+        ArticleRepositoryError::ArticleNotFound(value) => value == identifier,
         _ => false,
     });
 }

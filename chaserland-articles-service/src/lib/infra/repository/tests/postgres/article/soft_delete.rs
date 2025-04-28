@@ -1,5 +1,5 @@
 use crate::domain::entity::article;
-use crate::domain::repository::article::{ArticleRepository, SoftDeleteArticleError};
+use crate::domain::repository::article::{ArticleRepository, ArticleRepositoryError};
 use crate::infra::repository::postgres::article::PgArticleRepository;
 
 #[sqlx::test(fixtures(
@@ -73,7 +73,7 @@ async fn soft_delete_case_id_not_found(pool: sqlx::PgPool) {
     let err = res.unwrap_err();
 
     assert!(match err {
-        SoftDeleteArticleError::NotFound(id) => id == article.id,
+        ArticleRepositoryError::ArticleNotFound(id) => id == article.id.as_identifier(),
         _ => false,
     });
 }
@@ -120,7 +120,7 @@ async fn soft_delete_case_version_mismatch(pool: sqlx::PgPool) {
     let err = res.unwrap_err();
 
     assert!(match err {
-        SoftDeleteArticleError::VersionMismatch {
+        ArticleRepositoryError::VersionMismatch {
             id,
             current_version,
             db_version,

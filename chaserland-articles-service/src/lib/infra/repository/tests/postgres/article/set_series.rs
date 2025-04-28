@@ -1,5 +1,5 @@
 use crate::domain::entity::{article, series};
-use crate::domain::repository::article::{ArticleRepository, SetSeriesError};
+use crate::domain::repository::article::{ArticleRepository, ArticleRepositoryError};
 use crate::infra::repository::postgres::article::PgArticleRepository;
 
 #[sqlx::test(fixtures(
@@ -87,7 +87,7 @@ async fn set_series_case_id_not_found(pool: sqlx::PgPool) {
     let err = res.unwrap_err();
 
     assert!(match err {
-        SetSeriesError::ArticleNotFound(value) => value == article.id,
+        ArticleRepositoryError::ArticleNotFound(value) => value == article.id.as_identifier(),
         _ => false,
     });
 }
@@ -122,7 +122,7 @@ async fn set_series_case_series_id_not_found(pool: sqlx::PgPool) {
     let err = res.unwrap_err();
 
     assert!(match err {
-        SetSeriesError::SeriesNotFound(value) => value == series_id,
+        ArticleRepositoryError::SeriesNotFound(value) => value == series_id.as_identifier(),
         _ => false,
     });
 }
@@ -163,7 +163,7 @@ async fn set_series_case_version_mismatch(pool: sqlx::PgPool) {
     let err = res.unwrap_err();
 
     assert!(match err {
-        SetSeriesError::VersionMismatch {
+        ArticleRepositoryError::VersionMismatch {
             id,
             current_version,
             db_version,

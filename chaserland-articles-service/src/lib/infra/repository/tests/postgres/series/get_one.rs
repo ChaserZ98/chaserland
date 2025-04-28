@@ -1,5 +1,5 @@
 use crate::domain::entity::series;
-use crate::domain::repository::series::{GetSeriesError, SeriesRepository};
+use crate::domain::repository::series::{SeriesRepository, SeriesRepositoryError};
 use crate::infra::repository::postgres::series::PgSeriesRepository;
 use sqlx::PgPool;
 
@@ -49,7 +49,7 @@ async fn get_one_case_id_not_found(pool: PgPool) {
     let res = res.unwrap_err();
 
     assert!(match res {
-        GetSeriesError::NotFound(value) => value == identifier,
+        SeriesRepositoryError::SeriesNotFound(value) => value == identifier,
         _ => false,
     });
 }
@@ -67,7 +67,7 @@ async fn get_one_case_slug_not_found(pool: PgPool) {
     let res = res.unwrap_err();
 
     assert!(match res {
-        GetSeriesError::NotFound(value) => value == identifier,
+        SeriesRepositoryError::SeriesNotFound(value) => value == identifier,
         _ => false,
     });
 }

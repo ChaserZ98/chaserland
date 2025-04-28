@@ -1,53 +1,37 @@
 use crate::domain::entity::category;
 use async_trait::async_trait;
 use chaserland_common::pagination::{Page, PageSize};
-pub use error::*;
 
 #[async_trait]
-pub trait CategoryRepository {
+pub trait CategoryRepository: Send + Sync + 'static {
     async fn create(
         &self,
         name: category::Name,
-    ) -> Result<category::Category, error::CreateCategoryError>;
+    ) -> Result<category::Category, CategoryRepositoryError>;
     async fn get_one(
         &self,
         identifier: category::Identifier,
-    ) -> Result<category::Category, error::GetCategoryError>;
+    ) -> Result<category::Category, CategoryRepositoryError>;
     async fn get_many(
         &self,
         page: Page,
         page_size: PageSize,
-    ) -> Result<Vec<category::Category>, error::GetCategoryError>;
-    async fn delete(
-        &self,
-        identifier: category::Identifier,
-    ) -> Result<(), error::DeleteCategoryError>;
+    ) -> Result<Vec<category::Category>, CategoryRepositoryError>;
+    async fn delete(&self, identifier: category::Identifier)
+    -> Result<(), CategoryRepositoryError>;
 }
 
-pub mod error {
-    use super::category;
-
-    #[derive(Debug, thiserror::Error)]
-    pub enum CreateCategoryError {
-        #[error("Category {0} with slug {1} already exists")]
-        AlreadyExists(category::Name, category::Slug),
-        #[error(transparent)]
-        Unknown(#[from] anyhow::Error),
-    }
-
-    #[derive(Debug, thiserror::Error)]
-    pub enum GetCategoryError {
-        #[error("Category with identifier {0} not found")]
-        NotFound(category::Identifier),
-        #[error(transparent)]
-        Unknown(#[from] anyhow::Error),
-    }
-
-    #[derive(Debug, thiserror::Error)]
-    pub enum DeleteCategoryError {
-        #[error("Category with identifier {0} not found")]
-        NotFound(category::Identifier),
-        #[error(transparent)]
-        Unknown(#[from] anyhow::Error),
-    }
+#[derive(Debug, thiserror::Error)]
+#[non_exhaustive]
+pub enum CategoryRepositoryError {
+    #[error("Category with identifier {0} not found")]
+    CategoryNotFound(category::Identifier),
+    #[error("Series {0} with slug {1} already exists")]
+    DuplicateCategorySlug(category::Name, category::Slug),
+    #[error("Transaction error: {0}")]
+    Transaction(String),
+    #[error("PO to DO conversion error: {0}")]
+    DOConversion(String),
+    #[error(transparent)]
+    Unknown(#[from] anyhow::Error),
 }

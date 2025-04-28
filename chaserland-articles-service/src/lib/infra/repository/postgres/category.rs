@@ -1,5 +1,5 @@
 use crate::domain::entity::category;
-use crate::domain::repository::category::{CategoryRepository, error};
+use crate::domain::repository::category::{CategoryRepository, CategoryRepositoryError};
 use async_trait::async_trait;
 use chaserland_common::pagination::{Offset, Page, PageSize};
 use sqlx::{PgPool, Postgres, QueryBuilder};
@@ -37,12 +37,12 @@ impl CategoryRepository for PgCategoryRepository {
     async fn create(
         &self,
         name: category::Name,
-    ) -> Result<category::Category, error::CreateCategoryError> {
+    ) -> Result<category::Category, CategoryRepositoryError> {
         let mut tx = self
             .pool
             .begin()
             .await
-            .map_err(|why| error::CreateCategoryError::Unknown(why.into()))?;
+            .map_err(|why| CategoryRepositoryError::Transaction(why.to_string()))?;
 
         let slug = name.as_slug();
 
@@ -55,28 +55,28 @@ impl CategoryRepository for PgCategoryRepository {
         .await
         .map_err(|why| match why {
             sqlx::Error::Database(db_err) if db_err.is_unique_violation() => {
-                error::CreateCategoryError::AlreadyExists(name, slug)
+                CategoryRepositoryError::DuplicateCategorySlug(name, slug)
             }
-            _ => error::CreateCategoryError::Unknown(why.into()),
+            _ => CategoryRepositoryError::Unknown(why.into()),
         })?;
 
         let category = category
             .try_into()
-            .map_err(|why: String| error::CreateCategoryError::Unknown(anyhow::anyhow!(why)))?;
+            .map_err(|why| CategoryRepositoryError::DOConversion(why))?;
 
         tx.commit()
             .await
-            .map_err(|why| error::CreateCategoryError::Unknown(why.into()))?;
+            .map_err(|why| CategoryRepositoryError::Transaction(why.to_string()))?;
 
         Ok(category)
     }
     async fn get_one(
         &self,
         identifier: category::Identifier,
-    ) -> Result<category::Category, error::GetCategoryError> {
+    ) -> Result<category::Category, CategoryRepositoryError> {
         let mut query = QueryBuilder::<Postgres>::new("SELECT * FROM article.categories WHERE ");
 
-        match identifier.clone() {
+        match &identifier {
             category::Identifier::Id(id) => {
                 query.push("id = ");
                 query.push_bind(id.value());
@@ -91,17 +91,17 @@ impl CategoryRepository for PgCategoryRepository {
             .build_query_as()
             .fetch_optional(&self.pool)
             .await
-            .map_err(|why| error::GetCategoryError::Unknown(why.into()))?;
+            .map_err(|why| CategoryRepositoryError::Unknown(why.into()))?;
 
         if category.is_none() {
-            return Err(error::GetCategoryError::NotFound(identifier));
+            return Err(CategoryRepositoryError::CategoryNotFound(identifier));
         }
 
         let category = category.unwrap();
 
         let category = category
             .try_into()
-            .map_err(|why: String| error::GetCategoryError::Unknown(anyhow::anyhow!(why)))?;
+            .map_err(|why: String| CategoryRepositoryError::DOConversion(why))?;
 
         Ok(category)
     }
@@ -109,7 +109,7 @@ impl CategoryRepository for PgCategoryRepository {
         &self,
         page: Page,
         page_size: PageSize,
-    ) -> Result<Vec<category::Category>, error::GetCategoryError> {
+    ) -> Result<Vec<category::Category>, CategoryRepositoryError> {
         let offset = Offset::from((page, page_size));
 
         let categories: Vec<PgCategory> =
@@ -118,31 +118,31 @@ impl CategoryRepository for PgCategoryRepository {
                 .bind(offset.value())
                 .fetch_all(&self.pool)
                 .await
-                .map_err(|why| error::GetCategoryError::Unknown(why.into()))?;
+                .map_err(|why| CategoryRepositoryError::Unknown(why.into()))?;
 
         let categories = categories
             .into_iter()
             .map(|x| {
                 x.try_into()
-                    .map_err(|why: String| error::GetCategoryError::Unknown(anyhow::anyhow!(why)))
+                    .map_err(|why: String| CategoryRepositoryError::DOConversion(why))
             })
-            .collect::<Result<Vec<category::Category>, error::GetCategoryError>>()?;
+            .collect::<Result<Vec<category::Category>, CategoryRepositoryError>>()?;
 
         Ok(categories)
     }
     async fn delete(
         &self,
         identifier: category::Identifier,
-    ) -> Result<(), error::DeleteCategoryError> {
+    ) -> Result<(), CategoryRepositoryError> {
         let mut tx = self
             .pool
             .begin()
             .await
-            .map_err(|why| error::DeleteCategoryError::Unknown(why.into()))?;
+            .map_err(|why| CategoryRepositoryError::Transaction(why.to_string()))?;
 
         let mut query = QueryBuilder::<Postgres>::new("DELETE FROM article.categories WHERE ");
 
-        match identifier.clone() {
+        match &identifier {
             category::Identifier::Id(id) => {
                 query.push("id = ");
                 query.push_bind(id.value());
@@ -157,16 +157,16 @@ impl CategoryRepository for PgCategoryRepository {
             .build()
             .execute(&mut *tx)
             .await
-            .map_err(|why| error::DeleteCategoryError::Unknown(why.into()))?
+            .map_err(|why| CategoryRepositoryError::Unknown(why.into()))?
             .rows_affected();
 
         if rows_affected == 0 {
-            return Err(error::DeleteCategoryError::NotFound(identifier));
+            return Err(CategoryRepositoryError::CategoryNotFound(identifier));
         }
 
         tx.commit()
             .await
-            .map_err(|why| error::DeleteCategoryError::Unknown(why.into()))?;
+            .map_err(|why| CategoryRepositoryError::Transaction(why.to_string()))?;
 
         Ok(())
     }

@@ -1,5 +1,5 @@
 use crate::domain::entity::{article, category};
-use crate::domain::repository::article::{ArticleRepository, error};
+use crate::domain::repository::article::{ArticleRepository, ArticleRepositoryError};
 use crate::infra::repository::postgres::article::PgArticleRepository;
 
 #[sqlx::test(fixtures(
@@ -58,8 +58,10 @@ async fn add_category_case_article_id_not_found(pool: sqlx::PgPool) {
 
     let err = res.unwrap_err();
 
+    let err = err.try_into().unwrap();
+
     assert!(match err {
-        error::AddCategoryError::ArticleNotFound(value) => value == article.id,
+        ArticleRepositoryError::ArticleNotFound(value) => value == article.id.as_identifier(),
         _ => false,
     });
 }
@@ -93,7 +95,7 @@ async fn add_category_case_category_id_not_found(pool: sqlx::PgPool) {
     let err = res.unwrap_err();
 
     assert!(match err {
-        error::AddCategoryError::CategoryNotFound(value) => value == category_id,
+        ArticleRepositoryError::CategoryNotFound(value) => value == category_id.as_identifier(),
         _ => false,
     });
 }
@@ -129,7 +131,7 @@ async fn add_category_case_both_not_found(pool: sqlx::PgPool) {
     let err = res.unwrap_err();
 
     assert!(match err {
-        error::AddCategoryError::ArticleNotFound(value) => value == article.id,
+        ArticleRepositoryError::ArticleNotFound(value) => value == article.id.as_identifier(),
         _ => false,
     });
 }
@@ -169,7 +171,7 @@ async fn add_category_case_version_mismatch(pool: sqlx::PgPool) {
     let err = res.unwrap_err();
 
     assert!(match err {
-        error::AddCategoryError::VersionMismatch {
+        ArticleRepositoryError::VersionMismatch {
             id,
             current_version,
             db_version,

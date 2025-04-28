@@ -1,5 +1,5 @@
 use crate::domain::entity::{article, tag};
-use crate::domain::repository::article::{ArticleRepository, error};
+use crate::domain::repository::article::{ArticleRepository, ArticleRepositoryError};
 use crate::infra::repository::postgres::article::PgArticleRepository;
 
 #[sqlx::test(fixtures(
@@ -57,7 +57,7 @@ async fn remove_tag_case_article_not_found(pool: sqlx::PgPool) {
     let err = res.unwrap_err();
 
     assert!(match err {
-        error::RemoveTagError::ArticleNotFound(id) => id == article.id,
+        ArticleRepositoryError::ArticleNotFound(id) => id == article.id.as_identifier(),
         _ => false,
     });
 }
@@ -90,7 +90,7 @@ async fn remove_tag_case_tag_not_found(pool: sqlx::PgPool) {
     let err = res.unwrap_err();
 
     assert!(match err {
-        error::RemoveTagError::TagNotFound(id) => id == tag_id,
+        ArticleRepositoryError::TagNotFound(id) => id == tag_id.as_identifier(),
         _ => false,
     });
 }
@@ -124,7 +124,7 @@ async fn remove_tag_case_both_not_found(pool: sqlx::PgPool) {
     let err = res.unwrap_err();
 
     assert!(match err {
-        error::RemoveTagError::ArticleNotFound(id) => id == article.id,
+        ArticleRepositoryError::ArticleNotFound(id) => id == article.id.as_identifier(),
         _ => false,
     });
 }
@@ -161,7 +161,7 @@ async fn remove_tag_case_version_mismatch(pool: sqlx::PgPool) {
     let err = res.unwrap_err();
 
     assert!(match err {
-        error::RemoveTagError::VersionMismatch {
+        ArticleRepositoryError::VersionMismatch {
             id,
             current_version,
             db_version,

@@ -1,4 +1,9 @@
-// use crate::service::ArticleService;
+// use crate::app::service::ArticleService;
+// use crate::domain::repository::article::ArticleRepository;
+// use crate::domain::repository::category::CategoryRepository;
+// use crate::domain::repository::series::SeriesRepository;
+// use crate::domain::repository::tag::TagRepository;
+// use crate::domain::entity::article;
 
 // use chaserland_protos::article::v1::{
 //     CreateArticleRequest, CreateArticleResponse, CreateCategoryRequest, CreateCategoryResponse,
@@ -13,31 +18,111 @@
 // };
 // use tonic::{Request, Response, Status};
 
+// impl TryInto<article::ArticleCreate> for CreateArticleRequest {
+//     type Error = tonic::Status;
+
+//     fn try_into(self) -> Result<article::ArticleCreate, Self::Error> {
+//         if self.article.is_none() {
+//             return Err(Status::invalid_argument("Article is required"));
+//         }
+//         let article = self.article.unwrap();
+//         let title: article::Title = article
+//             .title
+//             .try_into()
+//             .map_err(|why| Status::invalid_argument(why))?;
+//         let description: article::Description = article.description.into();
+//         let content: Option<article::Content> = Some(article.content.into());
+//         let series_id: Option<series::Id> = article
+//             .series_id
+//             .map(|id| id.try_into())
+//             .transpose()
+//             .map_err(|why| Status::invalid_argument(why))?;
+//         let category_ids: Vec<series::Id> = article
+//             .category_ids
+//             .into_iter()
+//             .map(|id| id.try_into())
+//             .collect::<Result<Vec<_>, _>>()
+//             .map_err(|why| Status::invalid_argument(why))?;
+
+//         let tag_ids: Vec<series::Id> = article
+//             .tag_ids
+//             .into_iter()
+//             .map(|id| id.try_into())
+//             .collect::<Result<Vec<_>, _>>()
+//             .map_err(|why| Status::invalid_argument(why))?;
+
+//         let article_create = article::ArticleCreate {
+//             title,
+//             description,
+//             content,
+//             series_id,
+//             category_ids,
+//             tag_ids,
+//         };
+
+//         Ok(article_create)
+//     }
+// }
+
+// impl TryInto<CreateArticleResponse> for article::Article {
+//     type Error = tonic::Status;
+
+//     fn try_into(self) -> Result<CreateArticleResponse, Self::Error> {
+//         let article = Some(
+//             chaserland_protos::article::v1::Article {
+//                 id: self.id.value(),
+//                 title: self.title.value(),
+//                 description: self.description.value(),
+//                 content: self.content.map(|content| content.value()),
+//                 created_at: Some(self.created_at.value()),
+//                 updated_at: self.updated_at.value(),
+//                 deleted_at: self.deleted_at.map(|deleted_at| deleted_at.value()),
+//                 published_at: self.published_at.map(|published_at| published_at.value()),
+//                 slug: self.slug.value(),
+//                 series_id: self.series_id.map(|series_id| series_id.value()),
+//                 category_ids: self.category_ids.into_iter().map(|category_id| category_id.value()).collect(),
+//                 tag_ids: self.tag_ids.into_iter().map(|tag_id| tag_id.value()).collect(),
+//             }
+//         )
+//         Ok(CreateArticleResponse { article })
+//     }
+// }
+
+// pub struct GrpcArticleService<R: ArticleRepository, S: SeriesRepository, C: CategoryRepository, T: TagRepository>(
+//     ArticleService<R, S, C, T>,
+// );
+
 // #[tonic::async_trait]
-// impl TonicArticleService for ArticleService {
+// impl<R: ArticleRepository, S: SeriesRepository, C: CategoryRepository, T: TagRepository> TonicArticleService for GrpcArticleService<R, S, C, T>
+// {
 //     async fn create_article(
 //         &self,
 //         request: Request<CreateArticleRequest>,
 //     ) -> Result<Response<CreateArticleResponse>, Status> {
 //         let message = request.into_inner();
 
-//         let article_create = match message.article {
-//             Some(value) => value,
-//             None => return Err(Status::invalid_argument("Article is required")),
-//         };
+//         let article_create = message.try_into()?;
 
-//         let full_article = match self.create_article(article_create).await {
-//             Ok(full_article) => full_article,
-//             Err(e) => {
-//                 tracing::error!("Failed to create article: {}", e);
-//                 return Err(Status::internal("Internal Error"));
+//         let article = self.0.create_article(article_create).await.map_err(|e| {
+//             if !e.is_repository_error() {
+//                 return Status::internal("Internal Error");
 //             }
-//         };
 
-//         let reply = CreateArticleResponse {
-//             article: Some(full_article.into()),
-//         };
-//         Ok(Response::new(reply))
+//             let e = e.as_repository_error().unwrap();
+
+//             if !e.is_article_repository_error() {
+//                 return Status::internal("Internal Error");
+//             }
+
+//             let e = e.as_article_repository_error().unwrap();
+
+//             if e.is_duplicate_article_slug() {
+//                 return Status::already_exists(e.to_string());
+//             }
+
+//             Status::internal("Internal Error")
+//         })?;
+
 //     }
 //     async fn create_series(
 //         &self,
