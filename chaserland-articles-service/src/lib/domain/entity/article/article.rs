@@ -173,7 +173,7 @@ impl Default for Article {
     }
 }
 
-#[derive(Debug, Serialize, Deserialize, Clone)]
+#[derive(Debug, Serialize, Deserialize, Clone, PartialEq, Eq, Default)]
 pub struct ArticleCreate {
     pub title: Title,
     pub description: Description,
@@ -181,7 +181,16 @@ pub struct ArticleCreate {
     pub series_id: Option<series::Id>,
     pub category_ids: Vec<category::Id>,
     pub tag_ids: Vec<tag::Id>,
-    pub version: Version,
+    version: Version,
+}
+
+impl ArticleCreate {
+    pub fn version(&self) -> &Version {
+        &self.version
+    }
+    pub fn bump_version(&mut self) {
+        self.version.bump();
+    }
 }
 
 #[derive(Debug, thiserror::Error)]

@@ -35,3 +35,21 @@ pub enum CategoryRepositoryError {
     #[error(transparent)]
     Unknown(#[from] anyhow::Error),
 }
+
+impl CategoryRepositoryError {
+    pub fn is_category_not_found(&self) -> bool {
+        matches!(self, Self::CategoryNotFound(_))
+    }
+
+    pub fn is_duplicate_category_slug(&self) -> bool {
+        matches!(self, Self::DuplicateCategorySlug(..))
+    }
+
+    pub fn is_transaction(&self) -> bool {
+        matches!(self, Self::Transaction(_))
+    }
+
+    pub fn is_do_conversion(&self) -> bool {
+        matches!(self, Self::DOConversion(_))
+    }
+}

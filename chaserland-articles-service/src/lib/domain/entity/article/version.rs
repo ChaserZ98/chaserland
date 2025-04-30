@@ -18,6 +18,9 @@ impl Version {
     pub fn value(&self) -> chrono::DateTime<chrono::Utc> {
         self.0
     }
+    /**
+        Set the version to chrono::Utc::now()
+    */
     pub fn bump(&mut self) {
         self.0 = chrono::Utc::now();
     }

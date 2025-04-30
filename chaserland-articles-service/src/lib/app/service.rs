@@ -1,4 +1,5 @@
 use super::error::ArticleServiceError;
+use crate::app::dto;
 use crate::domain::entity::{article, category, series, tag};
 use crate::domain::repository::article::ArticlesFilter;
 use crate::domain::repository::{
@@ -43,13 +44,55 @@ where
     pub async fn create_article(
         &self,
         article: article::ArticleCreate,
-    ) -> Result<article::Article, ArticleServiceError> {
+    ) -> Result<dto::ArticleDTO, ArticleServiceError> {
+        let series = match &article.series_id {
+            None => None,
+            Some(id) => Some(
+                self.series_repository
+                    .get_one(id.as_identifier())
+                    .await
+                    .map_err(|why| ArticleServiceError::Repository(why.into()))?,
+            ),
+        };
+        let mut categories = vec![];
+        for category_id in &article.category_ids {
+            let category = self
+                .category_repository
+                .get_one(category_id.as_identifier())
+                .await
+                .map_err(|why| ArticleServiceError::Repository(why.into()))?;
+            categories.push(category);
+        }
+
+        let mut tags = vec![];
+        for tag_id in &article.tag_ids {
+            let tag = self
+                .tag_repository
+                .get_one(tag_id.as_identifier())
+                .await
+                .map_err(|why| ArticleServiceError::Repository(why.into()))?;
+            tags.push(tag);
+        }
+
         let article = self
             .article_repository
             .create(article)
             .await
             .map_err(|why| ArticleServiceError::Repository(why.into()))?;
-        Ok(article)
+
+        let mut article_dto_builder = dto::ArticleDTOBuilder::new().with_article(article);
+        if let Some(series) = series {
+            article_dto_builder = article_dto_builder.with_series(series);
+        }
+        article_dto_builder = article_dto_builder
+            .with_categories(categories)
+            .with_tags(tags);
+
+        let article_dto = article_dto_builder
+            .try_build()
+            .map_err(|why| ArticleServiceError::DTOConversion(why))?;
+
+        Ok(article_dto)
     }
     pub async fn get_article(
         &self,

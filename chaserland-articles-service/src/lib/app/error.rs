@@ -7,6 +7,8 @@ pub enum ArticleServiceError {
     Domain(#[from] DomainError),
     #[error(transparent)]
     Repository(#[from] RepositoryError),
+    #[error("DO to DTO conversion error: {0}")]
+    DTOConversion(String),
 }
 
 impl ArticleServiceError {

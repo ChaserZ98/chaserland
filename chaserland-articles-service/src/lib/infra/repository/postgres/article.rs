@@ -79,25 +79,25 @@ impl ArticleRepository for PgArticleRepository {
             .await
             .map_err(|why| ArticleRepositoryError::Transaction(why.to_string()))?;
 
-        let title = article.title;
-        let slug = title.as_slug();
-        let description = article.description;
-        let content = match article.content {
+        let title = article.title.value();
+        let slug = article.title.as_slug().value();
+        let description = article.description.value();
+        let content = match &article.content {
             Some(content) => content.value(),
             None => "".to_string(),
         };
-        let series_id = match article.series_id {
+        let series_id = match &article.series_id {
             Some(series_id) => Some(series_id.value()),
             None => None,
         };
-        let version = article.version.value();
+        let version = article.version().value();
 
         let pg_article: PgArticle = sqlx::query_as(
             "INSERT INTO article.articles (title, slug, description, content, series_id, version) VALUES ($1, $2, $3, $4, $5, $6) RETURNING *",
         )
-        .bind(title.value())
-        .bind(slug.value())
-        .bind(description.value())
+        .bind(title)
+        .bind(slug)
+        .bind(description)
         .bind(content)
         .bind(series_id)
         .bind(version)
@@ -109,7 +109,7 @@ impl ArticleRepository for PgArticleRepository {
                 }
                 let db_err = why.as_database_error().unwrap();
                 if db_err.is_unique_violation() {
-                    return ArticleRepositoryError::DuplicateArticleSlug(slug);
+                    return ArticleRepositoryError::DuplicateArticleSlug(article.title.as_slug());
                 }
                 if db_err.is_foreign_key_violation() && db_err.constraint() == Some("articles_series_id_fkey") {
                     return ArticleRepositoryError::SeriesNotFound(article.series_id.clone().unwrap().as_identifier());
