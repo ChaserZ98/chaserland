@@ -1,7 +1,7 @@
 use crate::domain::entity::{article, series, category, tag};
 use crate::domain::repository::article::{ArticleRepositoryError, ArticlesFilter};
 use async_trait::async_trait;
-use chaserland_common::pagination::{Offset, Page, PageSize};
+use chaserland_common::pagination::Pagination;
 use sqlx::{PgPool, Postgres, QueryBuilder};
 use crate::domain::repository::article::ArticleRepository;
 
@@ -71,7 +71,7 @@ impl PgArticleRepository {
 impl ArticleRepository for PgArticleRepository {
     async fn create(
         &self,
-        article: article::ArticleCreate,
+        article: article::NewArticle,
     ) -> Result<article::Article, ArticleRepositoryError> {
         let mut tx = self
             .pool
@@ -218,13 +218,11 @@ impl ArticleRepository for PgArticleRepository {
     }
     async fn get_many(
         &self,
-        page: Page,
-        page_size: PageSize,
+        pagination: Pagination,
         public_only: bool,
         with_content: bool,
         filter: Option<ArticlesFilter>,
     ) -> Result<Vec<article::Article>, ArticleRepositoryError> {
-        let offset = Offset::from((page, page_size));
         let mut query = QueryBuilder::<Postgres>::new("SELECT a.*, COALESCE(c.category_ids, '{}') as category_ids, COALESCE(d.tag_ids, '{}') as tag_ids FROM ");
 
         match (public_only, with_content) {
@@ -289,9 +287,9 @@ impl ArticleRepository for PgArticleRepository {
         }
 
         query.push(" LIMIT ");
-        query.push_bind(page_size.value());
+        query.push_bind(pagination.page_size.value());
         query.push(" OFFSET ");
-        query.push_bind(offset.value());
+        query.push_bind(pagination.as_offset().value());
 
         let articles: Vec<PgArticle> = query.build_query_as().fetch_all(&self.pool).await.map_err(|why| ArticleRepositoryError::Unknown(why.into()))?;
 

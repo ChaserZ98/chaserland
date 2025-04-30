@@ -1,7 +1,7 @@
 use crate::domain::entity::tag;
-use crate::domain::repository::tag::{TagRepository, TagRepositoryError};
+use crate::domain::repository::tag::{TagRepository, TagRepositoryError, TagsFilter};
 use async_trait::async_trait;
-use chaserland_common::pagination::{Offset, Page, PageSize};
+use chaserland_common::pagination::Pagination;
 use sqlx::{FromRow, PgPool, Postgres, QueryBuilder};
 
 #[derive(FromRow)]
@@ -36,8 +36,7 @@ impl PgTagRepository {
 
 #[async_trait]
 impl TagRepository for PgTagRepository {
-    async fn create(&self, name: tag::Name) -> Result<tag::Tag, TagRepositoryError> {
-        let slug = name.as_slug();
+    async fn create(&self, new_tag: tag::NewTag) -> Result<tag::Tag, TagRepositoryError> {
         let mut tx = self
             .pool
             .begin()
@@ -45,13 +44,13 @@ impl TagRepository for PgTagRepository {
             .map_err(|why| TagRepositoryError::Transaction(why.to_string()))?;
         let tag: PgTag =
             sqlx::query_as("INSERT INTO article.tags (name, slug) VALUES ($1, $2) RETURNING *")
-                .bind(&name.value())
-                .bind(&name.as_slug().value())
+                .bind(&new_tag.name.value())
+                .bind(&new_tag.slug().value())
                 .fetch_one(&mut *tx)
                 .await
                 .map_err(|why| match why {
                     sqlx::Error::Database(db_err) if db_err.is_unique_violation() => {
-                        TagRepositoryError::DuplicateTagSlug(name, slug)
+                        TagRepositoryError::DuplicateTagSlug(new_tag)
                     }
                     _ => TagRepositoryError::Unknown(why.into()),
                 })?;
@@ -99,13 +98,31 @@ impl TagRepository for PgTagRepository {
     }
     async fn get_many(
         &self,
-        page: Page,
-        page_size: PageSize,
+        filter: Option<TagsFilter>,
+        pagination: Option<Pagination>,
     ) -> Result<Vec<tag::Tag>, TagRepositoryError> {
-        let offset = Offset::from((page, page_size));
-        let tags: Vec<PgTag> = sqlx::query_as("SELECT * FROM article.tags LIMIT $1 OFFSET $2")
-            .bind(page_size.value())
-            .bind(offset.value())
+        let mut query = QueryBuilder::<Postgres>::new("SELECT * FROM article.tags");
+
+        if let Some(filter) = filter {
+            query.push(" WHERE id = ANY(");
+            query.push_bind(
+                filter
+                    .tag_ids()
+                    .iter()
+                    .map(|id| id.value())
+                    .collect::<Vec<i32>>(),
+            );
+            query.push(")");
+        }
+        if let Some(pagination) = pagination {
+            query.push(" LIMIT ");
+            query.push_bind(pagination.page_size.value());
+            query.push(" OFFSET ");
+            query.push_bind(pagination.as_offset().value());
+        }
+
+        let tags: Vec<PgTag> = query
+            .build_query_as()
             .fetch_all(&self.pool)
             .await
             .map_err(|why| TagRepositoryError::Unknown(why.into()))?;

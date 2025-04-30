@@ -56,6 +56,29 @@ impl Slug {
     pub fn as_identifier(&self) -> Identifier {
         self.clone().into()
     }
+    fn validate(slug: impl AsRef<str>) -> Result<(), String> {
+        match slug.as_ref().trim().is_empty() {
+            true => Err("slug is empty".to_string()),
+            false => Ok(()),
+        }
+    }
+}
+
+impl TryFrom<String> for Slug {
+    type Error = String;
+
+    fn try_from(value: String) -> Result<Self, Self::Error> {
+        Self::validate(&value)?;
+        Ok(Self(value))
+    }
+}
+
+impl TryFrom<&str> for Slug {
+    type Error = String;
+
+    fn try_from(value: &str) -> Result<Self, Self::Error> {
+        Self::try_from(value.to_string())
+    }
 }
 
 impl std::fmt::Display for Slug {
@@ -122,6 +145,23 @@ impl Category {
     pub fn new(id: Id, name: Name) -> Self {
         let slug = name.as_slug();
         Self { id, slug, name }
+    }
+}
+
+#[derive(Debug, PartialEq, Eq, Clone)]
+pub struct NewCategory {
+    pub name: Name,
+    slug: Slug,
+}
+
+impl NewCategory {
+    pub fn new(name: Name) -> Self {
+        let slug = name.as_slug();
+        Self { name, slug }
+    }
+
+    pub fn slug(&self) -> &Slug {
+        &self.slug
     }
 }
 

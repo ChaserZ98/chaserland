@@ -1,7 +1,7 @@
 use crate::domain::entity::series;
-use crate::domain::repository::series::{SeriesRepository, SeriesRepositoryError};
+use crate::domain::repository::series::{SeriesFilter, SeriesRepository, SeriesRepositoryError};
 use async_trait::async_trait;
-use chaserland_common::pagination::{Offset, Page, PageSize};
+use chaserland_common::pagination::Pagination;
 use sqlx::{Postgres, QueryBuilder};
 
 #[derive(sqlx::FromRow)]
@@ -36,24 +36,25 @@ impl PgSeriesRepository {
 
 #[async_trait]
 impl SeriesRepository for PgSeriesRepository {
-    async fn create(&self, name: series::Name) -> Result<series::Series, SeriesRepositoryError> {
+    async fn create(
+        &self,
+        series: series::NewSeries,
+    ) -> Result<series::Series, SeriesRepositoryError> {
         let mut tx = self
             .pool
             .begin()
             .await
             .map_err(|why| SeriesRepositoryError::Transaction(why.to_string()))?;
 
-        let slug = name.as_slug();
-
         let series: PgSeries =
             sqlx::query_as("INSERT INTO article.series (name, slug) VALUES ($1, $2) RETURNING *")
-                .bind(&name.value())
-                .bind(&slug.value())
+                .bind(&series.name.value())
+                .bind(&series.slug().value())
                 .fetch_one(&mut *tx)
                 .await
                 .map_err(|why| match why {
                     sqlx::Error::Database(db_err) if db_err.is_unique_violation() => {
-                        SeriesRepositoryError::DuplicateSeriesSlug(name, slug)
+                        SeriesRepositoryError::DuplicateSeriesSlug(series)
                     }
                     _ => SeriesRepositoryError::Unknown(why.into()),
                 })?;
@@ -104,18 +105,32 @@ impl SeriesRepository for PgSeriesRepository {
     }
     async fn get_many(
         &self,
-        page: Page,
-        page_size: PageSize,
+        filter: Option<SeriesFilter>,
+        pagination: Option<Pagination>,
     ) -> Result<Vec<series::Series>, SeriesRepositoryError> {
-        let offset = Offset::from((page, page_size));
-
-        let series: Vec<PgSeries> =
-            sqlx::query_as("SELECT * FROM article.series LIMIT $1 OFFSET $2")
-                .bind(page_size.value())
-                .bind(offset.value())
-                .fetch_all(&self.pool)
-                .await
-                .map_err(|why| SeriesRepositoryError::Unknown(why.into()))?;
+        let mut query = QueryBuilder::<Postgres>::new("SELECT * FROM article.series");
+        if let Some(filter) = filter {
+            query.push(" WHERE id = ANY(");
+            query.push_bind(
+                filter
+                    .series_ids()
+                    .iter()
+                    .map(|id| id.value())
+                    .collect::<Vec<i32>>(),
+            );
+            query.push(")");
+        }
+        if let Some(pagination) = pagination {
+            query.push(" LIMIT ");
+            query.push_bind(pagination.page_size.value());
+            query.push(" OFFSET ");
+            query.push_bind(pagination.as_offset().value());
+        }
+        let series: Vec<PgSeries> = query
+            .build_query_as()
+            .fetch_all(&self.pool)
+            .await
+            .map_err(|why| SeriesRepositoryError::Unknown(why.into()))?;
 
         let series = series
             .into_iter()

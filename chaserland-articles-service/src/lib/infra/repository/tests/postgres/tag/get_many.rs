@@ -2,17 +2,16 @@ use crate::{
     domain::{entity::tag, repository::tag::TagRepository},
     infra::repository::postgres::tag::PgTagRepository,
 };
-use chaserland_common::pagination::{Page, PageSize};
+use chaserland_common::pagination::Pagination;
 use sqlx::PgPool;
 
 #[sqlx::test(fixtures(path = "../../../../../../../tests/fixtures", scripts("tags")))]
 async fn get_many_case_1(pool: PgPool) {
     let repo = PgTagRepository::new(pool);
 
-    let page: Page = 1.try_into().unwrap();
-    let page_size: PageSize = 10.try_into().unwrap();
+    let pagination = Pagination::new(1.try_into().unwrap(), 10.try_into().unwrap());
 
-    let res = repo.get_many(page, page_size).await;
+    let res = repo.get_many(None, Some(pagination)).await;
 
     assert!(res.is_ok());
 
@@ -33,10 +32,9 @@ async fn get_many_case_1(pool: PgPool) {
 async fn get_many_case_2(pool: PgPool) {
     let repo = PgTagRepository::new(pool);
 
-    let page: Page = 1.try_into().unwrap();
-    let page_size: PageSize = 2.try_into().unwrap();
+    let mut pagination = Pagination::new(1.try_into().unwrap(), 2.try_into().unwrap());
 
-    let res = repo.get_many(page, page_size).await;
+    let res = repo.get_many(None, Some(pagination)).await;
 
     assert!(res.is_ok());
 
@@ -50,9 +48,9 @@ async fn get_many_case_2(pool: PgPool) {
     let target = tag::Tag::new(2.try_into().unwrap(), "Tag 2".try_into().unwrap());
     assert_eq!(res[1], target);
 
-    let page: Page = 2.try_into().unwrap();
+    pagination.page = 2.try_into().unwrap();
 
-    let res = repo.get_many(page, page_size).await;
+    let res = repo.get_many(None, Some(pagination)).await;
 
     assert!(res.is_ok());
 
@@ -63,9 +61,9 @@ async fn get_many_case_2(pool: PgPool) {
     let target = tag::Tag::new(3.try_into().unwrap(), "Tag 3".try_into().unwrap());
     assert_eq!(res[0], target);
 
-    let page: Page = 3.try_into().unwrap();
+    pagination.page = 3.try_into().unwrap();
 
-    let res = repo.get_many(page, page_size).await;
+    let res = repo.get_many(None, Some(pagination)).await;
 
     assert!(res.is_ok());
 

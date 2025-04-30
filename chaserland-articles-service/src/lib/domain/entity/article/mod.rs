@@ -11,7 +11,7 @@ mod title;
 mod updated_at;
 mod version;
 
-pub use article::{Article, ArticleCreate, DomainError};
+pub use article::{Article, DomainError, NewArticle};
 pub use content::Content;
 pub use created_at::CreatedAt;
 pub use deleted_at::DeletedAt;

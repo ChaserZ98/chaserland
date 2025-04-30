@@ -10,15 +10,14 @@ use sqlx::PgPool;
 async fn create_article_case_1(pool: PgPool) {
     let repo = PgArticleRepository::new(pool);
 
-    let article = article::ArticleCreate {
-        title: "title".try_into().unwrap(),
-        description: "description".into(),
-        content: Some("content".into()),
-        series_id: None,
-        category_ids: vec![],
-        tag_ids: vec![],
-        version: chrono::Utc::now().into(),
-    };
+    let article = article::NewArticle::new(
+        "title".try_into().unwrap(),
+        "description".into(),
+        Some("content".into()),
+        None,
+        vec![],
+        vec![],
+    );
 
     let res = repo.create(article.clone()).await;
 
@@ -46,15 +45,14 @@ async fn create_article_case_1(pool: PgPool) {
 async fn create_article_case_2(pool: PgPool) {
     let repo = PgArticleRepository::new(pool);
 
-    let article = article::ArticleCreate {
-        title: "title 1".try_into().unwrap(),
-        description: "description".into(),
-        content: Some("content".into()),
-        series_id: Some(1.try_into().unwrap()),
-        category_ids: vec![1.try_into().unwrap(), 2.try_into().unwrap()],
-        tag_ids: vec![2.try_into().unwrap(), 3.try_into().unwrap()],
-        version: chrono::Utc::now().into(),
-    };
+    let article = article::NewArticle::new(
+        "title 1".try_into().unwrap(),
+        "description".into(),
+        Some("content".into()),
+        Some(1.try_into().unwrap()),
+        vec![1.try_into().unwrap(), 2.try_into().unwrap()],
+        vec![2.try_into().unwrap(), 3.try_into().unwrap()],
+    );
 
     let res = repo.create(article.clone()).await;
 
@@ -82,15 +80,14 @@ async fn create_article_case_2(pool: PgPool) {
 async fn create_article_case_series_not_found(pool: PgPool) {
     let repo = PgArticleRepository::new(pool);
 
-    let article = article::ArticleCreate {
-        title: "title 3".try_into().unwrap(),
-        description: "description 3".into(),
-        content: Some("content 3".into()),
-        series_id: Some(4.try_into().unwrap()),
-        category_ids: vec![1.try_into().unwrap(), 2.try_into().unwrap()],
-        tag_ids: vec![2.try_into().unwrap(), 3.try_into().unwrap()],
-        version: chrono::Utc::now().into(),
-    };
+    let article = article::NewArticle::new(
+        "title 3".try_into().unwrap(),
+        "description 3".into(),
+        Some("content 3".into()),
+        Some(4.try_into().unwrap()),
+        vec![1.try_into().unwrap(), 2.try_into().unwrap()],
+        vec![2.try_into().unwrap(), 3.try_into().unwrap()],
+    );
 
     let res = repo.create(article.clone()).await;
 
@@ -112,15 +109,14 @@ async fn create_article_case_series_not_found(pool: PgPool) {
 async fn create_article_case_category_not_found(pool: PgPool) {
     let repo = PgArticleRepository::new(pool);
 
-    let article = article::ArticleCreate {
-        title: "title 4".try_into().unwrap(),
-        description: "description 4".into(),
-        content: Some("content 4".into()),
-        series_id: Some(1.try_into().unwrap()),
-        category_ids: vec![4.try_into().unwrap(), 5.try_into().unwrap()],
-        tag_ids: vec![1.try_into().unwrap(), 2.try_into().unwrap()],
-        version: chrono::Utc::now().into(),
-    };
+    let article = article::NewArticle::new(
+        "title 4".try_into().unwrap(),
+        "description 4".into(),
+        Some("content 4".into()),
+        Some(1.try_into().unwrap()),
+        vec![4.try_into().unwrap(), 5.try_into().unwrap()],
+        vec![1.try_into().unwrap(), 2.try_into().unwrap()],
+    );
 
     let res = repo.create(article.clone()).await;
 
@@ -134,15 +130,14 @@ async fn create_article_case_category_not_found(pool: PgPool) {
         _ => false,
     });
 
-    let article = article::ArticleCreate {
-        title: "title 4".try_into().unwrap(),
-        description: "description 4".into(),
-        content: Some("content 4".into()),
-        series_id: Some(1.try_into().unwrap()),
-        category_ids: vec![1.try_into().unwrap(), 5.try_into().unwrap()],
-        tag_ids: vec![1.try_into().unwrap(), 2.try_into().unwrap()],
-        version: chrono::Utc::now().into(),
-    };
+    let article = article::NewArticle::new(
+        "title 4".try_into().unwrap(),
+        "description 4".into(),
+        Some("content 4".into()),
+        Some(1.try_into().unwrap()),
+        vec![1.try_into().unwrap(), 5.try_into().unwrap()],
+        vec![1.try_into().unwrap(), 2.try_into().unwrap()],
+    );
 
     let res = repo.create(article.clone()).await;
 
@@ -164,15 +159,14 @@ async fn create_article_case_category_not_found(pool: PgPool) {
 async fn create_article_case_tag_not_found(pool: PgPool) {
     let repo = PgArticleRepository::new(pool);
 
-    let article = article::ArticleCreate {
-        title: "title 4".try_into().unwrap(),
-        description: "description 4".into(),
-        content: Some("content 4".into()),
-        series_id: Some(1.try_into().unwrap()),
-        category_ids: vec![1.try_into().unwrap(), 2.try_into().unwrap()],
-        tag_ids: vec![4.try_into().unwrap(), 5.try_into().unwrap()],
-        version: chrono::Utc::now().into(),
-    };
+    let article = article::NewArticle::new(
+        "title 4".try_into().unwrap(),
+        "description 4".into(),
+        Some("content 4".into()),
+        Some(1.try_into().unwrap()),
+        vec![1.try_into().unwrap(), 2.try_into().unwrap()],
+        vec![4.try_into().unwrap(), 5.try_into().unwrap()],
+    );
 
     let res = repo.create(article.clone()).await;
 
@@ -185,15 +179,14 @@ async fn create_article_case_tag_not_found(pool: PgPool) {
         _ => false,
     });
 
-    let article = article::ArticleCreate {
-        title: "title 4".try_into().unwrap(),
-        description: "description 4".into(),
-        content: Some("content 4".into()),
-        series_id: Some(1.try_into().unwrap()),
-        category_ids: vec![1.try_into().unwrap(), 2.try_into().unwrap()],
-        tag_ids: vec![1.try_into().unwrap(), 5.try_into().unwrap()],
-        version: chrono::Utc::now().into(),
-    };
+    let article = article::NewArticle::new(
+        "title 4".try_into().unwrap(),
+        "description 4".into(),
+        Some("content 4".into()),
+        Some(1.try_into().unwrap()),
+        vec![1.try_into().unwrap(), 2.try_into().unwrap()],
+        vec![1.try_into().unwrap(), 5.try_into().unwrap()],
+    );
 
     let res = repo.create(article.clone()).await;
 
@@ -214,15 +207,14 @@ async fn create_article_case_tag_not_found(pool: PgPool) {
 async fn create_article_case_duplicate_slug(pool: PgPool) {
     let repo = PgArticleRepository::new(pool);
 
-    let article = article::ArticleCreate {
-        title: "article title 1".try_into().unwrap(),
-        description: "description".into(),
-        content: Some("content".into()),
-        series_id: Some(1.try_into().unwrap()),
-        category_ids: vec![1.try_into().unwrap(), 2.try_into().unwrap()],
-        tag_ids: vec![2.try_into().unwrap(), 3.try_into().unwrap()],
-        version: chrono::Utc::now().into(),
-    };
+    let article = article::NewArticle::new(
+        "article title 1".try_into().unwrap(),
+        "description".into(),
+        Some("content".into()),
+        Some(1.try_into().unwrap()),
+        vec![1.try_into().unwrap(), 2.try_into().unwrap()],
+        vec![2.try_into().unwrap(), 3.try_into().unwrap()],
+    );
 
     let res = repo.create(article.clone()).await;
 

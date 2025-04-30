@@ -8,10 +8,11 @@ async fn create_category_case_1(pool: PgPool) {
     let repo = PgCategoryRepository::new(pool);
 
     let id = 4.try_into().unwrap();
-    let name = "Category 4".try_into().unwrap();
-    let target = category::Category::new(id, name);
+    let name = category::Name::new("Category 4");
+    let target = category::Category::new(id, name.clone());
+    let new_category = category::NewCategory::new(name);
 
-    let res = repo.create(target.name.clone()).await;
+    let res = repo.create(new_category).await;
 
     println!("{:?}", res);
 
@@ -26,19 +27,17 @@ async fn create_category_case_1(pool: PgPool) {
 async fn create_category_case_already_exists(pool: PgPool) {
     let repo = PgCategoryRepository::new(pool);
 
-    let id = 1.try_into().unwrap();
-    let name = "Category 1".try_into().unwrap();
-    let category = category::Category::new(id, name);
+    let name = category::Name::new("Category 1");
+    let new_category = category::NewCategory::new(name);
 
-    let res = repo.create(category.name.clone()).await;
+    let res = repo.create(new_category.clone()).await;
 
     assert!(res.is_err());
 
     let err = res.unwrap_err();
 
     assert!(match err {
-        CategoryRepositoryError::DuplicateCategorySlug(name, slug) =>
-            name == category.name && slug == category.slug,
+        CategoryRepositoryError::DuplicateCategorySlug(value) => value == new_category,
         _ => false,
     });
 }

@@ -174,7 +174,7 @@ impl Default for Article {
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq, Eq, Default)]
-pub struct ArticleCreate {
+pub struct NewArticle {
     pub title: Title,
     pub description: Description,
     pub content: Option<Content>,
@@ -184,7 +184,26 @@ pub struct ArticleCreate {
     version: Version,
 }
 
-impl ArticleCreate {
+impl NewArticle {
+    pub fn new(
+        title: Title,
+        description: Description,
+        content: Option<Content>,
+        series_id: Option<series::Id>,
+        category_ids: Vec<category::Id>,
+        tag_ids: Vec<tag::Id>,
+    ) -> Self {
+        let version = Version::default();
+        Self {
+            title,
+            description,
+            content,
+            series_id,
+            category_ids,
+            tag_ids,
+            version,
+        }
+    }
     pub fn version(&self) -> &Version {
         &self.version
     }
@@ -213,6 +232,40 @@ pub enum DomainError {
     TagNotFound(Id, tag::Id),
     #[error(transparent)]
     Unknown(#[from] anyhow::Error),
+}
+
+impl DomainError {
+    pub fn is_already_published(&self) -> bool {
+        matches!(self, DomainError::AlreadyPublished(_))
+    }
+
+    pub fn is_not_published(&self) -> bool {
+        matches!(self, DomainError::NotPublished(_))
+    }
+
+    pub fn is_already_soft_deleted(&self) -> bool {
+        matches!(self, DomainError::AlreadySoftDeleted(_))
+    }
+
+    pub fn is_not_soft_deleted(&self) -> bool {
+        matches!(self, DomainError::NotSoftDeleted(_))
+    }
+
+    pub fn is_category_already_attached(&self) -> bool {
+        matches!(self, DomainError::CategoryAlreadyAttached(_, _))
+    }
+
+    pub fn is_category_not_found(&self) -> bool {
+        matches!(self, DomainError::CategoryNotFound(_, _))
+    }
+
+    pub fn is_tag_already_attached(&self) -> bool {
+        matches!(self, DomainError::TagAlreadyAttached(_, _))
+    }
+
+    pub fn is_tag_not_found(&self) -> bool {
+        matches!(self, DomainError::TagNotFound(_, _))
+    }
 }
 
 #[cfg(test)]

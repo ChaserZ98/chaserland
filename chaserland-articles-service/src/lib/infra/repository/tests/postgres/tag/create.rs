@@ -8,10 +8,11 @@ async fn create_tag_case_1(pool: PgPool) {
     let repo = PgTagRepository::new(pool);
 
     let id = 4.try_into().unwrap();
-    let name = "tag 4".try_into().unwrap();
-    let target = tag::Tag::new(id, name);
+    let name = tag::Name::new("tag 4");
+    let target = tag::Tag::new(id, name.clone());
+    let new_tag = tag::NewTag::new(name);
 
-    let res = repo.create(target.name.clone()).await;
+    let res = repo.create(new_tag.clone()).await;
 
     assert!(res.is_ok());
 
@@ -24,16 +25,17 @@ async fn create_tag_case_1(pool: PgPool) {
 async fn create_tag_case_already_exists(pool: PgPool) {
     let repo = PgTagRepository::new(pool);
 
-    let tag = tag::Tag::new(4.try_into().unwrap(), "tag 1".try_into().unwrap());
+    let name = tag::Name::new("tag 1");
+    let new_tag = tag::NewTag::new(name);
 
-    let res = repo.create(tag.name.clone()).await;
+    let res = repo.create(new_tag.clone()).await;
 
     assert!(res.is_err());
 
     let res = res.unwrap_err();
 
     assert!(match res {
-        TagRepositoryError::DuplicateTagSlug(name, slug) => tag.name == name && tag.slug == slug,
+        TagRepositoryError::DuplicateTagSlug(value) => value == new_tag,
         _ => false,
     });
 }

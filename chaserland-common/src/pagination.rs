@@ -64,6 +64,21 @@ impl Display for PageSize {
 }
 
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]
+pub struct Pagination {
+    pub page: Page,
+    pub page_size: PageSize,
+}
+
+impl Pagination {
+    pub fn new(page: Page, page_size: PageSize) -> Self {
+        Pagination { page, page_size }
+    }
+    pub fn as_offset(&self) -> Offset {
+        Offset::from((self.page, self.page_size))
+    }
+}
+
+#[derive(Debug, PartialEq, Eq, Clone, Copy)]
 pub struct Offset(i32);
 
 impl Offset {
@@ -96,6 +111,12 @@ impl TryFrom<i32> for Offset {
 impl From<(Page, PageSize)> for Offset {
     fn from((page, page_size): (Page, PageSize)) -> Self {
         Offset::new((page.value() - 1) * page_size.value())
+    }
+}
+
+impl From<Pagination> for Offset {
+    fn from(value: Pagination) -> Self {
+        Self::from((value.page, value.page_size))
     }
 }
 

@@ -5,4 +5,3 @@ pub mod infra;
 pub mod migrator;
 pub mod ports;
 pub mod server;
-pub mod service;

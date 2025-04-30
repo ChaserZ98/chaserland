@@ -1,3 +1,5 @@
+use chaserland_common::pagination::Pagination;
+
 use crate::domain::entity::{article, series};
 use crate::domain::repository::article::{ArticleRepository, ArticlesFilter};
 use crate::infra::repository::postgres::article::PgArticleRepository;
@@ -16,14 +18,13 @@ use crate::infra::repository::postgres::article::PgArticleRepository;
 async fn test_get_many_case_pagination(pool: sqlx::PgPool) {
     let repo = PgArticleRepository::new(pool);
 
-    let page = 1.try_into().unwrap();
-    let page_size = 1.try_into().unwrap();
+    let mut pagination = Pagination::new(1.try_into().unwrap(), 1.try_into().unwrap());
     let public_only = false;
     let with_content = true;
     let filter = None;
 
     let res = repo
-        .get_many(page, page_size, public_only, with_content, filter)
+        .get_many(pagination, public_only, with_content, filter)
         .await;
 
     assert!(res.is_ok());
@@ -58,14 +59,13 @@ async fn test_get_many_case_pagination(pool: sqlx::PgPool) {
     assert_eq!(res[0].category_ids, target.category_ids);
     assert_eq!(res[0].tag_ids, target.tag_ids);
 
-    let page = 2.try_into().unwrap();
-    let page_size = 1.try_into().unwrap();
+    pagination.page = 2.try_into().unwrap();
     let public_only = false;
     let with_content = true;
     let filter = None;
 
     let res = repo
-        .get_many(page, page_size, public_only, with_content, filter)
+        .get_many(pagination, public_only, with_content, filter)
         .await;
 
     assert!(res.is_ok());
@@ -102,6 +102,7 @@ async fn test_get_many_case_pagination(pool: sqlx::PgPool) {
     assert_eq!(article.category_ids, target.category_ids);
     assert_eq!(article.tag_ids, target.tag_ids);
 }
+
 #[sqlx::test(fixtures(
     path = "../../../../../../../tests/fixtures",
     scripts(
@@ -116,14 +117,13 @@ async fn test_get_many_case_pagination(pool: sqlx::PgPool) {
 async fn test_get_many_case_all_with_content_no_filter(pool: sqlx::PgPool) {
     let repo = PgArticleRepository::new(pool);
 
-    let page = 1.try_into().unwrap();
-    let page_size = 10.try_into().unwrap();
+    let pagination = Pagination::new(1.try_into().unwrap(), 10.try_into().unwrap());
     let public_only = false;
     let with_content = true;
     let filter = None;
 
     let res = repo
-        .get_many(page, page_size, public_only, with_content, filter)
+        .get_many(pagination, public_only, with_content, filter)
         .await;
 
     assert!(res.is_ok());
@@ -194,6 +194,7 @@ async fn test_get_many_case_all_with_content_no_filter(pool: sqlx::PgPool) {
     assert_eq!(article_2.category_ids, target_2.category_ids);
     assert_eq!(article_2.tag_ids, target_2.tag_ids);
 }
+
 #[sqlx::test(fixtures(
     path = "../../../../../../../tests/fixtures",
     scripts(
@@ -221,15 +222,14 @@ async fn test_get_many_case_all_with_content_with_series_filter(pool: sqlx::PgPo
         chrono::Utc::now().into(),
     );
 
-    let page = 1.try_into().unwrap();
-    let page_size = 10.try_into().unwrap();
+    let pagination = Pagination::new(1.try_into().unwrap(), 10.try_into().unwrap());
     let public_only = false;
     let with_content = true;
     let series_identifier = Some(series::Identifier::Id(2.try_into().unwrap()));
     let filter = Some(ArticlesFilter::new(series_identifier, vec![], vec![]));
 
     let res = repo
-        .get_many(page, page_size, public_only, with_content, filter)
+        .get_many(pagination, public_only, with_content, filter)
         .await;
 
     assert!(res.is_ok());
@@ -252,8 +252,7 @@ async fn test_get_many_case_all_with_content_with_series_filter(pool: sqlx::PgPo
     assert_eq!(article.category_ids, target.category_ids);
     assert_eq!(article.tag_ids, target.tag_ids);
 
-    let page = 1.try_into().unwrap();
-    let page_size = 10.try_into().unwrap();
+    let pagination = Pagination::new(1.try_into().unwrap(), 10.try_into().unwrap());
     let public_only = false;
     let with_content = true;
     let series_identifier = Some(series::Identifier::Slug(
@@ -262,7 +261,7 @@ async fn test_get_many_case_all_with_content_with_series_filter(pool: sqlx::PgPo
     let filter = Some(ArticlesFilter::new(series_identifier, vec![], vec![]));
 
     let res = repo
-        .get_many(page, page_size, public_only, with_content, filter)
+        .get_many(pagination, public_only, with_content, filter)
         .await;
 
     assert!(res.is_ok());
@@ -285,6 +284,7 @@ async fn test_get_many_case_all_with_content_with_series_filter(pool: sqlx::PgPo
     assert_eq!(article.category_ids, target.category_ids);
     assert_eq!(article.tag_ids, target.tag_ids);
 }
+
 #[sqlx::test(fixtures(
     path = "../../../../../../../tests/fixtures",
     scripts(
@@ -299,15 +299,14 @@ async fn test_get_many_case_all_with_content_with_series_filter(pool: sqlx::PgPo
 async fn test_get_many_case_all_with_content_with_category_filter(pool: sqlx::PgPool) {
     let repo = PgArticleRepository::new(pool);
 
-    let page = 1.try_into().unwrap();
-    let page_size = 10.try_into().unwrap();
+    let pagination = Pagination::new(1.try_into().unwrap(), 10.try_into().unwrap());
     let public_only = false;
     let with_content = true;
     let category_ids = vec![1.try_into().unwrap()];
     let filter = Some(ArticlesFilter::new(None, category_ids, vec![]));
 
     let res = repo
-        .get_many(page, page_size, public_only, with_content, filter)
+        .get_many(pagination, public_only, with_content, filter)
         .await;
 
     assert!(res.is_ok());
@@ -343,15 +342,14 @@ async fn test_get_many_case_all_with_content_with_category_filter(pool: sqlx::Pg
     assert_eq!(article.category_ids, target.category_ids);
     assert_eq!(article.tag_ids, target.tag_ids);
 
-    let page = 1.try_into().unwrap();
-    let page_size = 10.try_into().unwrap();
+    let pagination = Pagination::new(1.try_into().unwrap(), 10.try_into().unwrap());
     let public_only = false;
     let with_content = true;
     let category_ids = vec![1.try_into().unwrap(), 3.try_into().unwrap()];
     let filter = Some(ArticlesFilter::new(None, category_ids, vec![]));
 
     let res = repo
-        .get_many(page, page_size, public_only, with_content, filter)
+        .get_many(pagination, public_only, with_content, filter)
         .await;
 
     assert!(res.is_ok());
@@ -360,6 +358,7 @@ async fn test_get_many_case_all_with_content_with_category_filter(pool: sqlx::Pg
 
     assert_eq!(res.len(), 0);
 }
+
 #[sqlx::test(fixtures(
     path = "../../../../../../../tests/fixtures",
     scripts(
@@ -374,15 +373,14 @@ async fn test_get_many_case_all_with_content_with_category_filter(pool: sqlx::Pg
 async fn test_get_many_case_all_with_content_with_tag_filter(pool: sqlx::PgPool) {
     let repo = PgArticleRepository::new(pool);
 
-    let page = 1.try_into().unwrap();
-    let page_size = 10.try_into().unwrap();
+    let pagination = Pagination::new(1.try_into().unwrap(), 10.try_into().unwrap());
     let public_only = false;
     let with_content = true;
     let tag_ids = vec![2.try_into().unwrap()];
     let filter = Some(ArticlesFilter::new(None, vec![], tag_ids));
 
     let res = repo
-        .get_many(page, page_size, public_only, with_content, filter)
+        .get_many(pagination, public_only, with_content, filter)
         .await;
 
     assert!(res.is_ok());
@@ -418,15 +416,14 @@ async fn test_get_many_case_all_with_content_with_tag_filter(pool: sqlx::PgPool)
     assert_eq!(article.category_ids, target.category_ids);
     assert_eq!(article.tag_ids, target.tag_ids);
 
-    let page = 1.try_into().unwrap();
-    let page_size = 10.try_into().unwrap();
+    let pagination = Pagination::new(1.try_into().unwrap(), 10.try_into().unwrap());
     let public_only = false;
     let with_content = true;
     let tag_ids = vec![1.try_into().unwrap(), 2.try_into().unwrap()];
     let filter = Some(ArticlesFilter::new(None, vec![], tag_ids));
 
     let res = repo
-        .get_many(page, page_size, public_only, with_content, filter)
+        .get_many(pagination, public_only, with_content, filter)
         .await;
 
     assert!(res.is_ok());
@@ -435,6 +432,7 @@ async fn test_get_many_case_all_with_content_with_tag_filter(pool: sqlx::PgPool)
 
     assert_eq!(res.len(), 0);
 }
+
 #[sqlx::test(fixtures(
     path = "../../../../../../../tests/fixtures",
     scripts(
@@ -449,14 +447,13 @@ async fn test_get_many_case_all_with_content_with_tag_filter(pool: sqlx::PgPool)
 async fn test_get_many_case_public_no_content_no_filter(pool: sqlx::PgPool) {
     let repo = PgArticleRepository::new(pool);
 
-    let page = 1.try_into().unwrap();
-    let page_size = 10.try_into().unwrap();
+    let pagination = Pagination::new(1.try_into().unwrap(), 10.try_into().unwrap());
     let public_only = true;
     let with_content = false;
     let filter = None;
 
     let res = repo
-        .get_many(page, page_size, public_only, with_content, filter)
+        .get_many(pagination, public_only, with_content, filter)
         .await;
 
     assert!(res.is_ok());

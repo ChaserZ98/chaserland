@@ -1,15 +1,15 @@
 use crate::domain::entity::series;
 use crate::domain::repository::series::SeriesRepository;
 use crate::infra::repository::postgres::series::PgSeriesRepository;
+use chaserland_common::pagination::Pagination;
 
 #[sqlx::test(fixtures(path = "../../../../../../../tests/fixtures", scripts("series")))]
 async fn get_many_case_1(pool: sqlx::PgPool) {
     let repo = PgSeriesRepository::new(pool);
 
-    let page = 1.try_into().unwrap();
-    let page_size = 10.try_into().unwrap();
+    let pagination = Pagination::new(1.try_into().unwrap(), 10.try_into().unwrap());
 
-    let res = repo.get_many(page, page_size).await;
+    let res = repo.get_many(None, Some(pagination)).await;
 
     assert!(res.is_ok());
 
@@ -30,10 +30,9 @@ async fn get_many_case_1(pool: sqlx::PgPool) {
 async fn get_many_case_2(pool: sqlx::PgPool) {
     let repo = PgSeriesRepository::new(pool);
 
-    let page = 1.try_into().unwrap();
-    let page_size = 1.try_into().unwrap();
+    let mut pagination = Pagination::new(1.try_into().unwrap(), 1.try_into().unwrap());
 
-    let res = repo.get_many(page, page_size).await;
+    let res = repo.get_many(None, Some(pagination)).await;
 
     assert!(res.is_ok());
 
@@ -45,8 +44,8 @@ async fn get_many_case_2(pool: sqlx::PgPool) {
     let target = series::Series::new(1.try_into().unwrap(), "series 1".try_into().unwrap());
     assert_eq!(series, target);
 
-    let page = 2.try_into().unwrap();
-    let res = repo.get_many(page, page_size).await;
+    pagination.page = 2.try_into().unwrap();
+    let res = repo.get_many(None, Some(pagination)).await;
 
     assert!(res.is_ok());
 

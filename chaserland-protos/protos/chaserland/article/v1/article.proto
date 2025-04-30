@@ -36,116 +36,152 @@ message CreateTagResponse {
   Tag tag = 1;
 }
 
-message GetArticleRequest {
-  oneof identifier {
-    int32 id = 1;
-    string slug = 2;
-  }
-  bool public_only = 3;
-  bool with_content = 4;
+message GetArticleOneRequest {
+  ArticleIdentifier identifier = 1;
+  bool public_only = 2;
+  bool with_content = 3;
 }
 
-message GetArticleResponse {
+message GetArticleOneResponse {
   Article article = 1;
 }
 
-message GetArticlesRequest {
+message GetArticleManyRequest {
   int32 page = 1;
   int32 page_size = 2;
   bool public_only = 3;
   bool with_content = 4;
-  oneof filter {
-    SeriesFilter series_filter = 5;
-    CategoryTagFilter category_tag_filter = 6;
-  }
+  ArticlesFilter filter = 5;
 }
 
-message SeriesFilter {
-  string series_slug = 1;
+message ArticlesFilter {
+  optional SeriesIdentifier series_identifier = 1;
+  repeated int32 category_ids = 2;
+  repeated int32 tag_ids = 3;
 }
 
-message CategoryTagFilter {
-  repeated string category_slugs = 1;
-  repeated string tag_slugs = 2;
-}
-
-message GetArticlesResponse {
+message GetArticleManyResponse {
   repeated Article articles = 1;
 }
 
 message GetArticleContentRequest {
-  oneof identifier {
-    int32 id = 1;
-    string slug = 2;
-  }
-  bool public_only = 3;
+  ArticleIdentifier identifier = 1;
+  bool public_only = 2;
 }
 
 message GetArticleContentResponse {
   string content = 1;
 }
 
-message GetSeriesRequest {
+message GetSeriesOneRequest {
+  SeriesIdentifier identifier = 1;
+}
+
+message GetSeriesOneResponse {
+  Series series = 1;
+}
+
+message GetSeriesManyRequest {
 
 }
 
-message GetSeriesResponse {
+message GetSeriesManyResponse {
   repeated Series series = 1;
 }
 
-message GetCategoriesRequest {
+message GetCategoryOneRequest {
+  CategoryIdentifier identifier = 1;
+}
+
+message GetCategoryOneResponse {
+  Category category = 1;
+}
+
+message GetCategoryManyRequest {
 
 }
 
-message GetCategoriesResponse {
+message GetCategoryManyResponse {
   repeated Category categories = 1;
 }
 
-message GetTagsRequest {
+message GetTagOneRequest {
+  TagIdentifier identifier = 1;
+}
+
+message GetTagOneResponse {
+  Tag tag = 1;
+}
+
+message GetTagManyRequest {
 
 }
 
-message GetTagsResponse {
+message GetTagManyResponse {
   repeated Tag tags = 1;
 }
 
-message PublishArticleByIdRequest {
-  int32 id = 1;
+message PublishArticleRequest {
+  ArticleIdentifier identifier = 1;
 }
 
-message PublishArticleByIdResponse {
+message PublishArticleResponse {
 
 }
 
-message DeleteArticleByIdRequest {
-  int32 id = 1;
+message UnpublishArticleRequest {
+  ArticleIdentifier identifier = 1;
 }
 
-message DeleteArticleByIdResponse {
+message UnpublishArticleResponse {
   
 }
 
-message DeleteSeriesByIdRequest {
-  int32 id = 1;
+message SoftDeleteArticleRequest {
+  ArticleIdentifier identifier = 1;
 }
 
-message DeleteSeriesByIdResponse {
+message SoftDeleteArticleResponse {
   
 }
 
-message DeleteCategoryByIdRequest {
-  int32 id = 1;
+message RevokeSoftDeleteArticleRequest {
+  ArticleIdentifier identifier = 1;
 }
 
-message DeleteCategoryByIdResponse {
+message RevokeSoftDeleteArticleResponse {
   
 }
 
-message DeleteTagByIdRequest {
-  int32 id = 1;
+message DeleteArticleRequest {
+  ArticleIdentifier identifier = 1;
 }
 
-message DeleteTagByIdResponse {
+message DeleteArticleResponse {
+  
+}
+
+message DeleteSeriesRequest {
+  SeriesIdentifier identifier = 1;
+}
+
+message DeleteSeriesResponse {
+  
+}
+
+message DeleteCategoryRequest {
+  CategoryIdentifier identifier = 1;
+}
+
+message DeleteCategoryResponse {
+  
+}
+
+message DeleteTagRequest {
+  TagIdentifier identifier = 1;
+}
+
+message DeleteTagResponse {
   
 }
 
@@ -153,6 +189,13 @@ message Series {
   int32 id = 1;
   string slug = 2;
   string name = 3;
+}
+
+message SeriesIdentifier {
+  oneof identifier {
+    int32 id = 1;
+    string slug = 2;
+  }
 }
 
 message SeriesCreate {
@@ -165,6 +208,13 @@ message Tag {
   string slug = 3;
 }
 
+message TagIdentifier {
+  oneof identifier {
+    int32 id = 1;
+    string slug = 2;
+  }
+}
+
 message TagCreate {
   string name = 1;
 }
@@ -173,6 +223,13 @@ message Category {
   int32 id = 1;
   string name = 2;
   string slug = 3;
+}
+
+message CategoryIdentifier {
+  oneof identifier {
+    int32 id = 1;
+    string slug = 2;
+  }
 }
 
 message CategoryCreate {
@@ -192,6 +249,13 @@ message Article {
   optional google.protobuf.Timestamp published_at = 10;
   google.protobuf.Timestamp updated_at = 11;
   optional google.protobuf.Timestamp deleted_at = 12;
+}
+
+message ArticleIdentifier {
+  oneof identifier {
+    int32 id = 1;
+    string slug = 2;
+  }
 }
 
 message ArticleCreate {

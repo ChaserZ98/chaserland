@@ -1,13 +1,13 @@
 use super::ArticleRepositoryError;
 use crate::domain::entity::{article, category, series, tag};
 use async_trait::async_trait;
-use chaserland_common::pagination::{Page, PageSize};
+use chaserland_common::pagination::Pagination;
 
 #[async_trait]
 pub trait ArticleRepository: Send + Sync + 'static {
     async fn create(
         &self,
-        article: article::ArticleCreate,
+        article: article::NewArticle,
     ) -> Result<article::Article, ArticleRepositoryError>;
     async fn get_one(
         &self,
@@ -17,8 +17,7 @@ pub trait ArticleRepository: Send + Sync + 'static {
     ) -> Result<article::Article, ArticleRepositoryError>;
     async fn get_many(
         &self,
-        page: Page,
-        page_size: PageSize,
+        pagination: Pagination,
         public_only: bool,
         with_content: bool,
         filter: Option<ArticlesFilter>,

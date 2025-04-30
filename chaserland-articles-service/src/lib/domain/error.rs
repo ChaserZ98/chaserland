@@ -8,6 +8,19 @@ pub enum DomainError {
     Article(#[from] article::DomainError),
 }
 
+impl DomainError {
+    pub fn is_article_domain_error(&self) -> bool {
+        matches!(self, DomainError::Article(_))
+    }
+
+    pub fn as_article_domain_error(&self) -> Option<&article::DomainError> {
+        match self {
+            DomainError::Article(e) => Some(e),
+            _ => None,
+        }
+    }
+}
+
 #[derive(Debug, thiserror::Error)]
 #[non_exhaustive]
 pub enum RepositoryError {

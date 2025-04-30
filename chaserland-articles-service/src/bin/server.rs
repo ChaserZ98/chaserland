@@ -1,5 +1,5 @@
 use anyhow::Result;
-// use chaserland_articles_service::server::Server;
+use chaserland_articles_service::server::Server;
 use chaserland_logger::init_logger;
 use std::env;
 
@@ -15,7 +15,7 @@ async fn main() -> Result<()> {
     let port = env::var("APP_PORT").unwrap_or("8080".to_string());
     let addr = format!("{}:{}", host, port);
 
-    // let server = Server::default();
-    // server.run(&addr).await?;
+    let server = Server::default();
+    server.run(&addr).await?;
     Ok(())
 }

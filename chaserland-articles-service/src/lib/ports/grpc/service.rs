@@ -3,17 +3,20 @@ use crate::domain::repository::article::ArticleRepository;
 use crate::domain::repository::category::CategoryRepository;
 use crate::domain::repository::series::SeriesRepository;
 use crate::domain::repository::tag::TagRepository;
-
 use chaserland_protos::article::v1::{
     CreateArticleRequest, CreateArticleResponse, CreateCategoryRequest, CreateCategoryResponse,
     CreateSeriesRequest, CreateSeriesResponse, CreateTagRequest, CreateTagResponse,
-    DeleteArticleByIdRequest, DeleteArticleByIdResponse, DeleteCategoryByIdRequest,
-    DeleteCategoryByIdResponse, DeleteSeriesByIdRequest, DeleteSeriesByIdResponse,
-    DeleteTagByIdRequest, DeleteTagByIdResponse, GetArticleContentRequest,
-    GetArticleContentResponse, GetArticleRequest, GetArticleResponse, GetArticlesRequest,
-    GetArticlesResponse, GetCategoriesRequest, GetCategoriesResponse, GetSeriesRequest,
-    GetSeriesResponse, GetTagsRequest, GetTagsResponse, PublishArticleByIdRequest,
-    PublishArticleByIdResponse, article_service_server::ArticleService as TonicArticleService,
+    DeleteArticleRequest, DeleteArticleResponse, DeleteCategoryRequest, DeleteCategoryResponse,
+    DeleteSeriesRequest, DeleteSeriesResponse, DeleteTagRequest, DeleteTagResponse,
+    GetArticleContentRequest, GetArticleContentResponse, GetArticleManyRequest,
+    GetArticleManyResponse, GetArticleOneRequest, GetArticleOneResponse, GetCategoryManyRequest,
+    GetCategoryManyResponse, GetCategoryOneRequest, GetCategoryOneResponse, GetSeriesManyRequest,
+    GetSeriesManyResponse, GetSeriesOneRequest, GetSeriesOneResponse, GetTagManyRequest,
+    GetTagManyResponse, GetTagOneRequest, GetTagOneResponse, PublishArticleRequest,
+    PublishArticleResponse, RevokeSoftDeleteArticleRequest, RevokeSoftDeleteArticleResponse,
+    SoftDeleteArticleRequest, SoftDeleteArticleResponse, UnpublishArticleRequest,
+    UnpublishArticleResponse,
+    article_service_server::{ArticleService as TonicArticleService, ArticleServiceServer},
 };
 use tonic::{Request, Response, Status};
 
@@ -23,6 +26,38 @@ pub struct GrpcArticleService<
     C: CategoryRepository,
     T: TagRepository,
 >(ArticleService<R, S, C, T>);
+
+impl<R, S, C, T> Into<GrpcArticleService<R, S, C, T>> for ArticleService<R, S, C, T>
+where
+    R: ArticleRepository,
+    S: SeriesRepository,
+    C: CategoryRepository,
+    T: TagRepository,
+{
+    fn into(self) -> GrpcArticleService<R, S, C, T> {
+        GrpcArticleService::new(self)
+    }
+}
+
+impl<R, S, C, T> GrpcArticleService<R, S, C, T>
+where
+    R: ArticleRepository,
+    S: SeriesRepository,
+    C: CategoryRepository,
+    T: TagRepository,
+{
+    pub fn new(article_service: ArticleService<R, S, C, T>) -> Self {
+        Self(article_service)
+    }
+
+    pub fn inner(&self) -> &ArticleService<R, S, C, T> {
+        &self.0
+    }
+
+    pub fn into_tonic_service(self) -> ArticleServiceServer<Self> {
+        ArticleServiceServer::new(self)
+    }
+}
 
 #[tonic::async_trait]
 impl<R: ArticleRepository, S: SeriesRepository, C: CategoryRepository, T: TagRepository>
@@ -34,9 +69,9 @@ impl<R: ArticleRepository, S: SeriesRepository, C: CategoryRepository, T: TagRep
     ) -> Result<Response<CreateArticleResponse>, Status> {
         let message = request.into_inner();
 
-        let article_create = message.try_into()?;
+        let command = message.try_into()?;
 
-        let article = self.0.create_article(article_create).await.map_err(|e| {
+        let article = self.inner().create_article(command).await.map_err(|e| {
             if !e.is_repository_error() {
                 return Status::internal("Internal Error");
             }
@@ -56,342 +91,716 @@ impl<R: ArticleRepository, S: SeriesRepository, C: CategoryRepository, T: TagRep
             Status::internal("Internal Error")
         })?;
 
-        let reply = CreateArticleResponse {
-            article: Some(article.into()),
-        };
+        let reply = CreateArticleResponse::from(article);
         Ok(Response::new(reply))
     }
+
     async fn create_series(
         &self,
         request: Request<CreateSeriesRequest>,
     ) -> Result<Response<CreateSeriesResponse>, Status> {
         let message = request.into_inner();
 
-        let series_create = match message.series {
-            Some(value) => value,
-            None => return Err(Status::invalid_argument("Series is required")),
-        };
+        let command = message.try_into()?;
 
-        let series = match self.create_series(series_create).await {
-            Ok(series) => series,
-            Err(e) => {
-                tracing::error!("Failed to create series: {}", e);
-                return Err(Status::internal("Internal Error"));
+        let series = self.inner().create_series(command).await.map_err(|why| {
+            if !why.is_repository_error() {
+                return Status::internal("Internal Error");
             }
-        };
 
-        let reply = CreateSeriesResponse {
-            series: Some(series.into()),
-        };
+            let why = why.as_repository_error().unwrap();
+
+            if !why.is_series_repository_error() {
+                return Status::internal("Internal Error");
+            }
+
+            let why = why.as_series_repository_error().unwrap();
+
+            if why.is_duplicate_series_slug() {
+                return Status::already_exists(why.to_string());
+            }
+
+            Status::internal("Internal Error")
+        })?;
+
+        let reply = CreateSeriesResponse::from(series);
 
         Ok(Response::new(reply))
     }
+
     async fn create_category(
         &self,
         request: Request<CreateCategoryRequest>,
     ) -> Result<Response<CreateCategoryResponse>, Status> {
         let message = request.into_inner();
-        let category_create = match message.category {
-            Some(value) => value,
-            None => return Err(Status::invalid_argument("Category is required")),
-        };
+        let command = message.try_into()?;
 
-        let category = match self.create_category(category_create).await {
-            Ok(category) => category,
-            Err(e) => {
-                tracing::error!("Failed to create category: {}", e);
-                return Err(Status::internal("Internal Error"));
+        let category = self.inner().create_category(command).await.map_err(|why| {
+            if !why.is_repository_error() {
+                return Status::internal("Internal Error");
             }
-        };
 
-        let reply = CreateCategoryResponse {
-            category: Some(category.into()),
-        };
+            let why = why.as_repository_error().unwrap();
+
+            if !why.is_category_repository_error() {
+                return Status::internal("Internal Error");
+            }
+
+            let why = why.as_category_repository_error().unwrap();
+
+            if why.is_duplicate_category_slug() {
+                return Status::already_exists(why.to_string());
+            }
+
+            Status::internal("Internal Error")
+        })?;
+
+        let reply = CreateCategoryResponse::from(category);
         Ok(Response::new(reply))
     }
+
     async fn create_tag(
         &self,
         request: Request<CreateTagRequest>,
     ) -> Result<Response<CreateTagResponse>, Status> {
         let message = request.into_inner();
 
-        let tag_create = match message.tag {
-            Some(value) => value,
-            None => return Err(Status::invalid_argument("Tag is required")),
-        };
+        let command = message.try_into()?;
 
-        let tag = match self.create_tag(tag_create).await {
-            Ok(tag) => tag,
-            Err(e) => {
-                tracing::error!("Failed to create tag: {}", e);
-                return Err(Status::internal("Internal Error"));
+        let tag = self.inner().create_tag(command).await.map_err(|why| {
+            if !why.is_repository_error() {
+                return Status::internal("Internal Error");
             }
-        };
 
-        let reply = CreateTagResponse {
-            tag: Some(tag.into()),
-        };
+            let why = why.as_repository_error().unwrap();
+
+            if !why.is_tag_repository_error() {
+                return Status::internal("Internal Error");
+            }
+
+            let why = why.as_tag_repository_error().unwrap();
+
+            if why.is_duplicate_tag_slug() {
+                return Status::already_exists(why.to_string());
+            }
+
+            Status::internal("Internal Error")
+        })?;
+
+        let reply = CreateTagResponse::from(tag);
         Ok(Response::new(reply))
     }
-    async fn get_article(
+
+    async fn get_article_one(
         &self,
-        request: Request<GetArticleRequest>,
-    ) -> Result<Response<GetArticleResponse>, Status> {
+        request: Request<GetArticleOneRequest>,
+    ) -> Result<Response<GetArticleOneResponse>, Status> {
         let message = request.into_inner();
+        let query = message.try_into()?;
 
-        if message.identifier.is_none() {
-            return Err(Status::invalid_argument(
-                "Identifier 'id' or 'slug' is missing",
-            ));
-        }
-
-        let article = match self
-            .get_article(
-                message.identifier.unwrap(),
-                message.public_only,
-                message.with_content,
-            )
-            .await
-        {
-            Ok(Some(article)) => article,
-            Ok(None) => return Err(Status::not_found("Article not found")),
-            Err(e) => {
-                tracing::error!("Failed to get article: {}", e);
-                return Err(Status::internal("Internal Error"));
+        let article = self.inner().get_article_one(query).await.map_err(|why| {
+            if !why.is_repository_error() {
+                return Status::internal("Internal Error");
             }
-        };
 
-        let reply = GetArticleResponse {
+            let why = why.as_repository_error().unwrap();
+
+            if why.is_article_repository_error() {
+                let why = why.as_article_repository_error().unwrap();
+
+                if why.is_article_not_found() {
+                    return Status::not_found(why.to_string());
+                }
+
+                return Status::internal("Internal Error");
+            }
+
+            Status::internal("Internal Error")
+        })?;
+
+        let reply = GetArticleOneResponse {
             article: Some(article.into()),
         };
         Ok(Response::new(reply))
     }
+
     async fn get_article_content(
         &self,
         request: Request<GetArticleContentRequest>,
     ) -> Result<Response<GetArticleContentResponse>, Status> {
         let message = request.into_inner();
 
-        if message.identifier.is_none() {
-            return Err(Status::invalid_argument("Identifier is required"));
-        }
+        let query = message.try_into()?;
 
-        let content = match self
-            .get_article_content(message.identifier.unwrap(), message.public_only)
+        let content = self
+            .inner()
+            .get_article_content(query)
             .await
-        {
-            Ok(Some(content)) => content,
-            Ok(None) => return Err(Status::not_found("Article not found")),
-            Err(e) => {
-                tracing::error!("Failed to get article content: {}", e);
-                return Err(Status::internal("Internal Error"));
-            }
-        };
+            .map_err(|why| {
+                if !why.is_repository_error() {
+                    return Status::internal("Internal Error");
+                }
+
+                let why = why.as_repository_error().unwrap();
+
+                if why.is_article_repository_error() {
+                    let why = why.as_article_repository_error().unwrap();
+
+                    if why.is_article_not_found() {
+                        return Status::not_found(why.to_string());
+                    }
+
+                    return Status::internal("Internal Error");
+                }
+
+                Status::internal("Internal Error")
+            })?;
 
         let reply = GetArticleContentResponse { content };
         Ok(Response::new(reply))
     }
-    async fn get_articles(
+
+    async fn get_article_many(
         &self,
-        request: Request<GetArticlesRequest>,
-    ) -> Result<Response<GetArticlesResponse>, Status> {
+        request: Request<GetArticleManyRequest>,
+    ) -> Result<Response<GetArticleManyResponse>, Status> {
         let message = request.into_inner();
-        if message.page < 1 {
-            return Err(Status::invalid_argument(
-                "Page must be greater or equal to 1",
-            ));
-        }
+        let query = message.try_into()?;
 
-        if message.page_size < 1 {
-            return Err(Status::invalid_argument(
-                "Page size must be greater or equal to 1",
-            ));
-        }
-
-        let articles_meta = match self
-            .get_articles(
-                message.page,
-                message.page_size,
-                message.public_only,
-                message.with_content,
-                message.filter,
-            )
+        let articles = self
+            .inner()
+            .get_article_many(query)
             .await
-        {
-            Ok(articles_meta) => articles_meta,
-            Err(e) => {
-                tracing::error!("Failed to get articles: {}", e);
-                return Err(Status::internal("Internal Error"));
-            }
-        };
+            .map_err(|_| Status::internal("Internal Error"))?;
 
-        let reply = GetArticlesResponse {
-            articles: articles_meta.into_iter().map(|x| x.into()).collect(),
+        let reply = GetArticleManyResponse {
+            articles: articles.into_iter().map(|x| x.into()).collect(),
         };
         Ok(Response::new(reply))
     }
-    async fn get_series(
-        &self,
-        _request: Request<GetSeriesRequest>,
-    ) -> Result<Response<GetSeriesResponse>, Status> {
-        let series = match self.get_series().await {
-            Ok(series) => series,
-            Err(e) => {
-                tracing::error!("Failed to get series: {}", e);
-                return Err(Status::internal("Failed to get series"));
-            }
-        };
 
-        let reply = GetSeriesResponse {
+    async fn get_series_one(
+        &self,
+        request: Request<GetSeriesOneRequest>,
+    ) -> Result<Response<GetSeriesOneResponse>, Status> {
+        let message = request.into_inner();
+
+        let query = message.try_into()?;
+
+        let series = self.inner().get_series_one(query).await.map_err(|why| {
+            if !why.is_repository_error() {
+                return Status::internal("Internal Error");
+            }
+
+            let why = why.as_repository_error().unwrap();
+
+            if !why.is_series_repository_error() {
+                return Status::internal("Internal Error");
+            }
+
+            let why = why.as_series_repository_error().unwrap();
+
+            if why.is_series_not_found() {
+                return Status::not_found(why.to_string());
+            }
+
+            Status::internal("Internal Error")
+        })?;
+
+        let reply = GetSeriesOneResponse {
+            series: Some(series.into()),
+        };
+        Ok(Response::new(reply))
+    }
+
+    async fn get_series_many(
+        &self,
+        request: Request<GetSeriesManyRequest>,
+    ) -> Result<Response<GetSeriesManyResponse>, Status> {
+        let message = request.into_inner();
+
+        let query = message.try_into()?;
+
+        let series = self.inner().get_series_many(query).await.map_err(|why| {
+            if !why.is_repository_error() {
+                return Status::internal("Internal Error");
+            }
+
+            let why = why.as_repository_error().unwrap();
+
+            if !why.is_series_repository_error() {
+                return Status::internal("Internal Error");
+            }
+
+            let why = why.as_series_repository_error().unwrap();
+
+            if why.is_series_not_found() {
+                return Status::not_found(why.to_string());
+            }
+
+            Status::internal("Internal Error")
+        })?;
+
+        let reply = GetSeriesManyResponse {
             series: series.into_iter().map(|x| x.into()).collect(),
         };
 
         Ok(Response::new(reply))
     }
-    async fn get_categories(
-        &self,
-        _request: Request<GetCategoriesRequest>,
-    ) -> Result<Response<GetCategoriesResponse>, Status> {
-        let categories = match self.get_categories().await {
-            Ok(categories) => categories,
-            Err(e) => {
-                tracing::error!("Failed to get categories: {}", e);
-                return Err(Status::internal("Failed to get categories"));
-            }
-        };
 
-        let reply = GetCategoriesResponse {
+    async fn get_category_one(
+        &self,
+        request: Request<GetCategoryOneRequest>,
+    ) -> Result<Response<GetCategoryOneResponse>, Status> {
+        let message = request.into_inner();
+
+        let query = message.try_into()?;
+
+        let category = self.inner().get_category_one(query).await.map_err(|why| {
+            if !why.is_repository_error() {
+                return Status::internal("Internal Error");
+            }
+
+            let why = why.as_repository_error().unwrap();
+
+            if !why.is_category_repository_error() {
+                return Status::internal("Internal Error");
+            }
+
+            let why = why.as_category_repository_error().unwrap();
+
+            if why.is_category_not_found() {
+                return Status::not_found(why.to_string());
+            }
+
+            Status::internal("Internal Error")
+        })?;
+
+        let reply = GetCategoryOneResponse {
+            category: Some(category.into()),
+        };
+        Ok(Response::new(reply))
+    }
+
+    async fn get_category_many(
+        &self,
+        request: Request<GetCategoryManyRequest>,
+    ) -> Result<Response<GetCategoryManyResponse>, Status> {
+        let message = request.into_inner();
+
+        let query = message.try_into()?;
+
+        let categories = self.inner().get_category_many(query).await.map_err(|why| {
+            if !why.is_repository_error() {
+                return Status::internal("Internal Error");
+            }
+
+            let why = why.as_repository_error().unwrap();
+
+            if !why.is_category_repository_error() {
+                return Status::internal("Internal Error");
+            }
+
+            let why = why.as_category_repository_error().unwrap();
+
+            if why.is_category_not_found() {
+                return Status::not_found(why.to_string());
+            }
+
+            Status::internal("Internal Error")
+        })?;
+
+        let reply = GetCategoryManyResponse {
             categories: categories.into_iter().map(|x| x.into()).collect(),
         };
 
         Ok(Response::new(reply))
     }
-    async fn get_tags(
-        &self,
-        _request: Request<GetTagsRequest>,
-    ) -> Result<Response<GetTagsResponse>, Status> {
-        let tags = match self.get_tags().await {
-            Ok(tags) => tags,
-            Err(e) => {
-                tracing::error!("Failed to get tags: {}", e);
-                return Err(Status::internal("Failed to get tags"));
-            }
-        };
 
-        let reply = GetTagsResponse {
+    async fn get_tag_one(
+        &self,
+        request: Request<GetTagOneRequest>,
+    ) -> Result<Response<GetTagOneResponse>, Status> {
+        let message = request.into_inner();
+
+        let query = message.try_into()?;
+
+        let tag = self.inner().get_tag_one(query).await.map_err(|why| {
+            if !why.is_repository_error() {
+                return Status::internal("Internal Error");
+            }
+
+            let why = why.as_repository_error().unwrap();
+
+            if !why.is_tag_repository_error() {
+                return Status::internal("Internal Error");
+            }
+
+            let why = why.as_tag_repository_error().unwrap();
+
+            if why.is_tag_not_found() {
+                return Status::not_found(why.to_string());
+            }
+
+            Status::internal("Internal Error")
+        })?;
+
+        let reply = GetTagOneResponse {
+            tag: Some(tag.into()),
+        };
+        Ok(Response::new(reply))
+    }
+
+    async fn get_tag_many(
+        &self,
+        request: Request<GetTagManyRequest>,
+    ) -> Result<Response<GetTagManyResponse>, Status> {
+        let message = request.into_inner();
+
+        let query = message.try_into()?;
+
+        let tags = self.inner().get_tag_many(query).await.map_err(|why| {
+            if !why.is_repository_error() {
+                return Status::internal("Internal Error");
+            }
+
+            let why = why.as_repository_error().unwrap();
+
+            if !why.is_tag_repository_error() {
+                return Status::internal("Internal Error");
+            }
+
+            let why = why.as_tag_repository_error().unwrap();
+
+            if why.is_tag_not_found() {
+                return Status::not_found(why.to_string());
+            }
+
+            Status::internal("Internal Error")
+        })?;
+
+        let reply = GetTagManyResponse {
             tags: tags.into_iter().map(|x| x.into()).collect(),
         };
 
         Ok(Response::new(reply))
     }
-    async fn publish_article_by_id(
+
+    async fn publish_article(
         &self,
-        request: Request<PublishArticleByIdRequest>,
-    ) -> Result<Response<PublishArticleByIdResponse>, Status> {
+        request: Request<PublishArticleRequest>,
+    ) -> Result<Response<PublishArticleResponse>, Status> {
         let message = request.into_inner();
 
-        match self.publish_article_by_id(message.id).await {
-            Err(e) => {
-                tracing::error!("Failed to publish article by id: {}", e);
-                return Err(Status::internal("Internal Error"));
-            }
-            Ok(0) => {
-                return Err(Status::not_found(format!(
-                    "Article with id {} not found",
-                    message.id
-                )));
-            }
-            _ => {}
-        }
+        let command = message.try_into()?;
 
-        Ok(Response::new(PublishArticleByIdResponse {}))
+        self.inner().publish_article(command).await.map_err(|why| {
+            if why.is_domain_error() {
+                let why = why.as_domain_error().unwrap();
+
+                if !why.is_article_domain_error() {
+                    return Status::internal("Internal Error");
+                }
+
+                let why = why.as_article_domain_error().unwrap();
+
+                if why.is_already_published() {
+                    return Status::failed_precondition(why.to_string());
+                }
+                return Status::internal("Internal Error");
+            }
+
+            if why.is_repository_error() {
+                let why = why.as_repository_error().unwrap();
+
+                if !why.is_article_repository_error() {
+                    return Status::internal("Internal Error");
+                }
+
+                let why = why.as_article_repository_error().unwrap();
+
+                if why.is_article_not_found() {
+                    return Status::not_found(why.to_string());
+                }
+
+                return Status::internal("Internal Error");
+            }
+
+            Status::internal("Internal Error")
+        })?;
+
+        Ok(Response::new(PublishArticleResponse {}))
     }
-    async fn delete_article_by_id(
+
+    async fn unpublish_article(
         &self,
-        request: Request<DeleteArticleByIdRequest>,
-    ) -> Result<Response<DeleteArticleByIdResponse>, Status> {
+        request: Request<UnpublishArticleRequest>,
+    ) -> Result<Response<UnpublishArticleResponse>, Status> {
         let message = request.into_inner();
 
-        match self.delete_article_by_id(message.id).await {
-            Err(e) => {
-                tracing::error!("Failed to delete article by id: {}", e);
-                return Err(Status::internal("Internal Error"));
-            }
-            Ok(0) => {
-                return Err(Status::not_found(format!(
-                    "Article with id {} not found",
-                    message.id
-                )));
-            }
-            _ => {}
-        }
+        let command = message.try_into()?;
 
-        Ok(Response::new(DeleteArticleByIdResponse {}))
+        self.inner()
+            .unpublish_article(command)
+            .await
+            .map_err(|why| {
+                if why.is_domain_error() {
+                    let why = why.as_domain_error().unwrap();
+
+                    if !why.is_article_domain_error() {
+                        return Status::internal("Internal Error");
+                    }
+
+                    let why = why.as_article_domain_error().unwrap();
+
+                    if why.is_not_published() {
+                        return Status::failed_precondition(why.to_string());
+                    }
+                    return Status::internal("Internal Error");
+                }
+
+                if why.is_repository_error() {
+                    let why = why.as_repository_error().unwrap();
+
+                    if !why.is_article_repository_error() {
+                        return Status::internal("Internal Error");
+                    }
+
+                    let why = why.as_article_repository_error().unwrap();
+
+                    if why.is_article_not_found() {
+                        return Status::not_found(why.to_string());
+                    }
+
+                    return Status::internal("Internal Error");
+                }
+
+                Status::internal("Internal Error")
+            })?;
+
+        Ok(Response::new(UnpublishArticleResponse {}))
     }
-    async fn delete_series_by_id(
+
+    async fn soft_delete_article(
         &self,
-        request: Request<DeleteSeriesByIdRequest>,
-    ) -> Result<Response<DeleteSeriesByIdResponse>, Status> {
+        request: Request<SoftDeleteArticleRequest>,
+    ) -> Result<Response<SoftDeleteArticleResponse>, Status> {
         let message = request.into_inner();
 
-        match self.delete_series_by_id(message.id).await {
-            Err(e) => {
-                tracing::error!("Failed to delete series by id: {}", e);
-                return Err(Status::internal("Internal Error"));
-            }
-            Ok(0) => {
-                return Err(Status::not_found(format!(
-                    "Series with id {} not found",
-                    message.id
-                )));
-            }
-            _ => {}
-        }
+        let command = message.try_into()?;
 
-        Ok(Response::new(DeleteSeriesByIdResponse {}))
+        self.inner()
+            .soft_delete_article(command)
+            .await
+            .map_err(|why| {
+                if why.is_domain_error() {
+                    let why = why.as_domain_error().unwrap();
+
+                    if !why.is_article_domain_error() {
+                        return Status::internal("Internal Error");
+                    }
+
+                    let why = why.as_article_domain_error().unwrap();
+
+                    if why.is_already_soft_deleted() {
+                        return Status::failed_precondition(why.to_string());
+                    }
+                    return Status::internal("Internal Error");
+                }
+
+                if why.is_repository_error() {
+                    let why = why.as_repository_error().unwrap();
+
+                    if !why.is_article_repository_error() {
+                        return Status::internal("Internal Error");
+                    }
+
+                    let why = why.as_article_repository_error().unwrap();
+
+                    if why.is_article_not_found() {
+                        return Status::not_found(why.to_string());
+                    }
+
+                    return Status::internal("Internal Error");
+                }
+
+                Status::internal("Internal Error")
+            })?;
+
+        Ok(Response::new(SoftDeleteArticleResponse {}))
     }
-    async fn delete_category_by_id(
+
+    async fn revoke_soft_delete_article(
         &self,
-        request: Request<DeleteCategoryByIdRequest>,
-    ) -> Result<Response<DeleteCategoryByIdResponse>, Status> {
+        request: Request<RevokeSoftDeleteArticleRequest>,
+    ) -> Result<Response<RevokeSoftDeleteArticleResponse>, Status> {
         let message = request.into_inner();
 
-        match self.delete_category_by_id(message.id).await {
-            Err(e) => {
-                tracing::error!("Failed to delete category by id: {}", e);
-                return Err(Status::internal("Internal Error"));
-            }
-            Ok(0) => {
-                return Err(Status::not_found(format!(
-                    "Category with id {} not found",
-                    message.id
-                )));
-            }
-            _ => {}
-        }
+        let command = message.try_into()?;
 
-        Ok(Response::new(DeleteCategoryByIdResponse {}))
+        self.inner()
+            .revoke_soft_delete_article(command)
+            .await
+            .map_err(|why| {
+                if why.is_domain_error() {
+                    let why = why.as_domain_error().unwrap();
+
+                    if !why.is_article_domain_error() {
+                        return Status::internal("Internal Error");
+                    }
+
+                    let why = why.as_article_domain_error().unwrap();
+
+                    if why.is_not_soft_deleted() {
+                        return Status::failed_precondition(why.to_string());
+                    }
+                    return Status::internal("Internal Error");
+                }
+
+                if why.is_repository_error() {
+                    let why = why.as_repository_error().unwrap();
+
+                    if !why.is_article_repository_error() {
+                        return Status::internal("Internal Error");
+                    }
+
+                    let why = why.as_article_repository_error().unwrap();
+
+                    if why.is_article_not_found() {
+                        return Status::not_found(why.to_string());
+                    }
+
+                    return Status::internal("Internal Error");
+                }
+
+                Status::internal("Internal Error")
+            })?;
+
+        Ok(Response::new(RevokeSoftDeleteArticleResponse {}))
     }
-    async fn delete_tag_by_id(
+
+    async fn delete_article(
         &self,
-        request: Request<DeleteTagByIdRequest>,
-    ) -> Result<Response<DeleteTagByIdResponse>, Status> {
+        request: Request<DeleteArticleRequest>,
+    ) -> Result<Response<DeleteArticleResponse>, Status> {
         let message = request.into_inner();
 
-        match self.delete_tag_by_id(message.id).await {
-            Err(e) => {
-                tracing::error!("Failed to delete tag by id: {}", e);
-                return Err(Status::internal("Internal Error"));
-            }
-            Ok(0) => {
-                return Err(Status::not_found(format!(
-                    "Tag with id {} not found",
-                    message.id
-                )));
-            }
-            _ => {}
-        }
+        let command = message.try_into()?;
 
-        Ok(Response::new(DeleteTagByIdResponse {}))
+        self.inner().delete_article(command).await.map_err(|why| {
+            if !why.is_repository_error() {
+                return Status::internal("Internal Error");
+            }
+
+            let why = why.as_repository_error().unwrap();
+
+            if !why.is_article_repository_error() {
+                return Status::internal("Internal Error");
+            }
+
+            let why = why.as_article_repository_error().unwrap();
+
+            if why.is_article_not_found() {
+                return Status::not_found(why.to_string());
+            }
+
+            Status::internal("Internal Error")
+        })?;
+
+        let reply = DeleteArticleResponse {};
+        Ok(Response::new(reply))
+    }
+
+    async fn delete_series(
+        &self,
+        request: Request<DeleteSeriesRequest>,
+    ) -> Result<Response<DeleteSeriesResponse>, Status> {
+        let message = request.into_inner();
+
+        let command = message.try_into()?;
+
+        self.inner().delete_series(command).await.map_err(|why| {
+            if !why.is_repository_error() {
+                return Status::internal("Internal Error");
+            }
+
+            let why = why.as_repository_error().unwrap();
+
+            if !why.is_series_repository_error() {
+                return Status::internal("Internal Error");
+            }
+
+            let why = why.as_series_repository_error().unwrap();
+
+            if why.is_series_not_found() {
+                return Status::not_found(why.to_string());
+            }
+
+            Status::internal("Internal Error")
+        })?;
+
+        Ok(Response::new(DeleteSeriesResponse {}))
+    }
+
+    async fn delete_category(
+        &self,
+        request: Request<DeleteCategoryRequest>,
+    ) -> Result<Response<DeleteCategoryResponse>, Status> {
+        let message = request.into_inner();
+
+        let command = message.try_into()?;
+
+        self.inner().delete_category(command).await.map_err(|why| {
+            if !why.is_repository_error() {
+                return Status::internal("Internal Error");
+            }
+
+            let why = why.as_repository_error().unwrap();
+
+            if !why.is_category_repository_error() {
+                return Status::internal("Internal Error");
+            }
+
+            let why = why.as_category_repository_error().unwrap();
+
+            if why.is_category_not_found() {
+                return Status::not_found(why.to_string());
+            }
+
+            Status::internal("Internal Error")
+        })?;
+
+        Ok(Response::new(DeleteCategoryResponse {}))
+    }
+
+    async fn delete_tag(
+        &self,
+        request: Request<DeleteTagRequest>,
+    ) -> Result<Response<DeleteTagResponse>, Status> {
+        let message = request.into_inner();
+
+        let command = message.try_into()?;
+
+        self.inner().delete_tag(command).await.map_err(|why| {
+            if !why.is_repository_error() {
+                return Status::internal("Internal Error");
+            }
+
+            let why = why.as_repository_error().unwrap();
+
+            if !why.is_tag_repository_error() {
+                return Status::internal("Internal Error");
+            }
+
+            let why = why.as_tag_repository_error().unwrap();
+
+            if why.is_tag_not_found() {
+                return Status::not_found(why.to_string());
+            }
+
+            Status::internal("Internal Error")
+        })?;
+
+        Ok(Response::new(DeleteTagResponse {}))
     }
 }

@@ -1,16 +1,19 @@
 use crate::domain::entity::category;
 use crate::domain::repository::category::CategoryRepository;
 use crate::infra::repository::postgres::category::PgCategoryRepository;
+use chaserland_common::pagination::Pagination;
 use sqlx::PgPool;
 
 #[sqlx::test(fixtures(path = "../../../../../../../tests/fixtures", scripts("categories")))]
 async fn get_many_case_1(pool: PgPool) {
     let repo = PgCategoryRepository::new(pool);
 
-    let page = 1.try_into().unwrap();
-    let page_size = 10.try_into().unwrap();
+    let pagination = Some(Pagination::new(
+        1.try_into().unwrap(),
+        10.try_into().unwrap(),
+    ));
 
-    let res = repo.get_many(page, page_size).await;
+    let res = repo.get_many(None, pagination).await;
 
     assert!(res.is_ok());
 
@@ -31,10 +34,9 @@ async fn get_many_case_1(pool: PgPool) {
 async fn get_many_case_2(pool: PgPool) {
     let repo = PgCategoryRepository::new(pool);
 
-    let page = 1.try_into().unwrap();
-    let page_size = 2.try_into().unwrap();
+    let mut pagination = Pagination::new(1.try_into().unwrap(), 2.try_into().unwrap());
 
-    let res = repo.get_many(page, page_size).await;
+    let res = repo.get_many(None, Some(pagination)).await;
 
     assert!(res.is_ok());
 
@@ -48,9 +50,9 @@ async fn get_many_case_2(pool: PgPool) {
     let target = category::Category::new(2.try_into().unwrap(), "Category 2".try_into().unwrap());
     assert_eq!(res[1], target);
 
-    let page = 2.try_into().unwrap();
+    pagination.page = 2.try_into().unwrap();
 
-    let res = repo.get_many(page, page_size).await;
+    let res = repo.get_many(None, Some(pagination)).await;
 
     assert!(res.is_ok());
 

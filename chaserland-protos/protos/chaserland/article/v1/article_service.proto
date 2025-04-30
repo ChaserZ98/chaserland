@@ -10,24 +10,34 @@ service ArticleService {
   rpc CreateCategory (CreateCategoryRequest) returns (CreateCategoryResponse);
   rpc CreateTag (CreateTagRequest) returns (CreateTagResponse);
 
-  rpc GetArticle (GetArticleRequest) returns (GetArticleResponse);
+  rpc GetArticleOne (GetArticleOneRequest) returns (GetArticleOneResponse);
   rpc GetArticleContent (GetArticleContentRequest)
     returns (GetArticleContentResponse);
-  rpc GetArticles (GetArticlesRequest) returns (GetArticlesResponse);
-  rpc GetSeries (GetSeriesRequest) returns (GetSeriesResponse);
-  rpc GetCategories (GetCategoriesRequest) returns (GetCategoriesResponse);
-  rpc GetTags (GetTagsRequest) returns (GetTagsResponse);
+  rpc GetArticleMany (GetArticleManyRequest) returns (GetArticleManyResponse);
+  rpc GetSeriesOne (GetSeriesOneRequest) returns (GetSeriesOneResponse);
+  rpc GetSeriesMany (GetSeriesManyRequest) returns (GetSeriesManyResponse);
+  rpc GetCategoryOne (GetCategoryOneRequest) returns (GetCategoryOneResponse);
+  rpc GetCategoryMany (GetCategoryManyRequest)
+    returns (GetCategoryManyResponse);
+  rpc GetTagOne (GetTagOneRequest) returns (GetTagOneResponse);
+  rpc GetTagMany (GetTagManyRequest) returns (GetTagManyResponse);
 
-  rpc PublishArticleById (PublishArticleByIdRequest)
-    returns (PublishArticleByIdResponse);
+  rpc PublishArticle (PublishArticleRequest)
+    returns (PublishArticleResponse);
+  rpc UnpublishArticle (UnpublishArticleRequest)
+    returns (UnpublishArticleResponse);
+  rpc SoftDeleteArticle (SoftDeleteArticleRequest)
+    returns (SoftDeleteArticleResponse);
+  rpc RevokeSoftDeleteArticle (RevokeSoftDeleteArticleRequest)
+    returns (RevokeSoftDeleteArticleResponse);
 
-  rpc DeleteArticleById (DeleteArticleByIdRequest) 
-    returns (DeleteArticleByIdResponse);
-  rpc DeleteSeriesById (DeleteSeriesByIdRequest)
-    returns (DeleteSeriesByIdResponse);
-  rpc DeleteCategoryById (DeleteCategoryByIdRequest)
-    returns (DeleteCategoryByIdResponse);
-  rpc DeleteTagById (DeleteTagByIdRequest) returns (DeleteTagByIdResponse);
+  rpc DeleteArticle (DeleteArticleRequest) 
+    returns (DeleteArticleResponse);
+  rpc DeleteSeries (DeleteSeriesRequest)
+    returns (DeleteSeriesResponse);
+  rpc DeleteCategory (DeleteCategoryRequest)
+    returns (DeleteCategoryResponse);
+  rpc DeleteTag (DeleteTagRequest) returns (DeleteTagResponse);
 }
 
 
