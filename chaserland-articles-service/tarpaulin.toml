@@ -1,0 +1,9 @@
+[chaserland-articles-service]
+manifest-path = "./Cargo.toml"
+packages = ["chaserland-articles-service"]
+skip-clean = true
+run-types = ["Lib"]
+
+[report]
+out = ["Lcov", "Html"]
+output-dir = "./coverage"

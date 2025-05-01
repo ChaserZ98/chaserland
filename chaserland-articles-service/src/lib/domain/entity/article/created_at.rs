@@ -1,4 +1,4 @@
-use chrono::{DateTime, Utc};
+use chrono::{DateTime, ParseError, Utc};
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq, Eq)]
@@ -16,6 +16,24 @@ impl CreatedAt {
 impl From<DateTime<Utc>> for CreatedAt {
     fn from(value: DateTime<Utc>) -> Self {
         Self(value)
+    }
+}
+
+impl TryFrom<String> for CreatedAt {
+    type Error = ParseError;
+
+    fn try_from(value: String) -> Result<Self, Self::Error> {
+        let value: DateTime<Utc> = value.parse()?;
+        Ok(value.into())
+    }
+}
+
+impl TryFrom<&str> for CreatedAt {
+    type Error = ParseError;
+
+    fn try_from(value: &str) -> Result<Self, Self::Error> {
+        let value: DateTime<Utc> = value.parse()?;
+        Ok(value.into())
     }
 }
 

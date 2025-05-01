@@ -59,6 +59,10 @@ impl ArticleDTOBuilder {
         article_dto.slug = article.slug().value();
         article_dto.description = article.description.value();
         article_dto.content = article.content.map(|x| x.value());
+        article_dto.created_at = article.created_at.value();
+        article_dto.updated_at = article.updated_at.value();
+        article_dto.published_at = article.published_at.map(|x| x.value());
+        article_dto.deleted_at = article.deleted_at.map(|x| x.value());
         match (article.series_id, self.series) {
             (Some(series_id), Some(series)) if series.id == series_id => {
                 article_dto.series = Some(series.into());

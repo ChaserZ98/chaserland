@@ -218,19 +218,27 @@ where
                 ),
             };
 
-            let filter = CategoriesFilter::new(article.category_ids.clone());
-            let categories = self
-                .category_repository
-                .get_many(Some(filter), None)
-                .await
-                .map_err(|why| ArticleServiceError::Repository(why.into()))?;
+            let categories = match article.category_ids.is_empty() {
+                true => vec![],
+                false => {
+                    let filter = CategoriesFilter::new(article.category_ids.clone());
+                    self.category_repository
+                        .get_many(Some(filter), None)
+                        .await
+                        .map_err(|why| ArticleServiceError::Repository(why.into()))?
+                }
+            };
 
-            let filter = TagsFilter::new(article.tag_ids.clone());
-            let tags = self
-                .tag_repository
-                .get_many(Some(filter), None)
-                .await
-                .map_err(|why| ArticleServiceError::Repository(why.into()))?;
+            let tags = match article.tag_ids.is_empty() {
+                true => vec![],
+                false => {
+                    let filter = TagsFilter::new(article.tag_ids.clone());
+                    self.tag_repository
+                        .get_many(Some(filter), None)
+                        .await
+                        .map_err(|why| ArticleServiceError::Repository(why.into()))?
+                }
+            };
 
             let mut article_dto_builder = dto::ArticleDTOBuilder::new().with_article(article);
             if let Some(series) = series {

@@ -13,7 +13,7 @@ use crate::infra::repository::postgres::article::PgArticleRepository;
         "article_tags"
     )
 ))]
-async fn get_one_case_1(pool: sqlx::PgPool) {
+async fn get_one_case_id_1(pool: sqlx::PgPool) {
     let repo = PgArticleRepository::new(pool);
 
     let res = repo
@@ -50,6 +50,7 @@ async fn get_one_case_1(pool: sqlx::PgPool) {
     assert_eq!(res.category_ids, target.category_ids);
     assert_eq!(res.tag_ids, target.tag_ids);
 }
+
 #[sqlx::test(fixtures(
     path = "../../../../../../../tests/fixtures",
     scripts(
@@ -61,18 +62,22 @@ async fn get_one_case_1(pool: sqlx::PgPool) {
         "article_tags"
     )
 ))]
-async fn get_one_case_2(pool: sqlx::PgPool) {
+async fn get_one_case_id_2(pool: sqlx::PgPool) {
     let repo = PgArticleRepository::new(pool);
 
+    let id = article::Id::new(2);
+    let public_only = false;
+    let with_content = false;
+
     let res = repo
-        .get_one(article::Identifier::Id(2.try_into().unwrap()), false, true)
+        .get_one(id.as_identifier(), public_only, with_content)
         .await;
 
     let target = article::Article::new(
-        2.try_into().unwrap(),
+        id,
         "article title 2".try_into().unwrap(),
         "article description 2".into(),
-        Some("article content 2".into()),
+        None,
         chrono::Utc::now().into(),
         chrono::Utc::now().into(),
         Some(2.try_into().unwrap()),
@@ -98,6 +103,7 @@ async fn get_one_case_2(pool: sqlx::PgPool) {
     assert_eq!(res.category_ids, target.category_ids);
     assert_eq!(res.tag_ids, target.tag_ids);
 }
+
 #[sqlx::test(fixtures(
     path = "../../../../../../../tests/fixtures",
     scripts(
@@ -109,7 +115,173 @@ async fn get_one_case_2(pool: sqlx::PgPool) {
         "article_tags"
     )
 ))]
-async fn get_one_case_3(pool: sqlx::PgPool) {
+async fn get_one_case_all_with_content_id(pool: sqlx::PgPool) {
+    let repo = PgArticleRepository::new(pool);
+
+    let title = article::Title::new("article title 1");
+    let public_only = false;
+    let with_content = true;
+
+    let target = article::Article::new(
+        1.try_into().unwrap(),
+        title.clone(),
+        "article description 1".into(),
+        Some("article content 1".into()),
+        chrono::Utc::now().into(),
+        chrono::Utc::now().into(),
+        Some(1.try_into().unwrap()),
+        vec![],
+        vec![],
+        "2020-01-01 00:00:00 UTC".try_into().unwrap(),
+    );
+
+    let res = repo
+        .get_one(title.as_slug().as_identifier(), public_only, with_content)
+        .await;
+
+    assert!(res.is_ok());
+
+    let res = res.unwrap();
+
+    assert_eq!(res.id, target.id);
+    assert_eq!(res.title, target.title);
+    assert_eq!(res.slug(), target.slug());
+    assert_eq!(res.description, target.description);
+    assert_eq!(res.content, target.content);
+    assert!(res.created_at.value() - target.created_at.value() <= chrono::Duration::seconds(5));
+    assert!(res.updated_at.value() - target.updated_at.value() <= chrono::Duration::seconds(5));
+    assert_eq!(res.deleted_at, target.deleted_at);
+    assert_eq!(res.published_at, target.published_at);
+    assert_eq!(res.series_id, target.series_id);
+    assert_eq!(res.category_ids, target.category_ids);
+    assert_eq!(res.tag_ids, target.tag_ids);
+    assert_eq!(res.version, target.version);
+}
+
+#[sqlx::test(fixtures(
+    path = "../../../../../../../tests/fixtures",
+    scripts(
+        "tags",
+        "series",
+        "categories",
+        "articles",
+        "article_categories",
+        "article_tags",
+        "publish_article"
+    )
+))]
+async fn get_one_case_public_with_content_slug(pool: sqlx::PgPool) {
+    let repo = PgArticleRepository::new(pool);
+
+    let title = article::Title::new("article title 1");
+    let public_only = true;
+    let with_content = true;
+
+    let mut target = article::Article::new(
+        1.try_into().unwrap(),
+        title.clone(),
+        "article description 1".into(),
+        Some("article content 1".into()),
+        chrono::Utc::now().into(),
+        chrono::Utc::now().into(),
+        Some(1.try_into().unwrap()),
+        vec![],
+        vec![],
+        "2020-01-01 00:00:00 UTC".try_into().unwrap(),
+    );
+    target.published_at = Some("2020-01-01 00:00:00 UTC".try_into().unwrap());
+
+    let res = repo
+        .get_one(title.as_slug().as_identifier(), public_only, with_content)
+        .await;
+
+    assert!(res.is_ok());
+
+    let res = res.unwrap();
+
+    assert_eq!(res.id, target.id);
+    assert_eq!(res.title, target.title);
+    assert_eq!(res.slug(), target.slug());
+    assert_eq!(res.description, target.description);
+    assert_eq!(res.content, target.content);
+    assert!(res.created_at.value() - target.created_at.value() <= chrono::Duration::seconds(5));
+    assert!(res.updated_at.value() - target.updated_at.value() <= chrono::Duration::seconds(5));
+    assert_eq!(res.deleted_at, target.deleted_at);
+    assert_eq!(res.published_at, target.published_at);
+    assert_eq!(res.series_id, target.series_id);
+    assert_eq!(res.category_ids, target.category_ids);
+    assert_eq!(res.tag_ids, target.tag_ids);
+    assert_eq!(res.version, target.version);
+}
+
+#[sqlx::test(fixtures(
+    path = "../../../../../../../tests/fixtures",
+    scripts(
+        "tags",
+        "series",
+        "categories",
+        "articles",
+        "article_categories",
+        "article_tags",
+        "publish_article"
+    )
+))]
+async fn get_one_case_public_without_content_slug(pool: sqlx::PgPool) {
+    let repo = PgArticleRepository::new(pool);
+
+    let title = article::Title::new("article title 1");
+    let public_only = true;
+    let with_content = false;
+
+    let mut target = article::Article::new(
+        1.try_into().unwrap(),
+        title.clone(),
+        "article description 1".into(),
+        None,
+        chrono::Utc::now().into(),
+        chrono::Utc::now().into(),
+        Some(1.try_into().unwrap()),
+        vec![],
+        vec![],
+        "2020-01-01 00:00:00 UTC".try_into().unwrap(),
+    );
+    target.published_at = Some("2020-01-01 00:00:00 UTC".try_into().unwrap());
+
+    let res = repo
+        .get_one(title.as_slug().as_identifier(), public_only, with_content)
+        .await;
+
+    assert!(res.is_ok());
+
+    let res = res.unwrap();
+
+    assert_eq!(res.id, target.id);
+    assert_eq!(res.title, target.title);
+    assert_eq!(res.slug(), target.slug());
+    assert_eq!(res.description, target.description);
+    assert_eq!(res.content, target.content);
+    assert!(res.created_at.value() - target.created_at.value() <= chrono::Duration::seconds(5));
+    assert!(res.updated_at.value() - target.updated_at.value() <= chrono::Duration::seconds(5));
+    assert_eq!(res.deleted_at, target.deleted_at);
+    assert_eq!(res.published_at, target.published_at);
+    assert_eq!(res.series_id, target.series_id);
+    assert_eq!(res.category_ids, target.category_ids);
+    assert_eq!(res.tag_ids, target.tag_ids);
+    assert_eq!(res.version, target.version);
+}
+
+#[sqlx::test(fixtures(
+    path = "../../../../../../../tests/fixtures",
+    scripts(
+        "tags",
+        "series",
+        "categories",
+        "articles",
+        "article_categories",
+        "article_tags"
+    )
+))]
+async fn get_one_case_all_id_not_found(pool: sqlx::PgPool) {
     let repo = PgArticleRepository::new(pool);
 
     let identifier = article::Identifier::Id(3.try_into().unwrap());

@@ -28,9 +28,9 @@ CREATE TABLE IF NOT EXISTS article.articles (
 CREATE UNIQUE INDEX IF NOT EXISTS article_articles_slug_idx on article.articles (slug);
 CREATE INDEX IF NOT EXISTS article_articles_published_at_idx on article.articles (published_at);
 CREATE INDEX IF NOT EXISTS article_articles_deleted_at_idx on article.articles (deleted_at);
-CREATE OR REPLACE VIEW article.articles_meta AS SELECT id, title, slug, description, series_id, created_at, published_at, updated_at, deleted_at FROM article.articles;
+CREATE OR REPLACE VIEW article.articles_meta AS SELECT id, title, slug, description, series_id, created_at, published_at, updated_at, deleted_at, version FROM article.articles;
 CREATE OR REPLACE VIEW article.public_articles AS SELECT * FROM article.articles WHERE published_at IS NOT NULL AND deleted_at IS NULL;
-CREATE OR REPLACE VIEW article.public_articles_meta AS SELECT id, title, slug, description, series_id, created_at, published_at, updated_at, deleted_at FROM article.public_articles;
+CREATE OR REPLACE VIEW article.public_articles_meta AS SELECT id, title, slug, description, series_id, created_at, published_at, updated_at, deleted_at, version FROM article.public_articles;
 
 -- create article tags and add index on slug
 CREATE TABLE IF NOT EXISTS article.tags (

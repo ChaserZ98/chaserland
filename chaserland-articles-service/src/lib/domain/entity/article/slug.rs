@@ -1,4 +1,4 @@
-use super::Title;
+use super::{Identifier, Title};
 use serde::{Deserialize, Serialize};
 use slugify::slugify;
 use std::fmt::Display;
@@ -9,6 +9,9 @@ pub struct Slug(String);
 impl Slug {
     pub fn value(&self) -> String {
         self.0.clone()
+    }
+    pub fn as_identifier(&self) -> Identifier {
+        self.clone().into()
     }
     fn validate(value: impl AsRef<str>) -> Result<(), String> {
         match value.as_ref().trim().is_empty() {

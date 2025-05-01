@@ -14,10 +14,8 @@ impl DomainError {
     }
 
     pub fn as_article_domain_error(&self) -> Option<&article::DomainError> {
-        match self {
-            DomainError::Article(e) => Some(e),
-            _ => None,
-        }
+        let DomainError::Article(e) = self;
+        Some(e)
     }
 }
 
@@ -81,5 +79,128 @@ impl RepositoryError {
             RepositoryError::TagRepository(e) => Some(e),
             _ => None,
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::DomainError;
+    use super::RepositoryError;
+    use crate::domain::entity::article;
+    use crate::domain::repository;
+
+    #[test]
+    fn domain_err_case_article_domain_error() {
+        let err = DomainError::Article(article::DomainError::Unknown(anyhow::anyhow!("test")));
+
+        assert!(err.is_article_domain_error());
+
+        let err = err.as_article_domain_error().unwrap();
+
+        assert!(matches!(err, article::DomainError::Unknown(_)));
+    }
+
+    #[test]
+    fn repository_err_case_article_repository_error() {
+        let err = RepositoryError::ArticleRepository(
+            repository::article::ArticleRepositoryError::Unknown(anyhow::anyhow!("test")),
+        );
+
+        assert!(err.is_article_repository_error());
+
+        let err = err.as_article_repository_error().unwrap();
+
+        assert!(matches!(
+            err,
+            repository::article::ArticleRepositoryError::Unknown(_)
+        ));
+
+        let err = RepositoryError::TagRepository(repository::tag::TagRepositoryError::Unknown(
+            anyhow::anyhow!("test"),
+        ));
+
+        assert_eq!(err.is_article_repository_error(), false);
+
+        let err = err.as_article_repository_error();
+
+        assert!(err.is_none());
+    }
+
+    #[test]
+    fn repository_err_case_series_repository_error() {
+        let err = RepositoryError::SeriesRepository(
+            repository::series::SeriesRepositoryError::Unknown(anyhow::anyhow!("test")),
+        );
+
+        assert!(err.is_series_repository_error());
+
+        let err = err.as_series_repository_error().unwrap();
+
+        assert!(matches!(
+            err,
+            repository::series::SeriesRepositoryError::Unknown(_)
+        ));
+
+        let err = RepositoryError::ArticleRepository(
+            repository::article::ArticleRepositoryError::Unknown(anyhow::anyhow!("test")),
+        );
+
+        assert_eq!(err.is_series_repository_error(), false);
+
+        let err = err.as_series_repository_error();
+
+        assert!(err.is_none());
+    }
+
+    #[test]
+    fn repository_err_case_category_repository_error() {
+        let err = RepositoryError::CategoryRepository(
+            repository::category::CategoryRepositoryError::Unknown(anyhow::anyhow!("test")),
+        );
+
+        assert!(err.is_category_repository_error());
+
+        let err = err.as_category_repository_error().unwrap();
+
+        assert!(matches!(
+            err,
+            repository::category::CategoryRepositoryError::Unknown(_)
+        ));
+
+        let err = RepositoryError::SeriesRepository(
+            repository::series::SeriesRepositoryError::Unknown(anyhow::anyhow!("test")),
+        );
+
+        assert_eq!(err.is_category_repository_error(), false);
+
+        let err = err.as_category_repository_error();
+
+        assert!(err.is_none());
+    }
+
+    #[test]
+    fn repository_err_case_tag_repository_error() {
+        let err = RepositoryError::TagRepository(repository::tag::TagRepositoryError::Unknown(
+            anyhow::anyhow!("test"),
+        ));
+
+        assert!(err.is_tag_repository_error());
+
+        let err = err.as_tag_repository_error().unwrap();
+
+        assert!(matches!(
+            err,
+            repository::tag::TagRepositoryError::Unknown(_)
+        ));
+
+        let err = RepositoryError::CategoryRepository(
+            repository::category::CategoryRepositoryError::Unknown(anyhow::anyhow!("test")),
+        );
+
+        assert_eq!(err.is_tag_repository_error(), false);
+
+        let err = err.as_tag_repository_error();
+
+        assert!(err.is_none());
     }
 }

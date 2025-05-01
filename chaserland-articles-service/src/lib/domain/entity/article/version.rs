@@ -1,6 +1,6 @@
-use std::fmt::Display;
-
+use chrono::{DateTime, ParseError, Utc};
 use serde::{Deserialize, Serialize};
+use std::fmt::Display;
 
 /**
     ## ArticleVersion
@@ -32,24 +32,24 @@ impl Default for Version {
     }
 }
 
-impl From<chrono::DateTime<chrono::Utc>> for Version {
-    fn from(value: chrono::DateTime<chrono::Utc>) -> Self {
+impl From<DateTime<Utc>> for Version {
+    fn from(value: DateTime<Utc>) -> Self {
         Self(value)
     }
 }
 
 impl TryFrom<String> for Version {
-    type Error = chrono::ParseError;
+    type Error = ParseError;
     fn try_from(value: String) -> Result<Self, Self::Error> {
-        let value: chrono::DateTime<chrono::Utc> = value.parse()?;
+        let value: DateTime<Utc> = value.parse()?;
         Ok(value.into())
     }
 }
 
 impl TryFrom<&str> for Version {
-    type Error = chrono::ParseError;
+    type Error = ParseError;
     fn try_from(value: &str) -> Result<Self, Self::Error> {
-        let value: chrono::DateTime<chrono::Utc> = value.parse()?;
+        let value: DateTime<Utc> = value.parse()?;
         Ok(value.into())
     }
 }

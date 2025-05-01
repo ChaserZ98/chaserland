@@ -14,7 +14,7 @@ use crate::infra::repository::postgres::article::PgArticleRepository;
         "publish_article"
     )
 ))]
-async fn test_unpublish_case_id(pool: sqlx::PgPool) {
+async fn unpublish_case_id(pool: sqlx::PgPool) {
     let repo = PgArticleRepository::new(pool);
 
     let mut article = article::Article::default();
@@ -39,7 +39,7 @@ async fn test_unpublish_case_id(pool: sqlx::PgPool) {
         "publish_article"
     )
 ))]
-async fn test_unpublish_case_id_not_found(pool: sqlx::PgPool) {
+async fn unpublish_case_id_not_found(pool: sqlx::PgPool) {
     let repo = PgArticleRepository::new(pool);
 
     let mut article = article::Article::default();
@@ -70,7 +70,7 @@ async fn test_unpublish_case_id_not_found(pool: sqlx::PgPool) {
         "publish_article"
     )
 ))]
-async fn test_unpublish_case_version_mismatch(pool: sqlx::PgPool) {
+async fn unpublish_case_version_mismatch(pool: sqlx::PgPool) {
     let repo = PgArticleRepository::new(pool);
 
     let mut article = article::Article::default();
