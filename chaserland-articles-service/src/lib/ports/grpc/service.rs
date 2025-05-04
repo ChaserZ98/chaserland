@@ -60,8 +60,12 @@ where
 }
 
 #[tonic::async_trait]
-impl<R: ArticleRepository, S: SeriesRepository, C: CategoryRepository, T: TagRepository>
-    TonicArticleService for GrpcArticleService<R, S, C, T>
+impl<R, S, C, T> TonicArticleService for GrpcArticleService<R, S, C, T>
+where
+    R: ArticleRepository,
+    S: SeriesRepository,
+    C: CategoryRepository,
+    T: TagRepository,
 {
     async fn create_article(
         &self,

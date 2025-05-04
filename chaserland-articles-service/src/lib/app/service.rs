@@ -136,7 +136,7 @@ where
 
         let article_dto = article_dto_builder
             .try_build()
-            .map_err(|why| ArticleServiceError::DTOConversion(why))?;
+            .map_err(|why| ArticleServiceError::DTOConversion(why.into()))?;
 
         Ok(article_dto)
     }
@@ -248,7 +248,7 @@ where
                 .with_categories(categories)
                 .with_tags(tags)
                 .try_build()
-                .map_err(|why| ArticleServiceError::DTOConversion(why))?;
+                .map_err(|why| ArticleServiceError::DTOConversion(why.into()))?;
 
             Ok(article_dto)
         };
@@ -324,7 +324,7 @@ where
                 .with_categories(categories)
                 .with_tags(tags)
                 .try_build()
-                .map_err(|why| ArticleServiceError::DTOConversion(why))?;
+                .map_err(|why| ArticleServiceError::DTOConversion(why.into()))?;
             articles_dto.push(article_dto);
         }
         Ok(articles_dto)
