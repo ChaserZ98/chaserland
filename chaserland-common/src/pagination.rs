@@ -128,21 +128,21 @@ impl Display for Offset {
 
 #[cfg(test)]
 mod tests {
-    mod test_page {
+    mod page {
         use crate::pagination::Page;
 
         #[test]
-        fn test_page() {
+        fn page_case_1() {
             let page = Page::new(1);
             assert_eq!(page.value(), 1);
         }
         #[test]
         #[should_panic(expected = "Page must be greater than 0")]
-        fn test_page_panic() {
+        fn page_case_panic() {
             Page::new(0);
         }
         #[test]
-        fn test_page_convert() {
+        fn page_case_conversion() {
             let page = Page::try_from(1);
             assert_eq!(page.is_ok(), true);
             assert_eq!(page.unwrap().value(), 1);
@@ -151,37 +151,37 @@ mod tests {
             assert_eq!(page.is_err(), true);
             assert_eq!(page.unwrap_err(), "Page must be greater than 0");
 
-            let page = TryInto::<Page>::try_into(1);
+            let page: Result<Page, String> = 1.try_into();
             assert_eq!(page.is_ok(), true);
             assert_eq!(page.unwrap().value(), 1);
 
-            let page = TryInto::<Page>::try_into(0);
+            let page: Result<Page, String> = 0.try_into();
             assert_eq!(page.is_err(), true);
             assert_eq!(page.unwrap_err(), "Page must be greater than 0");
         }
 
         #[test]
-        fn test_page_display() {
+        fn page_case_display() {
             let page = Page::new(1);
             assert_eq!(page.to_string(), "1");
         }
     }
 
-    mod test_page_size {
+    mod page_size {
         use crate::pagination::PageSize;
 
         #[test]
-        fn test_page_size() {
+        fn page_size_case_1() {
             let page_size = PageSize::new(1);
             assert_eq!(page_size.value(), 1);
         }
         #[test]
         #[should_panic(expected = "Page size must be greater than 0")]
-        fn test_page_size_panic() {
+        fn page_size_case_panic() {
             PageSize::new(0);
         }
         #[test]
-        fn test_page_size_convert() {
+        fn page_size_case_conversion() {
             let page_size = PageSize::try_from(1);
             assert_eq!(page_size.is_ok(), true);
             assert_eq!(page_size.unwrap().value(), 1);
@@ -190,36 +190,72 @@ mod tests {
             assert_eq!(page_size.is_err(), true);
             assert_eq!(page_size.unwrap_err(), "Page size must be greater than 0");
 
-            let page_size = TryInto::<PageSize>::try_into(1);
+            let page_size: Result<PageSize, String> = 1.try_into();
             assert_eq!(page_size.is_ok(), true);
             assert_eq!(page_size.unwrap().value(), 1);
 
-            let page_size = TryInto::<PageSize>::try_into(0);
+            let page_size: Result<PageSize, String> = 0.try_into();
             assert_eq!(page_size.is_err(), true);
             assert_eq!(page_size.unwrap_err(), "Page size must be greater than 0");
         }
         #[test]
-        fn test_page_size_display() {
+        fn page_size_case_display() {
             let page_size = PageSize::new(1);
             assert_eq!(page_size.to_string(), "1");
         }
     }
 
-    mod test_offset {
-        use crate::pagination::{Offset, Page, PageSize};
+    mod pagination {
+        use crate::pagination::Pagination;
 
         #[test]
-        fn test_offset_case_i32() {
+        fn pagination_case_1() {
+            let pagination = Pagination::new(1.try_into().unwrap(), 10.try_into().unwrap());
+            assert_eq!(pagination.page.value(), 1);
+            assert_eq!(pagination.page_size.value(), 10);
+        }
+
+        #[test]
+        fn pagination_case_as_offset() {
+            let pagination = Pagination::new(1.try_into().unwrap(), 10.try_into().unwrap());
+            let offset = pagination.as_offset();
+            assert_eq!(offset.value(), 0);
+
+            let pagination = Pagination::new(2.try_into().unwrap(), 10.try_into().unwrap());
+            let offset = pagination.as_offset();
+            assert_eq!(offset.value(), 10);
+        }
+    }
+
+    mod offset {
+        use crate::pagination::{Offset, Page, PageSize, Pagination};
+
+        #[test]
+        fn offset_case_1() {
             let offset = Offset::new(1);
             assert_eq!(offset.value(), 1);
         }
+
+        #[test]
+        fn offset_case_from_pagination() {
+            let pagination = Pagination::new(1.try_into().unwrap(), 10.try_into().unwrap());
+
+            let offset = Offset::from(pagination);
+            assert_eq!(offset.value(), 0);
+
+            let pagination = Pagination::new(2.try_into().unwrap(), 10.try_into().unwrap());
+            let offset: Offset = pagination.into();
+            assert_eq!(offset.value(), 10);
+        }
+
         #[test]
         #[should_panic(expected = "Offset must be greater than or equal to 0")]
-        fn test_offset_case_i32_panic() {
+        fn offset_case_panic() {
             let _ = Offset::new(-1);
         }
+
         #[test]
-        fn test_offset_case_i32_convert() {
+        fn offset_case_conversion() {
             let offset: Result<Offset, _> = 1.try_into();
             assert_eq!(offset.is_ok(), true);
             assert_eq!(offset.unwrap().value(), 1);
@@ -231,8 +267,9 @@ mod tests {
                 "Offset must be greater than or equal to 0"
             );
         }
+
         #[test]
-        fn test_offset_case_from_page_page_size() {
+        fn offset_case_from_page_page_size() {
             let page = Page::new(1);
             let page_size = PageSize::new(10);
 
@@ -248,6 +285,12 @@ mod tests {
             assert_eq!(offset.value(), 5);
             let offset: Offset = (page, page_size).into();
             assert_eq!(offset.value(), 5);
+        }
+
+        #[test]
+        fn offset_case_display() {
+            let offset = Offset::new(1);
+            assert_eq!(offset.to_string(), "1");
         }
     }
 }

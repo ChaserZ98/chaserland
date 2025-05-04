@@ -1,6 +1,7 @@
 [chaserland-articles-service]
 manifest-path = "./Cargo.toml"
 packages = ["chaserland-articles-service"]
+include-files = ["chaserland-articles-service/src/**"]
 skip-clean = true
 run-types = ["Lib"]
 
