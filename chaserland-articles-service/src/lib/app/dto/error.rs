@@ -166,6 +166,10 @@ mod tests {
         };
 
         assert_eq!(err.is_article_not_defined(), false);
+
+        let err = err.as_article_not_defined();
+
+        assert!(err.is_none());
     }
 
     #[test]

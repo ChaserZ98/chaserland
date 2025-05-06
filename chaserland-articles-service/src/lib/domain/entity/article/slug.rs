@@ -1,19 +1,21 @@
 use super::{Identifier, Title};
 use serde::{Deserialize, Serialize};
 use slugify::slugify;
-use std::fmt::Display;
 
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq, Eq)]
 pub struct Slug(String);
 
 impl Slug {
-    pub fn value(&self) -> String {
-        self.0.clone()
+    pub fn value(&self) -> &String {
+        &self.0
     }
     pub fn as_identifier(&self) -> Identifier {
         self.clone().into()
     }
-    fn validate(value: impl AsRef<str>) -> Result<(), String> {
+    fn validate<T>(value: T) -> Result<(), String>
+    where
+        T: AsRef<str>,
+    {
         match value.as_ref().trim().is_empty() {
             true => Err("slug is empty".to_string()),
             false => Ok(()),
@@ -42,8 +44,95 @@ impl From<Title> for Slug {
     }
 }
 
-impl Display for Slug {
+impl std::fmt::Display for Slug {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "{}", self.0)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{Identifier, Slug, Title};
+
+    #[test]
+    fn article_slug_case_from_title() {
+        let title = Title::new("test title");
+        let slug = Slug::from(title);
+
+        let target = Slug("test-title".to_string());
+
+        assert_eq!(slug, target);
+
+        let title = Title::new("test   title");
+        let slug = Slug::from(title);
+
+        let target = Slug("test-title".to_string());
+
+        assert_eq!(slug, target);
+
+        let target = &String::from("test-title");
+
+        assert_eq!(slug.value(), target);
+    }
+
+    #[test]
+    fn article_slug_case_to_string() {
+        let slug = Slug("test-title".to_string());
+
+        let target = String::from("test-title");
+
+        assert_eq!(slug.to_string(), target);
+    }
+
+    #[test]
+    fn article_slug_case_as_identifier() {
+        let slug = Slug("test-title".to_string());
+        let identifier = slug.as_identifier();
+
+        let target = Identifier::Slug(slug.clone());
+
+        assert_eq!(identifier, target);
+    }
+
+    #[test]
+    fn article_slug_case_try_from_string() {
+        let slug = Slug::try_from(String::from("test-title"));
+
+        assert!(slug.is_ok());
+
+        let slug = slug.unwrap();
+
+        let target = Slug("test-title".to_string());
+
+        assert_eq!(slug, target);
+
+        let slug = Slug::try_from(String::from(""));
+
+        assert!(slug.is_err());
+
+        let slug = slug.unwrap_err();
+
+        assert_eq!(slug, "slug is empty");
+    }
+
+    #[test]
+    fn article_slug_case_try_from_str_ref() {
+        let slug = Slug::try_from("test-title");
+
+        assert!(slug.is_ok());
+
+        let slug = slug.unwrap();
+
+        let target = Slug("test-title".to_string());
+
+        assert_eq!(slug, target);
+
+        let slug = Slug::try_from("");
+
+        assert!(slug.is_err());
+
+        let slug = slug.unwrap_err();
+
+        assert_eq!(slug, "slug is empty");
     }
 }

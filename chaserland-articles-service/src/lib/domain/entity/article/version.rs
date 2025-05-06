@@ -1,6 +1,5 @@
 use chrono::{DateTime, ParseError, Utc};
 use serde::{Deserialize, Serialize};
-use std::fmt::Display;
 
 /**
     ## ArticleVersion
@@ -9,26 +8,26 @@ use std::fmt::Display;
     * Any time the article aggregate is updated, the version should be updated with chrono::Utc::now()
 */
 #[derive(Debug, Serialize, Deserialize, Clone, Copy, PartialEq, Eq)]
-pub struct Version(chrono::DateTime<chrono::Utc>);
+pub struct Version(DateTime<Utc>);
 
 impl Version {
-    pub fn new(version: chrono::DateTime<chrono::Utc>) -> Self {
+    pub fn new(version: DateTime<Utc>) -> Self {
         Self(version)
     }
-    pub fn value(&self) -> chrono::DateTime<chrono::Utc> {
+    pub fn value(&self) -> DateTime<Utc> {
         self.0
     }
     /**
         Set the version to chrono::Utc::now()
     */
     pub fn bump(&mut self) {
-        self.0 = chrono::Utc::now();
+        self.0 = Utc::now();
     }
 }
 
 impl Default for Version {
     fn default() -> Self {
-        Self(chrono::Utc::now())
+        Self(Utc::now())
     }
 }
 
@@ -54,8 +53,89 @@ impl TryFrom<&str> for Version {
     }
 }
 
-impl Display for Version {
+impl std::fmt::Display for Version {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "{}", self.0)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::Version;
+
+    #[test]
+    fn article_version_case_new() {
+        let time = chrono::Utc::now();
+        let version = Version::new(time);
+
+        assert_eq!(version.value(), time);
+    }
+
+    #[test]
+    fn article_version_case_default() {
+        let time = chrono::Utc::now();
+        let version = Version::default();
+
+        assert!(version.value() - time < chrono::Duration::seconds(1));
+    }
+
+    #[test]
+    fn article_version_case_to_string() {
+        let time = chrono::Utc::now();
+        let version = Version::new(time);
+
+        assert_eq!(version.to_string(), time.to_string());
+    }
+
+    #[test]
+    fn article_version_case_bump() {
+        let time = chrono::Utc::now();
+        let mut version = Version::new(time);
+
+        assert_eq!(version.value(), time);
+
+        version.bump();
+        assert!(version.value() != time);
+        assert!(version.value() - time < chrono::Duration::seconds(1));
+    }
+
+    #[test]
+    fn article_version_case_from_chrono() {
+        let time = chrono::Utc::now();
+        let version = Version::from(time);
+
+        assert_eq!(version.value(), time);
+    }
+
+    #[test]
+    fn article_version_case_try_from_string() {
+        let time = chrono::Utc::now();
+        let res = Version::try_from(time.to_string());
+
+        assert!(res.is_ok());
+
+        let res = res.unwrap();
+
+        assert_eq!(res.value(), time);
+
+        let res = Version::try_from(String::from("invalid string"));
+
+        assert!(res.is_err());
+    }
+
+    #[test]
+    fn article_version_case_try_from_str_ref() {
+        let time = chrono::Utc::now();
+        let res = Version::try_from(time.to_string().as_str());
+
+        assert!(res.is_ok());
+
+        let res = res.unwrap();
+
+        assert_eq!(res.value(), time);
+
+        let res = Version::try_from("invalid string");
+
+        assert!(res.is_err());
     }
 }

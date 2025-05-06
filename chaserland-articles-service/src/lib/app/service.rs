@@ -271,7 +271,7 @@ where
 
         let content = match article.content {
             None => String::from(""),
-            Some(content) => content.value(),
+            Some(content) => content.value().clone(),
         };
         Ok(content)
     }

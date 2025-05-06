@@ -1,15 +1,17 @@
 use serde::{Deserialize, Serialize};
-use std::fmt::Display;
 
-#[derive(Debug, Serialize, Deserialize, Clone, PartialEq, Eq)]
+#[derive(Debug, Serialize, Deserialize, Clone, PartialEq, Eq, Default)]
 pub struct Content(String);
 
 impl Content {
-    pub fn new(content: impl Into<String>) -> Self {
+    pub fn new<T>(content: T) -> Self
+    where
+        T: Into<String>,
+    {
         Self(content.into())
     }
-    pub fn value(&self) -> String {
-        self.0.clone()
+    pub fn value(&self) -> &String {
+        &self.0
     }
 }
 
@@ -25,8 +27,43 @@ impl From<&str> for Content {
     }
 }
 
-impl Display for Content {
+impl std::fmt::Display for Content {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "{}", self.0)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::Content;
+
+    #[test]
+    fn article_content_case_new() {
+        let content = Content::new("content");
+        assert_eq!(content.value(), "content");
+    }
+
+    #[test]
+    fn article_content_case_default() {
+        let content = Content::default();
+        assert_eq!(content.value(), "");
+    }
+
+    #[test]
+    fn article_content_case_to_string() {
+        let content = Content::new("content");
+        assert_eq!(content.to_string(), "content");
+    }
+
+    #[test]
+    fn article_content_from_string() {
+        let content = Content::from(String::from("content"));
+        assert_eq!(content.value(), "content");
+    }
+
+    #[test]
+    fn article_content_from_str_ref() {
+        let content = Content::from("content");
+        assert_eq!(content.value(), "content");
     }
 }

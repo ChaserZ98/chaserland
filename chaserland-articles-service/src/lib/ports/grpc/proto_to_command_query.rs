@@ -209,13 +209,13 @@ impl TryInto<ArticlesFilter> for v1::ArticlesFilter {
         let category_ids = self
             .category_ids
             .iter()
-            .map(|v| v.try_into())
+            .map(|v| (*v).try_into())
             .collect::<Result<Vec<_>, _>>()
             .map_err(|why| Status::invalid_argument(why))?;
         let tag_ids = self
             .tag_ids
             .iter()
-            .map(|v| v.try_into())
+            .map(|v| (*v).try_into())
             .collect::<Result<Vec<_>, _>>()
             .map_err(|why| Status::invalid_argument(why))?;
 

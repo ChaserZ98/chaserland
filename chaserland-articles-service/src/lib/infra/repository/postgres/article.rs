@@ -45,8 +45,8 @@ impl TryInto<article::Article> for PgArticle {
             None => None
         };
 
-        let category_ids = self.category_ids.iter().map(|category_id| category_id.try_into()).collect::<Result<Vec<_>, _>>()?;
-        let tag_ids = self.tag_ids.iter().map(|tag_id| tag_id.try_into()).collect::<Result<Vec<_>, _>>()?;
+        let category_ids = self.category_ids.iter().map(|category_id| (*category_id).try_into()).collect::<Result<Vec<_>, _>>()?;
+        let tag_ids = self.tag_ids.iter().map(|tag_id| (*tag_id).try_into()).collect::<Result<Vec<_>, _>>()?;
         let version = self.version.into();
 
         let mut article = article::Article::new(id, title, description, content, created_at, updated_at, series_id, category_ids, tag_ids, version);
@@ -80,11 +80,11 @@ impl ArticleRepository for PgArticleRepository {
             .map_err(|why| ArticleRepositoryError::Transaction(why.to_string()))?;
 
         let title = article.title.value();
-        let slug = article.title.as_slug().value();
+        let slug = article.title.as_slug();
         let description = article.description.value();
         let content = match &article.content {
             Some(content) => content.value(),
-            None => "".to_string(),
+            None => &"".to_string(),
         };
         let series_id = match &article.series_id {
             Some(series_id) => Some(series_id.value()),
@@ -96,7 +96,7 @@ impl ArticleRepository for PgArticleRepository {
             "INSERT INTO article.articles (title, slug, description, content, series_id, version) VALUES ($1, $2, $3, $4, $5, $6) RETURNING *",
         )
         .bind(title)
-        .bind(slug)
+        .bind(slug.value())
         .bind(description)
         .bind(content)
         .bind(series_id)
@@ -211,8 +211,8 @@ impl ArticleRepository for PgArticleRepository {
 
 
         let mut article: article::Article = pg_article.try_into().map_err(|why| ArticleRepositoryError::DOConversion(why))?;
-        article.category_ids = category_ids.iter().map(|v| v.try_into().unwrap()).collect();
-        article.tag_ids = tag_ids.iter().map(|v| v.try_into().unwrap()).collect();
+        article.category_ids = category_ids.iter().map(|v| (*v).try_into().unwrap()).collect();
+        article.tag_ids = tag_ids.iter().map(|v| (*v).try_into().unwrap()).collect();
 
         Ok(article)
     }

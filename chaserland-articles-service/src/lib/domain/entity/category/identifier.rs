@@ -1,6 +1,6 @@
 use super::{Id, Slug};
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, PartialEq, Eq, Clone)]
 pub enum Identifier {
     Id(Id),
     Slug(Slug),
@@ -56,18 +56,16 @@ mod tests {
     use super::{Id, Identifier, Slug};
 
     #[test]
-    fn article_identifier_case_id() {
+    fn identifier_case_id() {
         let id = Id::new(1);
         let res = Identifier::Id(id);
 
         assert!(res.is_id());
 
         let res = res.as_id();
-
         assert!(res.is_some());
 
         let res = res.unwrap();
-
         assert_eq!(res, &id);
 
         let slug = Slug::try_from("test-title").unwrap();
@@ -76,23 +74,20 @@ mod tests {
         assert_eq!(res.is_id(), false);
 
         let res = res.as_id();
-
         assert!(res.is_none());
     }
 
     #[test]
-    fn article_identifier_case_slug() {
+    fn identifier_case_slug() {
         let slug = Slug::try_from("test-title").unwrap();
         let res = Identifier::Slug(slug.clone());
 
         assert!(res.is_slug());
 
         let res = res.as_slug();
-
         assert!(res.is_some());
 
         let res = res.unwrap();
-
         assert_eq!(res, &slug);
 
         let id = Id::new(1);
@@ -101,12 +96,11 @@ mod tests {
         assert_eq!(res.is_slug(), false);
 
         let res = res.as_slug();
-
         assert!(res.is_none());
     }
 
     #[test]
-    fn article_identifier_case_to_string() {
+    fn identifier_case_to_string() {
         let id = Id::new(1);
         let res = Identifier::Id(id);
 
@@ -119,7 +113,7 @@ mod tests {
     }
 
     #[test]
-    fn article_identifier_case_from_id() {
+    fn identifier_case_from_id() {
         let id = Id::new(1);
         let res = Identifier::from(id);
 
@@ -127,7 +121,7 @@ mod tests {
     }
 
     #[test]
-    fn article_identifier_case_from_slug() {
+    fn identifier_case_from_slug() {
         let slug = Slug::try_from("test-title").unwrap();
         let res = Identifier::from(slug.clone());
 

@@ -1,3 +1,4 @@
+use super::error::DomainError;
 use super::{
     Content, CreatedAt, DeletedAt, Description, Id, PublishedAt, Slug, Title, UpdatedAt, Version,
 };
@@ -150,14 +151,15 @@ impl Default for Article {
     fn default() -> Self {
         let id = Id::new(1);
         let title = Title::new("Default Title");
-        let description = Description::new("");
+        let description = "".into();
         let content = None;
-        let created_at = CreatedAt::new(chrono::Utc::now());
-        let updated_at = UpdatedAt::new(chrono::Utc::now());
+        let now = chrono::Utc::now();
+        let created_at = now.into();
+        let updated_at = now.into();
         let series_id = None;
         let category_ids = vec![];
         let tag_ids = vec![];
-        let version = Version::new(chrono::Utc::now());
+        let version = Version::new(now);
         Self::new(
             id,
             title,
@@ -173,7 +175,7 @@ impl Default for Article {
     }
 }
 
-#[derive(Debug, Serialize, Deserialize, Clone, PartialEq, Eq, Default)]
+#[derive(Debug, Serialize, Deserialize, Clone, PartialEq, Eq)]
 pub struct NewArticle {
     pub title: Title,
     pub description: Description,
@@ -182,6 +184,27 @@ pub struct NewArticle {
     pub category_ids: Vec<category::Id>,
     pub tag_ids: Vec<tag::Id>,
     version: Version,
+}
+
+impl Default for NewArticle {
+    fn default() -> Self {
+        let title = Title::new("Default Title");
+        let description = Description::default();
+        let content = None;
+        let series_id = None;
+        let category_ids = vec![];
+        let tag_ids = vec![];
+        let version = Version::default();
+        Self {
+            title,
+            description,
+            content,
+            series_id,
+            category_ids,
+            tag_ids,
+            version,
+        }
+    }
 }
 
 impl NewArticle {
@@ -204,94 +227,508 @@ impl NewArticle {
             version,
         }
     }
-    pub fn version(&self) -> &Version {
-        &self.version
-    }
-    pub fn bump_version(&mut self) {
-        self.version.bump();
-    }
-}
-
-#[derive(Debug, thiserror::Error)]
-pub enum DomainError {
-    #[error("Article with id {0} is already published")]
-    AlreadyPublished(Id),
-    #[error("Article with id {0} has not been published")]
-    NotPublished(Id),
-    #[error("Article with id {0} is already soft deleted")]
-    AlreadySoftDeleted(Id),
-    #[error("Article with id {0} has not been soft deleted")]
-    NotSoftDeleted(Id),
-    #[error("Article with id {0} already has category with id {1} attached")]
-    CategoryAlreadyAttached(Id, category::Id),
-    #[error("Article with id {0} does not have category with id {1} attached")]
-    CategoryNotFound(Id, category::Id),
-    #[error("Article with id {0} already has tag with id {1} attached")]
-    TagAlreadyAttached(Id, tag::Id),
-    #[error("Article with id {0} does not have tag with id {1} attached")]
-    TagNotFound(Id, tag::Id),
-    #[error(transparent)]
-    Unknown(#[from] anyhow::Error),
-}
-
-impl DomainError {
-    pub fn is_already_published(&self) -> bool {
-        matches!(self, DomainError::AlreadyPublished(_))
-    }
-
-    pub fn is_not_published(&self) -> bool {
-        matches!(self, DomainError::NotPublished(_))
-    }
-
-    pub fn is_already_soft_deleted(&self) -> bool {
-        matches!(self, DomainError::AlreadySoftDeleted(_))
-    }
-
-    pub fn is_not_soft_deleted(&self) -> bool {
-        matches!(self, DomainError::NotSoftDeleted(_))
-    }
-
-    pub fn is_category_already_attached(&self) -> bool {
-        matches!(self, DomainError::CategoryAlreadyAttached(_, _))
-    }
-
-    pub fn is_category_not_found(&self) -> bool {
-        matches!(self, DomainError::CategoryNotFound(_, _))
-    }
-
-    pub fn is_tag_already_attached(&self) -> bool {
-        matches!(self, DomainError::TagAlreadyAttached(_, _))
-    }
-
-    pub fn is_tag_not_found(&self) -> bool {
-        matches!(self, DomainError::TagNotFound(_, _))
+    pub fn version(&self) -> Version {
+        self.version
     }
 }
 
 #[cfg(test)]
 mod tests {
-    use super::Title;
+    mod article {
+        use super::super::{Article, Content, Description, DomainError, PublishedAt, Title};
 
-    #[test]
-    fn test_article_title() {
-        let title = Title::new(String::from("title"));
-        assert_eq!(title.value(), "title");
+        #[test]
+        fn article_case_new() {
+            let now = chrono::Utc::now();
+            let article = Article::new(
+                1.try_into().unwrap(),
+                "title".try_into().unwrap(),
+                "description".into(),
+                Some("content".into()),
+                now.into(),
+                now.into(),
+                None,
+                vec![1.try_into().unwrap(), 2.try_into().unwrap()],
+                vec![3.try_into().unwrap(), 4.try_into().unwrap()],
+                now.into(),
+            );
+
+            let target = Article {
+                id: 1.try_into().unwrap(),
+                title: "title".try_into().unwrap(),
+                slug: "title".try_into().unwrap(),
+                description: "description".into(),
+                content: Some("content".into()),
+                created_at: now.into(),
+                updated_at: now.into(),
+                published_at: None,
+                deleted_at: None,
+                series_id: None,
+                category_ids: vec![1.try_into().unwrap(), 2.try_into().unwrap()],
+                tag_ids: vec![3.try_into().unwrap(), 4.try_into().unwrap()],
+                version: now.into(),
+            };
+
+            assert_eq!(article.id, target.id);
+            assert_eq!(article.title, target.title);
+            assert_eq!(article.slug(), target.slug());
+            assert_eq!(article.description, target.description);
+            assert_eq!(article.content, target.content);
+            assert_eq!(article.created_at, target.created_at);
+            assert_eq!(article.updated_at, target.updated_at);
+            assert_eq!(article.published_at, target.published_at);
+            assert_eq!(article.deleted_at, target.deleted_at);
+            assert_eq!(article.series_id, target.series_id);
+            assert_eq!(article.category_ids, target.category_ids);
+            assert_eq!(article.tag_ids, target.tag_ids);
+            assert_eq!(article.version, target.version);
+        }
+
+        #[test]
+        fn article_case_default() {
+            let article = Article::default();
+            let now = chrono::Utc::now();
+            let target = Article {
+                id: 1.try_into().unwrap(),
+                title: "Default Title".try_into().unwrap(),
+                slug: "default-title".try_into().unwrap(),
+                description: "".into(),
+                content: None,
+                created_at: now.into(),
+                updated_at: now.into(),
+                published_at: None,
+                deleted_at: None,
+                series_id: None,
+                category_ids: vec![],
+                tag_ids: vec![],
+                version: now.into(),
+            };
+
+            assert_eq!(article.id, target.id);
+            assert_eq!(article.title, target.title);
+            assert_eq!(article.slug(), target.slug());
+            assert_eq!(article.description, target.description);
+            assert_eq!(article.content, target.content);
+            assert!(
+                target.created_at.value() - article.created_at.value()
+                    < chrono::Duration::seconds(1)
+            );
+            assert!(
+                target.updated_at.value() - article.updated_at.value()
+                    < chrono::Duration::seconds(1)
+            );
+            assert_eq!(article.published_at, target.published_at);
+            assert_eq!(article.deleted_at, target.deleted_at);
+            assert_eq!(article.series_id, target.series_id);
+            assert_eq!(article.category_ids, target.category_ids);
+            assert_eq!(article.tag_ids, target.tag_ids);
+            assert!(
+                target.version.value() - article.version.value() < chrono::Duration::seconds(1)
+            );
+        }
+
+        #[test]
+        fn article_case_set_title() {
+            let mut article = Article::default();
+
+            let target_title: Title = "Default Title".try_into().unwrap();
+
+            assert_eq!(article.title, target_title);
+            assert_eq!(article.slug(), &target_title.as_slug());
+
+            let new_title: Title = "New Title".try_into().unwrap();
+
+            article.set_title(new_title.clone());
+
+            assert_eq!(article.title, new_title);
+            assert_eq!(article.slug(), &new_title.as_slug());
+        }
+
+        #[test]
+        fn article_case_set_description() {
+            let mut article = Article::default();
+
+            let target_description = Description::default();
+
+            assert_eq!(article.description, target_description);
+
+            let new_description = Description::from("New Description");
+
+            article.set_description(new_description.clone());
+
+            assert_eq!(article.description, new_description);
+        }
+
+        #[test]
+        fn article_case_set_content() {
+            let mut article = Article::default();
+
+            assert_eq!(article.content, None);
+
+            let new_content = Content::from("New Content");
+
+            article.set_content(new_content.clone());
+
+            assert_eq!(article.content, Some(new_content));
+        }
+
+        #[test]
+        fn article_case_is_published() {
+            let mut article = Article::default();
+
+            assert_eq!(article.is_published(), false);
+
+            article.published_at = Some(PublishedAt::from(chrono::Utc::now()));
+
+            assert!(article.is_published());
+        }
+
+        #[test]
+        fn article_case_publish() {
+            let mut article = Article::default();
+
+            assert_eq!(article.published_at, None);
+
+            let res = article.publish();
+
+            assert!(res.is_ok());
+            assert!(article.published_at.is_some());
+
+            let now = chrono::Utc::now();
+
+            assert!(article.published_at.unwrap().value() - now < chrono::Duration::seconds(1));
+
+            let res = article.publish();
+
+            assert!(res.is_err());
+
+            let res = res.unwrap_err();
+
+            assert!(match res {
+                DomainError::AlreadyPublished(_) => true,
+                _ => false,
+            });
+        }
+
+        #[test]
+        fn article_case_unpublish() {
+            let mut article = Article::default();
+
+            let res = article.unpublish();
+
+            assert!(res.is_err());
+
+            let res = res.unwrap_err();
+
+            assert!(match res {
+                DomainError::NotPublished(_) => true,
+                _ => false,
+            });
+
+            article.published_at = Some(chrono::Utc::now().into());
+
+            let res = article.unpublish();
+
+            assert!(res.is_ok());
+            assert!(article.published_at.is_none());
+        }
+
+        #[test]
+        fn article_case_soft_delete() {
+            let mut article = Article::default();
+
+            let res = article.soft_delete();
+
+            assert!(res.is_ok());
+            assert!(article.deleted_at.is_some());
+
+            let now = chrono::Utc::now();
+
+            assert!(article.deleted_at.unwrap().value() - now < chrono::Duration::seconds(1));
+
+            let res = article.soft_delete();
+
+            assert!(res.is_err());
+
+            let res = res.unwrap_err();
+
+            assert!(match res {
+                DomainError::AlreadySoftDeleted(_) => true,
+                _ => false,
+            });
+        }
+
+        #[test]
+        fn article_case_revoke_soft_delete() {
+            let mut article = Article::default();
+
+            let res = article.revoke_soft_delete();
+
+            assert!(res.is_err());
+
+            let res = res.unwrap_err();
+
+            assert!(match res {
+                DomainError::NotSoftDeleted(_) => true,
+                _ => false,
+            });
+
+            article.deleted_at = Some(chrono::Utc::now().into());
+
+            let res = article.revoke_soft_delete();
+
+            assert!(res.is_ok());
+            assert!(article.deleted_at.is_none());
+        }
+
+        #[test]
+        fn article_case_bump_updated_at() {
+            let mut article = Article::default();
+
+            let previous_updated_at = article.updated_at;
+
+            article.bump_updated_at();
+
+            assert!(article.updated_at != previous_updated_at);
+            assert!(
+                article.updated_at.value() - previous_updated_at.value()
+                    < chrono::Duration::seconds(1)
+            );
+        }
+
+        #[test]
+        fn article_case_bump_version() {
+            let mut article = Article::default();
+
+            let previous_version = article.version;
+
+            article.bump_version();
+
+            assert!(article.version != previous_version);
+            assert!(
+                article.version.value() - previous_version.value() < chrono::Duration::seconds(1)
+            );
+        }
+
+        #[test]
+        fn article_case_set_series_id() {
+            let mut article = Article::default();
+
+            assert!(article.series_id.is_none());
+
+            let new_series_id = 1.try_into().unwrap();
+
+            article.set_series_id(new_series_id);
+
+            assert!(article.series_id.is_some());
+            assert_eq!(article.series_id.unwrap(), new_series_id);
+        }
+
+        #[test]
+        fn article_case_remove_series_id() {
+            let mut article = Article::default();
+
+            article.series_id = Some(1.try_into().unwrap());
+
+            assert!(article.series_id.is_some());
+
+            article.remove_series_id();
+
+            assert!(article.series_id.is_none());
+        }
+
+        #[test]
+        fn article_case_add_category_id() {
+            let mut article = Article::default();
+
+            assert!(article.category_ids.is_empty());
+
+            let new_category_id = 1.try_into().unwrap();
+
+            let res = article.add_category_id(new_category_id);
+
+            assert!(res.is_ok());
+            assert_eq!(article.category_ids.len(), 1);
+            assert!(article.category_ids.contains(&new_category_id));
+
+            let new_category_id = 2.try_into().unwrap();
+
+            let res = article.add_category_id(new_category_id);
+
+            assert!(res.is_ok());
+            assert_eq!(article.category_ids.len(), 2);
+            assert!(article.category_ids.contains(&new_category_id));
+
+            let new_category_id = 1.try_into().unwrap();
+
+            let res = article.add_category_id(new_category_id);
+
+            assert!(res.is_err());
+
+            let res = res.unwrap_err();
+
+            assert!(match res {
+                DomainError::CategoryAlreadyAttached(_, _) => true,
+                _ => false,
+            });
+        }
+
+        #[test]
+        fn article_case_remove_category_id() {
+            let mut article = Article::default();
+
+            article.category_ids = vec![1.try_into().unwrap(), 2.try_into().unwrap()];
+
+            assert_eq!(article.category_ids.len(), 2);
+
+            let res = article.remove_category_id(1.try_into().unwrap());
+
+            assert!(res.is_ok());
+            assert_eq!(article.category_ids.len(), 1);
+            assert!(!article.category_ids.contains(&1.try_into().unwrap()));
+
+            let res = article.remove_category_id(1.try_into().unwrap());
+
+            assert!(res.is_err());
+
+            let res = res.unwrap_err();
+
+            assert!(match res {
+                DomainError::CategoryNotFound(_, _) => true,
+                _ => false,
+            });
+
+            let res = article.remove_category_id(2.try_into().unwrap());
+
+            assert!(res.is_ok());
+            assert_eq!(article.category_ids.len(), 0);
+        }
+
+        #[test]
+        fn article_case_add_tag_id() {
+            let mut article = Article::default();
+
+            assert!(article.tag_ids.is_empty());
+
+            let new_tag_id = 1.try_into().unwrap();
+
+            let res = article.add_tag_id(new_tag_id);
+
+            assert!(res.is_ok());
+            assert_eq!(article.tag_ids.len(), 1);
+            assert!(article.tag_ids.contains(&new_tag_id));
+
+            let new_tag_id = 2.try_into().unwrap();
+
+            let res = article.add_tag_id(new_tag_id);
+
+            assert!(res.is_ok());
+            assert_eq!(article.tag_ids.len(), 2);
+            assert!(article.tag_ids.contains(&new_tag_id));
+
+            let new_tag_id = 1.try_into().unwrap();
+
+            let res = article.add_tag_id(new_tag_id);
+
+            assert!(res.is_err());
+
+            let res = res.unwrap_err();
+
+            assert!(match res {
+                DomainError::TagAlreadyAttached(_, _) => true,
+                _ => false,
+            });
+        }
+
+        #[test]
+        fn article_case_remove_tag_id() {
+            let mut article = Article::default();
+
+            article.tag_ids = vec![1.try_into().unwrap(), 2.try_into().unwrap()];
+
+            assert_eq!(article.tag_ids.len(), 2);
+
+            let res = article.remove_tag_id(1.try_into().unwrap());
+
+            assert!(res.is_ok());
+            assert_eq!(article.tag_ids.len(), 1);
+            assert!(!article.tag_ids.contains(&1.try_into().unwrap()));
+
+            let res = article.remove_tag_id(1.try_into().unwrap());
+
+            assert!(res.is_err());
+
+            let res = res.unwrap_err();
+
+            assert!(match res {
+                DomainError::TagNotFound(_, _) => true,
+                _ => false,
+            });
+
+            let res = article.remove_tag_id(2.try_into().unwrap());
+
+            assert!(res.is_ok());
+            assert_eq!(article.tag_ids.len(), 0);
+        }
     }
 
-    #[test]
-    #[should_panic(expected = "title is empty")]
-    fn test_article_title_panic() {
-        let _ = Title::new(String::from("  "));
-    }
+    mod new_article {
+        use super::super::{NewArticle, Version};
 
-    #[test]
-    fn test_article_title_convert() {
-        let title = TryInto::<Title>::try_into(String::from("title"));
-        assert_eq!(title.is_ok(), true);
-        assert_eq!(title.unwrap().value(), "title");
+        #[test]
+        fn new_article_case_new() {
+            let article = NewArticle::new(
+                "title".try_into().unwrap(),
+                "description".into(),
+                Some("content".into()),
+                None,
+                vec![1.try_into().unwrap(), 2.try_into().unwrap()],
+                vec![3.try_into().unwrap(), 4.try_into().unwrap()],
+            );
 
-        let title: Result<Title, _> = String::from("  ").try_into();
-        assert_eq!(title.is_err(), true);
-        assert_eq!(title.unwrap_err(), "title is empty");
+            let target = NewArticle {
+                title: "title".try_into().unwrap(),
+                description: "description".into(),
+                content: Some("content".into()),
+                series_id: None,
+                category_ids: vec![1.try_into().unwrap(), 2.try_into().unwrap()],
+                tag_ids: vec![3.try_into().unwrap(), 4.try_into().unwrap()],
+                version: Version::default(),
+            };
+
+            assert_eq!(article.title, target.title);
+            assert_eq!(article.description, target.description);
+            assert_eq!(article.content, target.content);
+            assert_eq!(article.series_id, target.series_id);
+            assert_eq!(article.category_ids, target.category_ids);
+            assert_eq!(article.tag_ids, target.tag_ids);
+            assert!(
+                target.version.value() - article.version.value() < chrono::Duration::seconds(1)
+            );
+        }
+
+        #[test]
+        fn new_article_case_default() {
+            let article = NewArticle::default();
+            let target = NewArticle {
+                title: "Default Title".try_into().unwrap(),
+                description: "".into(),
+                content: None,
+                series_id: None,
+                category_ids: vec![],
+                tag_ids: vec![],
+                version: Version::default(),
+            };
+
+            assert_eq!(article.title, target.title);
+            assert_eq!(article.description, target.description);
+            assert_eq!(article.content, target.content);
+            assert_eq!(article.series_id, target.series_id);
+            assert_eq!(article.category_ids, target.category_ids);
+            assert_eq!(article.tag_ids, target.tag_ids);
+            assert!(
+                target.version.value() - article.version.value() < chrono::Duration::seconds(1)
+            );
+        }
     }
 }

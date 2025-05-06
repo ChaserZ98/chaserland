@@ -27,7 +27,7 @@ async fn get_one_case_slug(pool: PgPool) {
     let name = "Category 1".try_into().unwrap();
     let category = category::Category::new(id, name);
 
-    let res = repo.get_one(category.slug.as_identifier()).await;
+    let res = repo.get_one(category.slug().as_identifier()).await;
 
     assert!(res.is_ok());
 

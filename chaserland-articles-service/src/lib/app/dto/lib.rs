@@ -56,9 +56,9 @@ impl ArticleDTOBuilder {
         let article = self.article.unwrap();
         article_dto.id = article.id.value();
         article_dto.title = article.title.value();
-        article_dto.slug = article.slug().value();
-        article_dto.description = article.description.value();
-        article_dto.content = article.content.map(|x| x.value());
+        article_dto.slug = article.slug().value().clone();
+        article_dto.description = article.description.value().clone();
+        article_dto.content = article.content.map(|x| x.value().clone());
         article_dto.created_at = article.created_at.value();
         article_dto.updated_at = article.updated_at.value();
         article_dto.published_at = article.published_at.map(|x| x.value());
@@ -127,7 +127,7 @@ impl From<series::Series> for SeriesDTO {
         Self {
             id: value.id.value(),
             name: value.name.value().into(),
-            slug: value.slug.value(),
+            slug: value.slug().value(),
         }
     }
 }
@@ -143,8 +143,8 @@ impl From<category::Category> for CategoryDTO {
     fn from(value: category::Category) -> Self {
         Self {
             id: value.id.value(),
-            name: value.name.value(),
-            slug: value.slug.value(),
+            name: value.name.value().clone(),
+            slug: value.slug().value().clone(),
         }
     }
 }
@@ -160,8 +160,8 @@ impl From<tag::Tag> for TagDTO {
     fn from(value: tag::Tag) -> Self {
         Self {
             id: value.id.value(),
-            name: value.name.value(),
-            slug: value.slug.value(),
+            name: value.name.value().clone(),
+            slug: value.slug().value().clone(),
         }
     }
 }
@@ -214,9 +214,12 @@ mod tests {
 
         assert_eq!(article_dto.id, article.id.value());
         assert_eq!(article_dto.title, article.title.value());
-        assert_eq!(article_dto.slug, article.slug().value());
-        assert_eq!(article_dto.description, article.description.value());
-        assert_eq!(article_dto.content, article.content.map(|x| x.value()));
+        assert_eq!(article_dto.slug, article.slug().value().clone());
+        assert_eq!(article_dto.description, article.description.value().clone());
+        assert_eq!(
+            article_dto.content,
+            article.content.map(|x| x.value().clone())
+        );
         assert_eq!(article_dto.created_at, article.created_at.value());
         assert_eq!(article_dto.updated_at, article.updated_at.value());
         assert_eq!(
@@ -231,7 +234,7 @@ mod tests {
         let series_dto = SeriesDTO {
             id: series.id.value(),
             name: series.name.value().to_string(),
-            slug: series.slug.value(),
+            slug: series.slug().value(),
         };
         assert_eq!(article_dto.series, Some(series_dto));
 
@@ -240,7 +243,7 @@ mod tests {
             .map(|x| CategoryDTO {
                 id: x.id.value(),
                 name: x.name.value().to_string(),
-                slug: x.slug.value(),
+                slug: x.slug().value().clone(),
             })
             .collect::<Vec<CategoryDTO>>();
         assert_eq!(article_dto.categories, categories_dto);
@@ -250,7 +253,7 @@ mod tests {
             .map(|x| TagDTO {
                 id: x.id.value(),
                 name: x.name.value().to_string(),
-                slug: x.slug.value(),
+                slug: x.slug().value().clone(),
             })
             .collect::<Vec<TagDTO>>();
         assert_eq!(article_dto.tags, tags_dto);

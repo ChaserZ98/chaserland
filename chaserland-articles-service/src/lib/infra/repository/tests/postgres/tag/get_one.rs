@@ -24,7 +24,7 @@ async fn get_one_case_slug(pool: PgPool) {
 
     let tag = tag::Tag::new(1.try_into().unwrap(), "Tag 1".try_into().unwrap());
 
-    let res = repo.get_one(tag.slug.as_identifier()).await;
+    let res = repo.get_one(tag.slug().as_identifier()).await;
 
     assert!(res.is_ok());
 
@@ -57,7 +57,7 @@ async fn get_one_case_slug_not_found(pool: PgPool) {
     let repo = PgTagRepository::new(pool);
 
     let tag = tag::Tag::new(4.try_into().unwrap(), "tag 4".try_into().unwrap());
-    let identifier = tag.slug.as_identifier();
+    let identifier = tag.slug().as_identifier();
 
     let res = repo.get_one(identifier.clone()).await;
 

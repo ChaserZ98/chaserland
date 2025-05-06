@@ -1,7 +1,7 @@
 use chrono::{DateTime, ParseError, Utc};
 use serde::{Deserialize, Serialize};
 
-#[derive(Debug, Serialize, Deserialize, Clone, PartialEq, Eq)]
+#[derive(Debug, Serialize, Deserialize, Clone, Copy, PartialEq, Eq)]
 pub struct UpdatedAt(DateTime<Utc>);
 
 impl UpdatedAt {
@@ -46,5 +46,92 @@ impl TryFrom<&str> for UpdatedAt {
 impl std::fmt::Display for UpdatedAt {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "{}", self.0)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::UpdatedAt;
+
+    #[test]
+    fn article_updated_at_case_new() {
+        let time = chrono::Utc::now();
+        let updated_at = UpdatedAt::new(time);
+
+        assert_eq!(updated_at.value(), time);
+    }
+
+    #[test]
+    fn article_updated_at_case_update() {
+        let time = chrono::Utc::now();
+        let mut updated_at = UpdatedAt::new(time);
+
+        assert_eq!(updated_at.value(), time);
+
+        updated_at.update();
+
+        assert!(updated_at.value() != time);
+        assert!(updated_at.value() - time < chrono::Duration::seconds(1));
+    }
+
+    #[test]
+    fn article_updated_at_case_set() {
+        let time = chrono::Utc::now();
+        let mut updated_at = UpdatedAt::new(time);
+
+        assert_eq!(updated_at.value(), time);
+
+        let new_time = chrono::Utc::now();
+        updated_at.set(new_time);
+
+        assert_eq!(updated_at.value(), new_time);
+    }
+
+    #[test]
+    fn article_updated_at_case_to_string() {
+        let time = chrono::Utc::now();
+        let updated_at = UpdatedAt::new(time);
+
+        assert_eq!(updated_at.to_string(), time.to_string());
+    }
+
+    #[test]
+    fn article_updated_at_case_from_chrono() {
+        let time = chrono::Utc::now();
+        let updated_at = UpdatedAt::from(time);
+
+        assert_eq!(updated_at.value(), time);
+    }
+
+    #[test]
+    fn article_updated_at_case_try_from_string() {
+        let time = chrono::Utc::now();
+        let res = UpdatedAt::try_from(time.to_string());
+
+        assert!(res.is_ok());
+
+        let res = res.unwrap();
+
+        assert_eq!(res.value(), time);
+
+        let res = UpdatedAt::try_from(String::from("invalid string"));
+
+        assert!(res.is_err());
+    }
+
+    #[test]
+    fn article_updated_at_case_try_from_str_ref() {
+        let time = chrono::Utc::now();
+        let res = UpdatedAt::try_from(time.to_string().as_str());
+
+        assert!(res.is_ok());
+
+        let res = res.unwrap();
+
+        assert_eq!(res.value(), time);
+
+        let res = UpdatedAt::try_from("invalid string");
+
+        assert!(res.is_err());
     }
 }

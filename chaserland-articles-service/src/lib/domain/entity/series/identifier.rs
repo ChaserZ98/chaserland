@@ -1,6 +1,6 @@
 use super::{Id, Slug};
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, PartialEq, Eq, Clone)]
 pub enum Identifier {
     Id(Id),
     Slug(Slug),
@@ -17,15 +17,15 @@ impl Identifier {
 
     pub fn as_id(&self) -> Option<&Id> {
         match self {
-            Self::Id(id) => Some(id),
-            Self::Slug(_) => None,
+            Identifier::Id(id) => Some(id),
+            Identifier::Slug(_) => None,
         }
     }
 
     pub fn as_slug(&self) -> Option<&Slug> {
         match self {
-            Self::Slug(slug) => Some(slug),
-            Self::Id(_) => None,
+            Identifier::Id(_) => None,
+            Identifier::Slug(slug) => Some(slug),
         }
     }
 }
@@ -56,81 +56,75 @@ mod tests {
     use super::{Id, Identifier, Slug};
 
     #[test]
-    fn article_identifier_case_id() {
+    fn identifier_case_id() {
         let id = Id::new(1);
-        let res = Identifier::Id(id);
+        let identifier = Identifier::Id(id);
 
-        assert!(res.is_id());
+        assert!(identifier.is_id());
 
-        let res = res.as_id();
-
+        let res = identifier.as_id();
         assert!(res.is_some());
 
         let res = res.unwrap();
-
         assert_eq!(res, &id);
 
         let slug = Slug::try_from("test-title").unwrap();
-        let res = Identifier::Slug(slug);
+        let identifier = Identifier::Slug(slug);
 
-        assert_eq!(res.is_id(), false);
+        assert_eq!(identifier.is_id(), false);
 
-        let res = res.as_id();
-
+        let res = identifier.as_id();
         assert!(res.is_none());
     }
 
     #[test]
-    fn article_identifier_case_slug() {
+    fn identifier_case_slug() {
         let slug = Slug::try_from("test-title").unwrap();
-        let res = Identifier::Slug(slug.clone());
+        let identifier = Identifier::Slug(slug.clone());
 
-        assert!(res.is_slug());
+        assert!(identifier.is_slug());
 
-        let res = res.as_slug();
-
+        let res = identifier.as_slug();
         assert!(res.is_some());
 
         let res = res.unwrap();
-
         assert_eq!(res, &slug);
 
         let id = Id::new(1);
-        let res = Identifier::Id(id);
+        let identifier = Identifier::Id(id);
 
-        assert_eq!(res.is_slug(), false);
+        assert_eq!(identifier.is_slug(), false);
 
-        let res = res.as_slug();
-
+        let res = identifier.as_slug();
         assert!(res.is_none());
     }
 
     #[test]
-    fn article_identifier_case_to_string() {
+    fn identifier_case_to_string() {
         let id = Id::new(1);
-        let res = Identifier::Id(id);
+        let identifier = Identifier::Id(id);
 
-        assert_eq!(res.to_string(), "id=1");
+        assert_eq!(identifier.to_string(), "id=1");
 
         let slug = Slug::try_from("test-title").unwrap();
-        let res = Identifier::Slug(slug);
+        let identifier = Identifier::Slug(slug);
 
-        assert_eq!(res.to_string(), "slug=test-title");
+        assert_eq!(identifier.to_string(), "slug=test-title");
     }
 
     #[test]
-    fn article_identifier_case_from_id() {
+    fn identifier_case_from_id() {
         let id = Id::new(1);
-        let res = Identifier::from(id);
+        let identifier = Identifier::from(id);
 
-        assert_eq!(res, Identifier::Id(id));
+        assert_eq!(identifier, Identifier::Id(id));
     }
 
     #[test]
-    fn article_identifier_case_from_slug() {
+    fn identifier_case_from_slug() {
         let slug = Slug::try_from("test-title").unwrap();
-        let res = Identifier::from(slug.clone());
+        let identifier = Identifier::from(slug.clone());
 
-        assert_eq!(res, Identifier::Slug(slug));
+        assert_eq!(identifier, Identifier::Slug(slug));
     }
 }

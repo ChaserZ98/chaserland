@@ -1,15 +1,17 @@
 use super::Slug;
 use serde::{Deserialize, Serialize};
-use std::fmt::Display;
 
-#[derive(Debug, Serialize, Deserialize, Clone, PartialEq, Eq, Default)]
+#[derive(Debug, Serialize, Deserialize, Clone, PartialEq, Eq)]
 pub struct Title(String);
 
 impl Title {
-    pub fn new(title: impl Into<String>) -> Self {
-        let title = title.into();
+    pub fn new<T>(title: T) -> Self
+    where
+        T: AsRef<str>,
+    {
+        let title = title.as_ref();
         Self::validate(&title).unwrap();
-        Self(title)
+        Self(title.into())
     }
     pub fn as_slug(&self) -> Slug {
         self.clone().into()
@@ -25,7 +27,7 @@ impl Title {
     }
 }
 
-impl Display for Title {
+impl std::fmt::Display for Title {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "{}", self.0)
     }
@@ -43,5 +45,66 @@ impl TryFrom<&str> for Title {
     type Error = String;
     fn try_from(value: &str) -> Result<Self, Self::Error> {
         value.to_string().try_into()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::Title;
+
+    #[test]
+    fn article_title_case_new() {
+        let title = Title::new("title");
+        assert_eq!(title.value(), "title");
+        assert_eq!(title.as_slug().value(), "title");
+    }
+
+    #[test]
+    #[should_panic(expected = "title is empty")]
+    fn article_title_case_new_panic() {
+        let _ = Title::new(String::from("  "));
+    }
+
+    #[test]
+    fn article_title_case_to_string() {
+        let title = Title::new("title");
+        assert_eq!(title.to_string(), "title");
+    }
+
+    #[test]
+    fn article_title_case_try_from_string() {
+        let title = Title::try_from(String::from("title"));
+        assert_eq!(title.is_ok(), true);
+
+        let title = title.unwrap();
+
+        let target = Title::new("title");
+
+        assert_eq!(title, target);
+
+        let title = Title::try_from(String::new());
+
+        assert!(title.is_err());
+
+        assert_eq!(title.unwrap_err(), "title is empty");
+    }
+
+    #[test]
+    fn article_title_case_try_from_str_ref() {
+        let title = Title::try_from("title");
+
+        assert_eq!(title.is_ok(), true);
+
+        let title = title.unwrap();
+
+        let target = Title::new("title");
+
+        assert_eq!(title, target);
+
+        let title = Title::try_from("");
+
+        assert!(title.is_err());
+
+        assert_eq!(title.unwrap_err(), "title is empty");
     }
 }
