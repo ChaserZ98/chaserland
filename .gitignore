@@ -123,3 +123,4 @@ $RECYCLE.BIN/
 .env
 coverage
 build_rs_cov.profraw
+*.code-workspace
