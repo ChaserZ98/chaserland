@@ -63,15 +63,15 @@ mod tests {
 
     #[test]
     fn article_updated_at_case_update() {
-        let time = chrono::Utc::now();
+        let time = "2022-01-01 00:00:00 UTC".parse().unwrap();
         let mut updated_at = UpdatedAt::new(time);
 
         assert_eq!(updated_at.value(), time);
 
         updated_at.update();
+        let target = chrono::Utc::now();
 
-        assert!(updated_at.value() != time);
-        assert!(updated_at.value() - time < chrono::Duration::seconds(1));
+        assert!(target - updated_at.value() < chrono::Duration::seconds(1));
     }
 
     #[test]

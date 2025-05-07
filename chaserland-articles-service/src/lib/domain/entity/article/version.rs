@@ -89,14 +89,14 @@ mod tests {
 
     #[test]
     fn article_version_case_bump() {
-        let time = chrono::Utc::now();
+        let time = "2022-01-01 00:00:00 UTC".parse().unwrap();
         let mut version = Version::new(time);
 
         assert_eq!(version.value(), time);
 
         version.bump();
-        assert!(version.value() != time);
-        assert!(version.value() - time < chrono::Duration::seconds(1));
+        let target = chrono::Utc::now();
+        assert!(target - version.value() < chrono::Duration::seconds(1));
     }
 
     #[test]
