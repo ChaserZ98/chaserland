@@ -140,6 +140,7 @@ where
 
         Ok(article_dto)
     }
+
     pub async fn create_series(
         &self,
         command: command::CreateSeriesCommand,
@@ -153,6 +154,7 @@ where
         let series_dto = series.into();
         Ok(series_dto)
     }
+
     pub async fn create_category(
         &self,
         command: command::CreateCategoryCommand,
@@ -166,6 +168,7 @@ where
         let category_dto = category.into();
         Ok(category_dto)
     }
+
     pub async fn create_tag(
         &self,
         command: command::CreateTagCommand,
@@ -179,6 +182,7 @@ where
         let tag_dto = tag.into();
         Ok(tag_dto)
     }
+
     pub async fn get_article_one(
         &self,
         query: query::GetArticleOneQuery,
@@ -257,6 +261,7 @@ where
 
         Ok(res)
     }
+
     pub async fn get_article_content(
         &self,
         query: query::GetArticleContentQuery,
@@ -275,6 +280,7 @@ where
         };
         Ok(content)
     }
+
     pub async fn get_article_many(
         &self,
         query: query::GetArticleManyQuery,
@@ -329,6 +335,7 @@ where
         }
         Ok(articles_dto)
     }
+
     pub async fn get_series_one(
         &self,
         query: query::GetSeriesOneQuery,
@@ -345,6 +352,7 @@ where
 
         Ok(series)
     }
+
     pub async fn get_series_many(
         &self,
         query: query::GetSeriesManyQuery,
@@ -361,6 +369,7 @@ where
         let series_dto = series.into_iter().map(|s| s.into()).collect();
         Ok(series_dto)
     }
+
     pub async fn get_category_one(
         &self,
         query: query::GetCategoryOneQuery,
@@ -376,6 +385,7 @@ where
         let category = category.into();
         Ok(category)
     }
+
     pub async fn get_category_many(
         &self,
         query: query::GetCategoryManyQuery,
@@ -390,6 +400,7 @@ where
         let categories_dto = categories.into_iter().map(|c| c.into()).collect();
         Ok(categories_dto)
     }
+
     pub async fn get_tag_one(
         &self,
         query: query::GetTagOneQuery,
@@ -405,6 +416,7 @@ where
         let tag = tag.into();
         Ok(tag)
     }
+
     pub async fn get_tag_many(
         &self,
         query: query::GetTagManyQuery,
@@ -419,6 +431,7 @@ where
         let tags_dto = tags.into_iter().map(|t| t.into()).collect();
         Ok(tags_dto)
     }
+
     pub async fn publish_article(
         &self,
         command: command::PublishArticleCommand,
@@ -445,6 +458,7 @@ where
             .map_err(|why| ArticleServiceError::Repository(why.into()))?;
         Ok(())
     }
+
     pub async fn unpublish_article(
         &self,
         command: command::UnpublishArticleCommand,
@@ -467,6 +481,7 @@ where
             .map_err(|why| ArticleServiceError::Repository(why.into()))?;
         Ok(())
     }
+
     pub async fn soft_delete_article(
         &self,
         command: command::SoftDeleteArticleCommand,
@@ -489,6 +504,7 @@ where
             .map_err(|why| ArticleServiceError::Repository(why.into()))?;
         Ok(())
     }
+
     pub async fn revoke_soft_delete_article(
         &self,
         command: command::RevokeSoftDeleteArticleCommand,
@@ -511,6 +527,7 @@ where
             .map_err(|why| ArticleServiceError::Repository(why.into()))?;
         Ok(())
     }
+
     pub async fn delete_article(
         &self,
         command: command::DeleteArticleCommand,
@@ -524,6 +541,7 @@ where
 
         Ok(())
     }
+
     pub async fn delete_series(
         &self,
         command: command::DeleteSeriesCommand,
@@ -535,6 +553,7 @@ where
             .map_err(|why| ArticleServiceError::Repository(why.into()))?;
         Ok(())
     }
+
     pub async fn delete_category(
         &self,
         command: command::DeleteCategoryCommand,
@@ -546,6 +565,7 @@ where
             .map_err(|why| ArticleServiceError::Repository(why.into()))?;
         Ok(())
     }
+
     pub async fn delete_tag(
         &self,
         command: command::DeleteTagCommand,
