@@ -1,11 +1,19 @@
 name: chaserland
 
 services:
+  article-init:
+    build:
+      context: .
+      dockerfile: ./chaserland-articles-service/docker/init.Dockerfile
+    image: chaserland/article-service-init:${VERSION}
+    container_name: article-init
   article-migrate:
     build:
       context: .
       dockerfile: ./chaserland-articles-service/docker/migrate.Dockerfile
     image: chaserland/article-service-migrate:${VERSION}
+    depends_on:
+      - article-init
   article-service:
     build:
       context: .
