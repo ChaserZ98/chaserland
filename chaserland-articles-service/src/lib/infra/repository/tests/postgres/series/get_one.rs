@@ -1,5 +1,8 @@
-use crate::domain::entity::series;
-use crate::domain::repository::series::{SeriesRepository, SeriesRepositoryError};
+use crate::domain::series::{
+    entity::Series,
+    repository::{SeriesRepository, SeriesRepositoryError},
+    vo as series,
+};
 use crate::infra::repository::postgres::series::PgSeriesRepository;
 use sqlx::PgPool;
 
@@ -9,7 +12,7 @@ async fn get_one_case_id(pool: PgPool) {
 
     let id = 1.try_into().unwrap();
     let name = "series 1".try_into().unwrap();
-    let target = series::Series::new(id, name);
+    let target = Series::new(id, name);
 
     let res = repo.get_one(target.id.as_identifier()).await;
 
@@ -25,7 +28,7 @@ async fn get_one_case_slug(pool: PgPool) {
 
     let id = 1.try_into().unwrap();
     let name = "series 1".try_into().unwrap();
-    let target = series::Series::new(id, name);
+    let target = Series::new(id, name);
 
     let res = repo.get_one(target.slug().as_identifier()).await;
 

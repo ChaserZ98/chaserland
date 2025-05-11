@@ -1,4 +1,7 @@
-use crate::domain::entity::{article, category, series, tag};
+use crate::domain::article::entity::Article;
+use crate::domain::category::entity::Category;
+use crate::domain::series::entity::Series;
+use crate::domain::tag::entity::Tag;
 use chrono::{DateTime, Utc};
 use std::collections::HashMap;
 
@@ -22,29 +25,29 @@ pub struct ArticleDTO {
 
 #[derive(Debug, Default)]
 pub struct ArticleDTOBuilder {
-    article: Option<article::Article>,
-    series: Option<series::Series>,
-    categories: Vec<category::Category>,
-    tags: Vec<tag::Tag>,
+    article: Option<Article>,
+    series: Option<Series>,
+    categories: Vec<Category>,
+    tags: Vec<Tag>,
 }
 
 impl ArticleDTOBuilder {
     pub fn new() -> Self {
         Self::default()
     }
-    pub fn with_article(mut self, article: article::Article) -> Self {
+    pub fn with_article(mut self, article: Article) -> Self {
         self.article = Some(article);
         self
     }
-    pub fn with_series(mut self, series: series::Series) -> Self {
+    pub fn with_series(mut self, series: Series) -> Self {
         self.series = Some(series);
         self
     }
-    pub fn with_categories(mut self, categories: Vec<category::Category>) -> Self {
+    pub fn with_categories(mut self, categories: Vec<Category>) -> Self {
         self.categories = categories;
         self
     }
-    pub fn with_tags(mut self, tags: Vec<tag::Tag>) -> Self {
+    pub fn with_tags(mut self, tags: Vec<Tag>) -> Self {
         self.tags = tags;
         self
     }
@@ -122,8 +125,8 @@ pub struct SeriesDTO {
     pub slug: String,
 }
 
-impl From<series::Series> for SeriesDTO {
-    fn from(value: series::Series) -> Self {
+impl From<Series> for SeriesDTO {
+    fn from(value: Series) -> Self {
         Self {
             id: value.id.value(),
             name: value.name.value().into(),
@@ -139,8 +142,8 @@ pub struct CategoryDTO {
     pub slug: String,
 }
 
-impl From<category::Category> for CategoryDTO {
-    fn from(value: category::Category) -> Self {
+impl From<Category> for CategoryDTO {
+    fn from(value: Category) -> Self {
         Self {
             id: value.id.value(),
             name: value.name.value().clone(),
@@ -156,8 +159,8 @@ pub struct TagDTO {
     pub slug: String,
 }
 
-impl From<tag::Tag> for TagDTO {
-    fn from(value: tag::Tag) -> Self {
+impl From<Tag> for TagDTO {
+    fn from(value: Tag) -> Self {
         Self {
             id: value.id.value(),
             name: value.name.value().clone(),
@@ -169,23 +172,24 @@ impl From<tag::Tag> for TagDTO {
 #[cfg(test)]
 mod tests {
     use super::ArticleDTOBuilder;
-    use crate::{
-        app::dto::{ArticleDTOError, CategoryDTO, SeriesDTO, TagDTO},
-        domain::entity::{article, category, series, tag},
-    };
+    use crate::app::dto::{ArticleDTOError, CategoryDTO, SeriesDTO, TagDTO};
+    use crate::domain::article::entity::Article;
+    use crate::domain::category::entity::Category;
+    use crate::domain::series::entity::Series;
+    use crate::domain::tag::entity::Tag;
 
     #[test]
     fn into_article_dto_case_1() {
-        let series = series::Series::new(1.try_into().unwrap(), "series".try_into().unwrap());
+        let series = Series::new(1.try_into().unwrap(), "series".try_into().unwrap());
         let categories = vec![
-            category::Category::new(1.try_into().unwrap(), "category-1".try_into().unwrap()),
-            category::Category::new(2.try_into().unwrap(), "category-2".try_into().unwrap()),
+            Category::new(1.try_into().unwrap(), "category-1".try_into().unwrap()),
+            Category::new(2.try_into().unwrap(), "category-2".try_into().unwrap()),
         ];
         let tags = vec![
-            tag::Tag::new(1.try_into().unwrap(), "tag-1".try_into().unwrap()),
-            tag::Tag::new(2.try_into().unwrap(), "tag-2".try_into().unwrap()),
+            Tag::new(1.try_into().unwrap(), "tag-1".try_into().unwrap()),
+            Tag::new(2.try_into().unwrap(), "tag-2".try_into().unwrap()),
         ];
-        let mut article = article::Article::new(
+        let mut article = Article::new(
             1.try_into().unwrap(),
             "title".try_into().unwrap(),
             "description".into(),
@@ -273,9 +277,9 @@ mod tests {
 
     #[test]
     fn into_article_dto_case_series_mismatch() {
-        let series = series::Series::new(1.try_into().unwrap(), "series".try_into().unwrap());
+        let series = Series::new(1.try_into().unwrap(), "series".try_into().unwrap());
 
-        let mut article = article::Article::new(
+        let mut article = Article::new(
             1.try_into().unwrap(),
             "title".try_into().unwrap(),
             "description".into(),
@@ -311,11 +315,11 @@ mod tests {
 
     #[test]
     fn into_article_dto_case_categories_length_mismatch() {
-        let categories = vec![category::Category::new(
+        let categories = vec![Category::new(
             1.try_into().unwrap(),
             "category-1".try_into().unwrap(),
         )];
-        let article = article::Article::new(
+        let article = Article::new(
             1.try_into().unwrap(),
             "title".try_into().unwrap(),
             "description".into(),
@@ -351,11 +355,11 @@ mod tests {
 
     #[test]
     fn into_article_dto_case_categories_element_mismatch() {
-        let categories = vec![category::Category::new(
+        let categories = vec![Category::new(
             1.try_into().unwrap(),
             "category-1".try_into().unwrap(),
         )];
-        let article = article::Article::new(
+        let article = Article::new(
             1.try_into().unwrap(),
             "title".try_into().unwrap(),
             "description".into(),
@@ -387,11 +391,8 @@ mod tests {
 
     #[test]
     fn into_article_dto_case_tags_length_mismatch() {
-        let tags = vec![tag::Tag::new(
-            1.try_into().unwrap(),
-            "tag-1".try_into().unwrap(),
-        )];
-        let article = article::Article::new(
+        let tags = vec![Tag::new(1.try_into().unwrap(), "tag-1".try_into().unwrap())];
+        let article = Article::new(
             1.try_into().unwrap(),
             "title".try_into().unwrap(),
             "description".into(),
@@ -425,11 +426,8 @@ mod tests {
 
     #[test]
     fn into_article_dto_case_tags_element_mismatch() {
-        let tags = vec![tag::Tag::new(
-            1.try_into().unwrap(),
-            "tag-1".try_into().unwrap(),
-        )];
-        let article = article::Article::new(
+        let tags = vec![Tag::new(1.try_into().unwrap(), "tag-1".try_into().unwrap())];
+        let article = Article::new(
             1.try_into().unwrap(),
             "title".try_into().unwrap(),
             "description".into(),

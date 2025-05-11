@@ -1,5 +1,7 @@
-use crate::domain::entity::category;
-use crate::domain::repository::category::{CategoryRepository, CategoryRepositoryError};
+use crate::domain::category::{
+    repository::{CategoryRepository, CategoryRepositoryError},
+    vo as category,
+};
 use crate::infra::repository::postgres::category::PgCategoryRepository;
 use sqlx::PgPool;
 

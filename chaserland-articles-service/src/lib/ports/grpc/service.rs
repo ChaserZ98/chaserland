@@ -1,8 +1,8 @@
 use crate::app::service::ArticleService;
-use crate::domain::repository::article::ArticleRepository;
-use crate::domain::repository::category::CategoryRepository;
-use crate::domain::repository::series::SeriesRepository;
-use crate::domain::repository::tag::TagRepository;
+use crate::domain::article::repository::ArticleRepository;
+use crate::domain::category::repository::CategoryRepository;
+use crate::domain::series::repository::SeriesRepository;
+use crate::domain::tag::repository::TagRepository;
 use chaserland_protos::article::v1::{
     CreateArticleRequest, CreateArticleResponse, CreateCategoryRequest, CreateCategoryResponse,
     CreateSeriesRequest, CreateSeriesResponse, CreateTagRequest, CreateTagResponse,

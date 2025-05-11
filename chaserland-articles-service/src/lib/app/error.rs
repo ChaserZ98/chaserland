@@ -46,14 +46,15 @@ impl ArticleServiceError {
 mod tests {
     use super::ArticleServiceError;
     use crate::app::dto::{ArticleDTOError, DTOError};
+    use crate::domain::article::{error::ArticleDomainError, repository::ArticleRepositoryError};
     use crate::domain::error::{DomainError, RepositoryError};
     use anyhow::anyhow;
 
     #[test]
     fn article_service_error_case_domain_error() {
-        let err = ArticleServiceError::Domain(DomainError::Article(
-            crate::domain::entity::article::DomainError::Unknown(anyhow!("test")),
-        ));
+        let err = ArticleServiceError::Domain(DomainError::Article(ArticleDomainError::Unknown(
+            anyhow!("test"),
+        )));
 
         assert!(err.is_domain_error());
 
@@ -79,7 +80,7 @@ mod tests {
     #[test]
     fn article_service_error_case_repository_error() {
         let err = ArticleServiceError::Repository(RepositoryError::ArticleRepository(
-            crate::domain::repository::article::ArticleRepositoryError::Unknown(anyhow!("test")),
+            ArticleRepositoryError::Unknown(anyhow!("test")),
         ));
 
         assert!(err.is_repository_error());
@@ -92,9 +93,9 @@ mod tests {
 
         assert!(matches!(err, RepositoryError::ArticleRepository(_)));
 
-        let err = ArticleServiceError::Domain(DomainError::Article(
-            crate::domain::entity::article::DomainError::Unknown(anyhow!("test")),
-        ));
+        let err = ArticleServiceError::Domain(DomainError::Article(ArticleDomainError::Unknown(
+            anyhow!("test"),
+        )));
 
         assert_eq!(err.is_repository_error(), false);
 
@@ -127,7 +128,7 @@ mod tests {
         assert!(matches!(err, ArticleDTOError::ArticleNotDefined));
 
         let err = ArticleServiceError::Repository(RepositoryError::ArticleRepository(
-            crate::domain::repository::article::ArticleRepositoryError::Unknown(anyhow!("test")),
+            ArticleRepositoryError::Unknown(anyhow!("test")),
         ));
 
         assert_eq!(err.is_dto_conversion_error(), false);

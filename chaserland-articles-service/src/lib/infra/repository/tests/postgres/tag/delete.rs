@@ -1,10 +1,8 @@
-use crate::{
-    domain::{
-        entity::tag,
-        repository::tag::{TagRepository, TagRepositoryError},
-    },
-    infra::repository::postgres::tag::PgTagRepository,
+use crate::domain::tag::{
+    repository::{TagRepository, TagRepositoryError},
+    vo as tag,
 };
+use crate::infra::repository::postgres::tag::PgTagRepository;
 use sqlx::PgPool;
 
 #[sqlx::test(fixtures(path = "../../../../../../../tests/fixtures", scripts("tags")))]

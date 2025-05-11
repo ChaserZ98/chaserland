@@ -1,9 +1,10 @@
-use crate::domain::entity::{article, series, category, tag};
-use crate::domain::repository::article::{ArticleRepositoryError, ArticlesFilter};
+use crate::domain::tag::vo as tag;
+use crate::domain::category::vo as category;
+use crate::domain::series::vo as series;
 use async_trait::async_trait;
 use chaserland_common::pagination::Pagination;
 use sqlx::{PgPool, Postgres, QueryBuilder};
-use crate::domain::repository::article::ArticleRepository;
+use crate::domain::article::{repository::{ArticleRepository, ArticleRepositoryError, ArticlesFilter}, vo as article, entity::Article};
 
 #[derive(sqlx::FromRow)]
 pub struct PgArticle {
@@ -25,10 +26,10 @@ pub struct PgArticle {
     pub version: chrono::DateTime<chrono::Utc>,
 }
 
-impl TryInto<article::Article> for PgArticle {
+impl TryInto<Article> for PgArticle {
     type Error = String;
 
-    fn try_into(self) -> Result<article::Article, Self::Error> {
+    fn try_into(self) -> Result<Article, Self::Error> {
         let id = self.id.try_into()?;
         let title = self.title.try_into()?;
         let description = self.description.into();
@@ -49,7 +50,7 @@ impl TryInto<article::Article> for PgArticle {
         let tag_ids = self.tag_ids.iter().map(|tag_id| (*tag_id).try_into()).collect::<Result<Vec<_>, _>>()?;
         let version = self.version.into();
 
-        let mut article = article::Article::new(id, title, description, content, created_at, updated_at, series_id, category_ids, tag_ids, version);
+        let mut article = Article::new(id, title, description, content, created_at, updated_at, series_id, category_ids, tag_ids, version);
         article.published_at = published_at;
         article.deleted_at = deleted_at;
 
@@ -72,7 +73,7 @@ impl ArticleRepository for PgArticleRepository {
     async fn create(
         &self,
         article: article::NewArticle,
-    ) -> Result<article::Article, ArticleRepositoryError> {
+    ) -> Result<Article, ArticleRepositoryError> {
         let mut tx = self
             .pool
             .begin()
@@ -158,7 +159,7 @@ impl ArticleRepository for PgArticleRepository {
             .await
             .map_err(|why| ArticleRepositoryError::Transaction(why.to_string()))?;
 
-        let mut new_article: article::Article = pg_article.try_into().map_err(|why| ArticleRepositoryError::DOConversion(why))?;
+        let mut new_article: Article = pg_article.try_into().map_err(|why| ArticleRepositoryError::DOConversion(why))?;
         new_article.category_ids = article.category_ids;
         new_article.tag_ids = article.tag_ids;
 
@@ -169,7 +170,7 @@ impl ArticleRepository for PgArticleRepository {
         identifier: article::Identifier,
         public_only: bool,
         with_content: bool,
-    ) -> Result<article::Article, ArticleRepositoryError> {
+    ) -> Result<Article, ArticleRepositoryError> {
         let mut query = QueryBuilder::<Postgres>::new("SELECT * FROM ");
         match (public_only, with_content) {
             (true, true) => {
@@ -210,7 +211,7 @@ impl ArticleRepository for PgArticleRepository {
         let tag_ids: Vec<i32> = sqlx::query_scalar("SELECT tag_id FROM article.article_tags WHERE article_id = $1").bind(pg_article.id).fetch_all(&self.pool).await.map_err(|why| ArticleRepositoryError::Unknown(why.into()))?;
 
 
-        let mut article: article::Article = pg_article.try_into().map_err(|why| ArticleRepositoryError::DOConversion(why))?;
+        let mut article: Article = pg_article.try_into().map_err(|why| ArticleRepositoryError::DOConversion(why))?;
         article.category_ids = category_ids.iter().map(|v| (*v).try_into().unwrap()).collect();
         article.tag_ids = tag_ids.iter().map(|v| (*v).try_into().unwrap()).collect();
 
@@ -222,7 +223,7 @@ impl ArticleRepository for PgArticleRepository {
         public_only: bool,
         with_content: bool,
         filter: Option<ArticlesFilter>,
-    ) -> Result<Vec<article::Article>, ArticleRepositoryError> {
+    ) -> Result<Vec<Article>, ArticleRepositoryError> {
         let mut query = QueryBuilder::<Postgres>::new("SELECT a.*, COALESCE(c.category_ids, '{}') as category_ids, COALESCE(d.tag_ids, '{}') as tag_ids FROM ");
 
         match (public_only, with_content) {
@@ -293,7 +294,7 @@ impl ArticleRepository for PgArticleRepository {
 
         let articles: Vec<PgArticle> = query.build_query_as().fetch_all(&self.pool).await.map_err(|why| ArticleRepositoryError::Unknown(why.into()))?;
 
-        let res = articles.into_iter().map(|v| v.try_into()).collect::<Result<Vec<article::Article>, String>>().map_err(|why| ArticleRepositoryError::DOConversion(why))?;
+        let res = articles.into_iter().map(|v| v.try_into()).collect::<Result<Vec<Article>, String>>().map_err(|why| ArticleRepositoryError::DOConversion(why))?;
 
         Ok(res)
     }

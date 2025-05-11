@@ -1,5 +1,8 @@
-use crate::domain::entity::tag;
-use crate::domain::repository::tag::{TagRepository, TagRepositoryError};
+use crate::domain::tag::{
+    entity::Tag,
+    repository::{TagRepository, TagRepositoryError},
+    vo as tag,
+};
 use crate::infra::repository::postgres::tag::PgTagRepository;
 use sqlx::PgPool;
 
@@ -9,7 +12,7 @@ async fn create_tag_case_1(pool: PgPool) {
 
     let id = 4.try_into().unwrap();
     let name = tag::Name::new("tag 4");
-    let target = tag::Tag::new(id, name.clone());
+    let target = Tag::new(id, name.clone());
     let new_tag = tag::NewTag::new(name);
 
     let res = repo.create(new_tag.clone()).await;

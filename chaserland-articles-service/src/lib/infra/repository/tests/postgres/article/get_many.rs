@@ -1,8 +1,10 @@
-use chaserland_common::pagination::Pagination;
-
-use crate::domain::entity::{article, series};
-use crate::domain::repository::article::{ArticleRepository, ArticlesFilter};
+use crate::domain::article::{
+    entity::Article,
+    repository::{ArticleRepository, ArticlesFilter},
+};
+use crate::domain::series::vo as series;
 use crate::infra::repository::postgres::article::PgArticleRepository;
+use chaserland_common::pagination::Pagination;
 use sqlx::PgPool;
 
 #[sqlx::test(fixtures(
@@ -34,7 +36,7 @@ async fn get_many_case_pagination(pool: PgPool) {
 
     assert_eq!(res.len(), 1);
 
-    let target = article::Article::new(
+    let target = Article::new(
         1.try_into().unwrap(),
         "article title 1".try_into().unwrap(),
         "article description 1".into(),
@@ -75,7 +77,7 @@ async fn get_many_case_pagination(pool: PgPool) {
 
     assert_eq!(res.len(), 1);
 
-    let target = article::Article::new(
+    let target = Article::new(
         2.try_into().unwrap(),
         "article title 2".try_into().unwrap(),
         "article description 2".into(),
@@ -133,7 +135,7 @@ async fn get_many_case_all_without_content_no_filter(pool: PgPool) {
 
     assert_eq!(res.len(), 2);
 
-    let target_1 = article::Article::new(
+    let target_1 = Article::new(
         1.try_into().unwrap(),
         "article title 1".try_into().unwrap(),
         "article description 1".into(),
@@ -146,7 +148,7 @@ async fn get_many_case_all_without_content_no_filter(pool: PgPool) {
         chrono::Utc::now().into(),
     );
 
-    let target_2 = article::Article::new(
+    let target_2 = Article::new(
         2.try_into().unwrap(),
         "article title 2".try_into().unwrap(),
         "article description 2".into(),
@@ -225,7 +227,7 @@ async fn get_many_case_all_with_content_no_filter(pool: PgPool) {
 
     assert_eq!(res.len(), 2);
 
-    let target_1 = article::Article::new(
+    let target_1 = Article::new(
         1.try_into().unwrap(),
         "article title 1".try_into().unwrap(),
         "article description 1".into(),
@@ -238,7 +240,7 @@ async fn get_many_case_all_with_content_no_filter(pool: PgPool) {
         chrono::Utc::now().into(),
     );
 
-    let target_2 = article::Article::new(
+    let target_2 = Article::new(
         2.try_into().unwrap(),
         "article title 2".try_into().unwrap(),
         "article description 2".into(),
@@ -302,7 +304,7 @@ async fn get_many_case_all_with_content_no_filter(pool: PgPool) {
 async fn get_many_case_all_with_content_with_series_filter(pool: PgPool) {
     let repo = PgArticleRepository::new(pool);
 
-    let target = article::Article::new(
+    let target = Article::new(
         2.try_into().unwrap(),
         "article title 2".try_into().unwrap(),
         "article description 2".into(),
@@ -408,7 +410,7 @@ async fn get_many_case_all_with_content_with_category_filter(pool: PgPool) {
 
     assert_eq!(res.len(), 1);
 
-    let target = article::Article::new(
+    let target = Article::new(
         2.try_into().unwrap(),
         "article title 2".try_into().unwrap(),
         "article description 2".into(),
@@ -482,7 +484,7 @@ async fn get_many_case_all_with_content_with_tag_filter(pool: PgPool) {
 
     assert_eq!(res.len(), 1);
 
-    let target = article::Article::new(
+    let target = Article::new(
         2.try_into().unwrap(),
         "article title 2".try_into().unwrap(),
         "article description 2".into(),
@@ -558,7 +560,7 @@ async fn get_many_case_all_with_content_with_series_category_tag_filter(pool: Pg
 
     assert_eq!(res.len(), 1);
 
-    let target = article::Article::new(
+    let target = Article::new(
         2.try_into().unwrap(),
         "article title 2".try_into().unwrap(),
         "article description 2".into(),
@@ -646,7 +648,7 @@ async fn get_many_case_public_with_content_no_filter(pool: PgPool) {
 
     assert_eq!(res.len(), 1);
 
-    let mut target = article::Article::new(
+    let mut target = Article::new(
         1.try_into().unwrap(),
         "article title 1".try_into().unwrap(),
         "article description 1".into(),
@@ -706,7 +708,7 @@ async fn get_many_case_public_with_content_with_series_filter(pool: PgPool) {
 
     assert_eq!(res.len(), 1);
 
-    let mut target = article::Article::new(
+    let mut target = Article::new(
         1.try_into().unwrap(),
         "article title 1".try_into().unwrap(),
         "article description 1".into(),

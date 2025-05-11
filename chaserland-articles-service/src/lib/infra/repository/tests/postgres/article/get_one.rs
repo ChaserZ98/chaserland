@@ -1,5 +1,8 @@
-use crate::domain::entity::article;
-use crate::domain::repository::article::{ArticleRepository, ArticleRepositoryError};
+use crate::domain::article::{
+    entity::Article,
+    repository::{ArticleRepository, ArticleRepositoryError},
+    vo as article,
+};
 use crate::infra::repository::postgres::article::PgArticleRepository;
 
 #[sqlx::test(fixtures(
@@ -20,7 +23,7 @@ async fn get_one_case_id_1(pool: sqlx::PgPool) {
         .get_one(article::Identifier::Id(1.try_into().unwrap()), false, true)
         .await;
 
-    let target = article::Article::new(
+    let target = Article::new(
         1.try_into().unwrap(),
         "article title 1".try_into().unwrap(),
         "article description 1".into(),
@@ -73,7 +76,7 @@ async fn get_one_case_id_2(pool: sqlx::PgPool) {
         .get_one(id.as_identifier(), public_only, with_content)
         .await;
 
-    let target = article::Article::new(
+    let target = Article::new(
         id,
         "article title 2".try_into().unwrap(),
         "article description 2".into(),
@@ -122,7 +125,7 @@ async fn get_one_case_all_with_content_id(pool: sqlx::PgPool) {
     let public_only = false;
     let with_content = true;
 
-    let target = article::Article::new(
+    let target = Article::new(
         1.try_into().unwrap(),
         title.clone(),
         "article description 1".into(),
@@ -177,7 +180,7 @@ async fn get_one_case_public_with_content_slug(pool: sqlx::PgPool) {
     let public_only = true;
     let with_content = true;
 
-    let mut target = article::Article::new(
+    let mut target = Article::new(
         1.try_into().unwrap(),
         title.clone(),
         "article description 1".into(),
@@ -233,7 +236,7 @@ async fn get_one_case_public_without_content_slug(pool: sqlx::PgPool) {
     let public_only = true;
     let with_content = false;
 
-    let mut target = article::Article::new(
+    let mut target = Article::new(
         1.try_into().unwrap(),
         title.clone(),
         "article description 1".into(),

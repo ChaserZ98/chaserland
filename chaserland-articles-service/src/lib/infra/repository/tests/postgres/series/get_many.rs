@@ -1,5 +1,7 @@
-use crate::domain::entity::series;
-use crate::domain::repository::series::{SeriesFilter, SeriesRepository};
+use crate::domain::series::{
+    entity::Series,
+    repository::{SeriesFilter, SeriesRepository},
+};
 use crate::infra::repository::postgres::series::PgSeriesRepository;
 use chaserland_common::pagination::Pagination;
 
@@ -18,11 +20,11 @@ async fn get_many_case_pagination_1(pool: sqlx::PgPool) {
     assert_eq!(res.len(), 2);
 
     let series = res[0].clone();
-    let target = series::Series::new(1.try_into().unwrap(), "series 1".try_into().unwrap());
+    let target = Series::new(1.try_into().unwrap(), "series 1".try_into().unwrap());
     assert_eq!(series, target);
 
     let series = res[1].clone();
-    let target = series::Series::new(2.try_into().unwrap(), "series 2".try_into().unwrap());
+    let target = Series::new(2.try_into().unwrap(), "series 2".try_into().unwrap());
     assert_eq!(series, target);
 }
 
@@ -41,7 +43,7 @@ async fn get_many_case_pagination_2(pool: sqlx::PgPool) {
     assert_eq!(res.len(), 1);
 
     let series = res[0].clone();
-    let target = series::Series::new(1.try_into().unwrap(), "series 1".try_into().unwrap());
+    let target = Series::new(1.try_into().unwrap(), "series 1".try_into().unwrap());
     assert_eq!(series, target);
 
     pagination.page = 2.try_into().unwrap();
@@ -54,7 +56,7 @@ async fn get_many_case_pagination_2(pool: sqlx::PgPool) {
     assert_eq!(res.len(), 1);
 
     let series = res[0].clone();
-    let target = series::Series::new(2.try_into().unwrap(), "series 2".try_into().unwrap());
+    let target = Series::new(2.try_into().unwrap(), "series 2".try_into().unwrap());
     assert_eq!(series, target);
 }
 
@@ -72,10 +74,10 @@ async fn get_many_case_filter_1(pool: sqlx::PgPool) {
 
     assert_eq!(res.len(), 2);
 
-    let target = series::Series::new(1.try_into().unwrap(), "series 1".try_into().unwrap());
+    let target = Series::new(1.try_into().unwrap(), "series 1".try_into().unwrap());
     assert_eq!(res[0], target);
 
-    let target = series::Series::new(2.try_into().unwrap(), "series 2".try_into().unwrap());
+    let target = Series::new(2.try_into().unwrap(), "series 2".try_into().unwrap());
     assert_eq!(res[1], target);
 }
 
@@ -93,6 +95,6 @@ async fn get_many_case_filter_2(pool: sqlx::PgPool) {
 
     assert_eq!(res.len(), 1);
 
-    let target = series::Series::new(1.try_into().unwrap(), "series 1".try_into().unwrap());
+    let target = Series::new(1.try_into().unwrap(), "series 1".try_into().unwrap());
     assert_eq!(res[0], target);
 }

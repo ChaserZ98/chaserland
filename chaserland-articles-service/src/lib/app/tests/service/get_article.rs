@@ -1,6 +1,6 @@
 use crate::app::service::ArticleService;
 use crate::app::{dto, query};
-use crate::domain::entity::article;
+use crate::domain::article::vo as article;
 use crate::infra::repository::postgres::{
     article::PgArticleRepository, category::PgCategoryRepository, series::PgSeriesRepository,
     tag::PgTagRepository,

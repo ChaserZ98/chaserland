@@ -1,4 +1,6 @@
-use crate::domain::entity::{category, series, tag};
+use crate::domain::category::vo as category;
+use crate::domain::series::vo as series;
+use crate::domain::tag::vo as tag;
 
 #[derive(Debug, thiserror::Error)]
 pub enum DTOError {

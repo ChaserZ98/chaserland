@@ -1,5 +1,7 @@
-use crate::domain::entity::article;
-use crate::domain::repository::article::{ArticleRepository, ArticleRepositoryError};
+use crate::domain::article::{
+    repository::{ArticleRepository, ArticleRepositoryError},
+    vo as article,
+};
 use crate::infra::repository::postgres::article::PgArticleRepository;
 
 #[sqlx::test(fixtures(

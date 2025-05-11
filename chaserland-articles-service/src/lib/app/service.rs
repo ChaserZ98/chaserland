@@ -1,12 +1,17 @@
 use super::error::ArticleServiceError;
 use super::{command, query};
 use crate::app::dto;
-use crate::domain::entity::{article, category, series, tag};
-use crate::domain::repository::category::CategoriesFilter;
-use crate::domain::repository::tag::TagsFilter;
-use crate::domain::repository::{
-    article::ArticleRepository, category::CategoryRepository, series::SeriesRepository,
-    tag::TagRepository,
+use crate::domain::article::repository::ArticleRepository;
+use crate::domain::article::vo as article;
+use crate::domain::category::{
+    repository::{CategoriesFilter, CategoryRepository},
+    vo as category,
+};
+use crate::domain::series::repository::SeriesRepository;
+use crate::domain::series::vo as series;
+use crate::domain::tag::{
+    repository::{TagRepository, TagsFilter},
+    vo as tag,
 };
 use chaserland_common::app_service_retry::{RetryAsyncFn, RetryErrorPolicy};
 

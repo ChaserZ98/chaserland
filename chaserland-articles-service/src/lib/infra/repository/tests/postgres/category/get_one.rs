@@ -1,5 +1,8 @@
-use crate::domain::entity::category;
-use crate::domain::repository::category::{CategoryRepository, CategoryRepositoryError};
+use crate::domain::category::{
+    entity::Category,
+    repository::{CategoryRepository, CategoryRepositoryError},
+    vo as category,
+};
 use crate::infra::repository::postgres::category::PgCategoryRepository;
 use sqlx::PgPool;
 
@@ -9,7 +12,7 @@ async fn get_one_case_id(pool: PgPool) {
 
     let id: category::Id = 1.try_into().unwrap();
     let name = "Category 1".try_into().unwrap();
-    let category = category::Category::new(id, name);
+    let category = Category::new(id, name);
 
     let res = repo.get_one(category.id.as_identifier()).await;
 
@@ -25,7 +28,7 @@ async fn get_one_case_slug(pool: PgPool) {
 
     let id: category::Id = 1.try_into().unwrap();
     let name = "Category 1".try_into().unwrap();
-    let category = category::Category::new(id, name);
+    let category = Category::new(id, name);
 
     let res = repo.get_one(category.slug().as_identifier()).await;
 

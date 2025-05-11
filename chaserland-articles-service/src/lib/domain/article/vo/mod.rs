@@ -1,0 +1,25 @@
+mod content;
+mod created_at;
+mod deleted_at;
+mod description;
+mod id;
+mod identifier;
+mod new_article;
+mod published_at;
+mod slug;
+mod title;
+mod updated_at;
+mod version;
+
+pub use content::*;
+pub use created_at::*;
+pub use deleted_at::*;
+pub use description::*;
+pub use id::*;
+pub use identifier::*;
+pub use new_article::*;
+pub use published_at::*;
+pub use slug::*;
+pub use title::*;
+pub use updated_at::*;
+pub use version::*;

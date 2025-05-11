@@ -1,5 +1,7 @@
-use crate::domain::entity::series;
-use crate::domain::repository::series::{SeriesRepository, SeriesRepositoryError};
+use crate::domain::series::{
+    repository::{SeriesRepository, SeriesRepositoryError},
+    vo as series,
+};
 use crate::infra::repository::postgres::series::PgSeriesRepository;
 
 #[sqlx::test(fixtures(path = "../../../../../../../tests/fixtures", scripts("series")))]

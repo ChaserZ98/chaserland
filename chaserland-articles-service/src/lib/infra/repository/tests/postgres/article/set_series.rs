@@ -1,5 +1,8 @@
-use crate::domain::entity::{article, series};
-use crate::domain::repository::article::{ArticleRepository, ArticleRepositoryError};
+use crate::domain::article::{
+    entity::Article,
+    repository::{ArticleRepository, ArticleRepositoryError},
+};
+use crate::domain::series::vo as series;
 use crate::infra::repository::postgres::article::PgArticleRepository;
 
 #[sqlx::test(fixtures(
@@ -18,7 +21,7 @@ async fn set_series_case_id_with_series_id_originally_not_null(pool: sqlx::PgPoo
 
     let series_id = series::Id::new(2);
 
-    let mut article = article::Article::default();
+    let mut article = Article::default();
     article.id = 1.try_into().unwrap();
     article.version = "2020-01-01 00:00:00 UTC".try_into().unwrap();
     article.set_series_id(series_id);
@@ -46,7 +49,7 @@ async fn set_series_case_id_with_series_id_originally_null(pool: sqlx::PgPool) {
 
     let series_id = series::Id::new(1);
 
-    let mut article = article::Article::default();
+    let mut article = Article::default();
     article.id = 1.try_into().unwrap();
     article.version = "2020-01-01 00:00:00 UTC".try_into().unwrap();
     article.set_series_id(series_id);
@@ -73,7 +76,7 @@ async fn set_series_case_id_not_found(pool: sqlx::PgPool) {
 
     let series_id = series::Id::new(1);
 
-    let mut article = article::Article::default();
+    let mut article = Article::default();
     article.id = 4.try_into().unwrap();
     article.version = "2020-01-01 00:00:00 UTC".try_into().unwrap();
     article.set_series_id(series_id);
@@ -108,7 +111,7 @@ async fn set_series_case_series_id_not_found(pool: sqlx::PgPool) {
 
     let series_id = series::Id::new(4);
 
-    let mut article = article::Article::default();
+    let mut article = Article::default();
     article.id = 1.try_into().unwrap();
     article.version = "2020-01-01 00:00:00 UTC".try_into().unwrap();
     article.set_series_id(series_id);
@@ -143,7 +146,7 @@ async fn set_series_case_version_mismatch(pool: sqlx::PgPool) {
 
     let series_id = series::Id::new(1);
 
-    let mut article = article::Article::default();
+    let mut article = Article::default();
     article.id = 1.try_into().unwrap();
     article.version = "2020-01-01 00:00:00 UTC".try_into().unwrap();
     article.set_series_id(series_id);

@@ -1,6 +1,8 @@
 use crate::app::{command, query};
-use crate::domain::entity::{article, category, series, tag};
-use crate::domain::repository::article::ArticlesFilter;
+use crate::domain::article::{repository::ArticlesFilter, vo as article};
+use crate::domain::category::vo as category;
+use crate::domain::series::vo as series;
+use crate::domain::tag::vo as tag;
 use chaserland_common::pagination::Pagination;
 use chaserland_protos::article::v1;
 use tonic::Status;

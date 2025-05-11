@@ -1,9 +1,7 @@
-use crate::domain::{
-    entity::{article, category, series, tag},
-    repository::{
-        article::ArticlesFilter, category::CategoriesFilter, series::SeriesFilter, tag::TagsFilter,
-    },
-};
+use crate::domain::article::{repository::ArticlesFilter, vo as article};
+use crate::domain::category::{repository::CategoriesFilter, vo as category};
+use crate::domain::series::{repository::SeriesFilter, vo as series};
+use crate::domain::tag::{repository::TagsFilter, vo as tag};
 use chaserland_common::pagination::Pagination;
 
 pub struct GetArticleOneQuery {

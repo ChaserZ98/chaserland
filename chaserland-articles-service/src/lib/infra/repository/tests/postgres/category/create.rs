@@ -1,5 +1,8 @@
-use crate::domain::entity::category;
-use crate::domain::repository::category::{CategoryRepository, CategoryRepositoryError};
+use crate::domain::category::{
+    entity::Category,
+    repository::{CategoryRepository, CategoryRepositoryError},
+    vo as category,
+};
 use crate::infra::repository::postgres::category::PgCategoryRepository;
 use sqlx::PgPool;
 
@@ -9,7 +12,7 @@ async fn create_category_case_1(pool: PgPool) {
 
     let id = 4.try_into().unwrap();
     let name = category::Name::new("Category 4");
-    let target = category::Category::new(id, name.clone());
+    let target = Category::new(id, name.clone());
     let new_category = category::NewCategory::new(name);
 
     let res = repo.create(new_category).await;

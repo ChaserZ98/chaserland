@@ -1,5 +1,6 @@
-use crate::domain::entity::series;
-use crate::domain::repository::series::{SeriesFilter, SeriesRepository, SeriesRepositoryError};
+use crate::domain::series::entity::Series;
+use crate::domain::series::repository::{SeriesFilter, SeriesRepository, SeriesRepositoryError};
+use crate::domain::series::vo as series;
 use async_trait::async_trait;
 use chaserland_common::pagination::Pagination;
 use sqlx::{Postgres, QueryBuilder};
@@ -11,14 +12,14 @@ pub struct PgSeries {
     pub slug: String,
 }
 
-impl TryInto<series::Series> for PgSeries {
+impl TryInto<Series> for PgSeries {
     type Error = String;
 
-    fn try_into(self) -> Result<series::Series, Self::Error> {
+    fn try_into(self) -> Result<Series, Self::Error> {
         let id = self.id.try_into()?;
         let name = self.name.try_into()?;
 
-        let series = series::Series::new(id, name);
+        let series = Series::new(id, name);
 
         Ok(series)
     }
@@ -36,10 +37,7 @@ impl PgSeriesRepository {
 
 #[async_trait]
 impl SeriesRepository for PgSeriesRepository {
-    async fn create(
-        &self,
-        series: series::NewSeries,
-    ) -> Result<series::Series, SeriesRepositoryError> {
+    async fn create(&self, series: series::NewSeries) -> Result<Series, SeriesRepositoryError> {
         let mut tx = self
             .pool
             .begin()
@@ -72,7 +70,7 @@ impl SeriesRepository for PgSeriesRepository {
     async fn get_one(
         &self,
         identifier: series::Identifier,
-    ) -> Result<series::Series, SeriesRepositoryError> {
+    ) -> Result<Series, SeriesRepositoryError> {
         let mut query = QueryBuilder::<Postgres>::new("SELECT * FROM article.series WHERE ");
         match &identifier {
             series::Identifier::Id(id) => {
@@ -107,7 +105,7 @@ impl SeriesRepository for PgSeriesRepository {
         &self,
         filter: Option<SeriesFilter>,
         pagination: Option<Pagination>,
-    ) -> Result<Vec<series::Series>, SeriesRepositoryError> {
+    ) -> Result<Vec<Series>, SeriesRepositoryError> {
         let mut query = QueryBuilder::<Postgres>::new("SELECT * FROM article.series");
         if let Some(filter) = filter {
             query.push(" WHERE id = ANY(");
@@ -138,7 +136,7 @@ impl SeriesRepository for PgSeriesRepository {
                 x.try_into()
                     .map_err(|why: String| SeriesRepositoryError::DOConversion(why))
             })
-            .collect::<Result<Vec<series::Series>, SeriesRepositoryError>>()?;
+            .collect::<Result<Vec<Series>, SeriesRepositoryError>>()?;
 
         Ok(series)
     }

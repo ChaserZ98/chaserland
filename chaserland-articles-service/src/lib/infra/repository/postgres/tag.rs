@@ -1,5 +1,8 @@
-use crate::domain::entity::tag;
-use crate::domain::repository::tag::{TagRepository, TagRepositoryError, TagsFilter};
+use crate::domain::tag::{
+    entity::Tag,
+    repository::{TagRepository, TagRepositoryError, TagsFilter},
+    vo as tag,
+};
 use async_trait::async_trait;
 use chaserland_common::pagination::Pagination;
 use sqlx::{FromRow, PgPool, Postgres, QueryBuilder};
@@ -11,14 +14,14 @@ pub struct PgTag {
     pub slug: String,
 }
 
-impl TryInto<tag::Tag> for PgTag {
+impl TryInto<Tag> for PgTag {
     type Error = String;
 
-    fn try_into(self) -> Result<tag::Tag, Self::Error> {
+    fn try_into(self) -> Result<Tag, Self::Error> {
         let id = self.id.try_into()?;
         let name = self.name.try_into()?;
 
-        let tag = tag::Tag::new(id, name);
+        let tag = Tag::new(id, name);
 
         Ok(tag)
     }
@@ -36,7 +39,7 @@ impl PgTagRepository {
 
 #[async_trait]
 impl TagRepository for PgTagRepository {
-    async fn create(&self, new_tag: tag::NewTag) -> Result<tag::Tag, TagRepositoryError> {
+    async fn create(&self, new_tag: tag::NewTag) -> Result<Tag, TagRepositoryError> {
         let mut tx = self
             .pool
             .begin()
@@ -65,7 +68,7 @@ impl TagRepository for PgTagRepository {
 
         Ok(tag)
     }
-    async fn get_one(&self, identifier: tag::Identifier) -> Result<tag::Tag, TagRepositoryError> {
+    async fn get_one(&self, identifier: tag::Identifier) -> Result<Tag, TagRepositoryError> {
         let mut query = QueryBuilder::<Postgres>::new("SELECT * FROM article.tags WHERE ");
         match &identifier {
             tag::Identifier::Id(id) => {
@@ -100,7 +103,7 @@ impl TagRepository for PgTagRepository {
         &self,
         filter: Option<TagsFilter>,
         pagination: Option<Pagination>,
-    ) -> Result<Vec<tag::Tag>, TagRepositoryError> {
+    ) -> Result<Vec<Tag>, TagRepositoryError> {
         let mut query = QueryBuilder::<Postgres>::new("SELECT * FROM article.tags");
 
         if let Some(filter) = filter {
@@ -133,7 +136,7 @@ impl TagRepository for PgTagRepository {
                 x.try_into()
                     .map_err(|why: String| TagRepositoryError::DOConversion(why))
             })
-            .collect::<Result<Vec<tag::Tag>, TagRepositoryError>>()?;
+            .collect::<Result<Vec<Tag>, TagRepositoryError>>()?;
 
         Ok(tags)
     }

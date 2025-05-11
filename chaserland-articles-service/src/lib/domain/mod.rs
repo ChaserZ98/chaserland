@@ -1,3 +1,5 @@
-pub mod entity;
+pub mod article;
+pub mod category;
 pub mod error;
-pub mod repository;
+pub mod series;
+pub mod tag;

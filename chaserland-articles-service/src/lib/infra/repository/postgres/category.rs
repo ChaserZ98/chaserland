@@ -1,6 +1,7 @@
-use crate::domain::entity::category;
-use crate::domain::repository::category::{
-    CategoriesFilter, CategoryRepository, CategoryRepositoryError,
+use crate::domain::category::{
+    entity::Category,
+    repository::{CategoriesFilter, CategoryRepository, CategoryRepositoryError},
+    vo as category,
 };
 use async_trait::async_trait;
 use chaserland_common::pagination::Pagination;
@@ -13,13 +14,13 @@ pub struct PgCategory {
     pub slug: String,
 }
 
-impl TryInto<category::Category> for PgCategory {
+impl TryInto<Category> for PgCategory {
     type Error = String;
 
-    fn try_into(self) -> Result<category::Category, Self::Error> {
+    fn try_into(self) -> Result<Category, Self::Error> {
         let id = self.id.try_into()?;
         let name = self.name.try_into()?;
-        let category = category::Category::new(id, name);
+        let category = Category::new(id, name);
         Ok(category)
     }
 }
@@ -39,7 +40,7 @@ impl CategoryRepository for PgCategoryRepository {
     async fn create(
         &self,
         new_category: category::NewCategory,
-    ) -> Result<category::Category, CategoryRepositoryError> {
+    ) -> Result<Category, CategoryRepositoryError> {
         let mut tx = self
             .pool
             .begin()
@@ -73,7 +74,7 @@ impl CategoryRepository for PgCategoryRepository {
     async fn get_one(
         &self,
         identifier: category::Identifier,
-    ) -> Result<category::Category, CategoryRepositoryError> {
+    ) -> Result<Category, CategoryRepositoryError> {
         let mut query = QueryBuilder::<Postgres>::new("SELECT * FROM article.categories WHERE ");
 
         match &identifier {
@@ -109,7 +110,7 @@ impl CategoryRepository for PgCategoryRepository {
         &self,
         filter: Option<CategoriesFilter>,
         pagination: Option<Pagination>,
-    ) -> Result<Vec<category::Category>, CategoryRepositoryError> {
+    ) -> Result<Vec<Category>, CategoryRepositoryError> {
         let mut query = QueryBuilder::<Postgres>::new("SELECT * FROM article.categories");
 
         if let Some(filter) = filter {
@@ -142,7 +143,7 @@ impl CategoryRepository for PgCategoryRepository {
                 x.try_into()
                     .map_err(|why: String| CategoryRepositoryError::DOConversion(why))
             })
-            .collect::<Result<Vec<category::Category>, CategoryRepositoryError>>()?;
+            .collect::<Result<Vec<Category>, CategoryRepositoryError>>()?;
 
         Ok(categories)
     }

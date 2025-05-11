@@ -1,5 +1,8 @@
-use crate::domain::entity::{article, category};
-use crate::domain::repository::article::{ArticleRepository, ArticleRepositoryError};
+use crate::domain::article::{
+    entity::Article,
+    repository::{ArticleRepository, ArticleRepositoryError},
+};
+use crate::domain::category::vo as category;
 use crate::infra::repository::postgres::article::PgArticleRepository;
 
 #[sqlx::test(fixtures(
@@ -16,7 +19,7 @@ use crate::infra::repository::postgres::article::PgArticleRepository;
 async fn remove_category_case_1(pool: sqlx::PgPool) {
     let repo = PgArticleRepository::new(pool);
 
-    let mut article = article::Article::default();
+    let mut article = Article::default();
     article.id = 2.try_into().unwrap();
     article.version = "2020-01-01 00:00:00 UTC".try_into().unwrap();
     article.category_ids = vec![1.try_into().unwrap(), 2.try_into().unwrap()];
@@ -44,7 +47,7 @@ async fn remove_category_case_1(pool: sqlx::PgPool) {
 async fn remove_category_case_article_not_found(pool: sqlx::PgPool) {
     let repo = PgArticleRepository::new(pool);
 
-    let mut article = article::Article::default();
+    let mut article = Article::default();
     article.id = 4.try_into().unwrap();
     article.version = "2020-01-01 00:00:00 UTC".try_into().unwrap();
     article.category_ids = vec![1.try_into().unwrap(), 2.try_into().unwrap()];
@@ -79,7 +82,7 @@ async fn remove_category_case_article_not_found(pool: sqlx::PgPool) {
 async fn remove_category_case_category_not_found(pool: sqlx::PgPool) {
     let repo = PgArticleRepository::new(pool);
 
-    let mut article = article::Article::default();
+    let mut article = Article::default();
     article.id = 2.try_into().unwrap();
     article.version = "2020-01-01 00:00:00 UTC".try_into().unwrap();
     article.category_ids = vec![1.try_into().unwrap(), 5.try_into().unwrap()];
@@ -113,7 +116,7 @@ async fn remove_category_case_category_not_found(pool: sqlx::PgPool) {
 async fn remove_category_case_version_mismatch(pool: sqlx::PgPool) {
     let repo = PgArticleRepository::new(pool);
 
-    let mut article = article::Article::default();
+    let mut article = Article::default();
     article.id = 2.try_into().unwrap();
     article.version = "2020-01-01 00:00:00 UTC".try_into().unwrap();
     article.category_ids = vec![1.try_into().unwrap(), 2.try_into().unwrap()];

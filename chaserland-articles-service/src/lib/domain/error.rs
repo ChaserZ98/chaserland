@@ -1,11 +1,14 @@
-use super::entity::article;
-use super::repository;
+use super::article::error::ArticleDomainError;
+use super::article::repository::ArticleRepositoryError;
+use super::category::repository::CategoryRepositoryError;
+use super::series::repository::SeriesRepositoryError;
+use super::tag::repository::TagRepositoryError;
 
 #[derive(Debug, thiserror::Error)]
 #[non_exhaustive]
 pub enum DomainError {
     #[error(transparent)]
-    Article(#[from] article::DomainError),
+    Article(#[from] ArticleDomainError),
 }
 
 impl DomainError {
@@ -13,7 +16,7 @@ impl DomainError {
         matches!(self, DomainError::Article(_))
     }
 
-    pub fn as_article_domain_error(&self) -> Option<&article::DomainError> {
+    pub fn as_article_domain_error(&self) -> Option<&ArticleDomainError> {
         let DomainError::Article(e) = self;
         Some(e)
     }
@@ -23,13 +26,13 @@ impl DomainError {
 #[non_exhaustive]
 pub enum RepositoryError {
     #[error(transparent)]
-    ArticleRepository(#[from] repository::article::ArticleRepositoryError),
+    ArticleRepository(#[from] ArticleRepositoryError),
     #[error(transparent)]
-    SeriesRepository(#[from] repository::series::SeriesRepositoryError),
+    SeriesRepository(#[from] SeriesRepositoryError),
     #[error(transparent)]
-    CategoryRepository(#[from] repository::category::CategoryRepositoryError),
+    CategoryRepository(#[from] CategoryRepositoryError),
     #[error(transparent)]
-    TagRepository(#[from] repository::tag::TagRepositoryError),
+    TagRepository(#[from] TagRepositoryError),
 }
 
 impl RepositoryError {
@@ -49,32 +52,28 @@ impl RepositoryError {
         matches!(self, RepositoryError::TagRepository(_))
     }
 
-    pub fn as_article_repository_error(
-        &self,
-    ) -> Option<&repository::article::ArticleRepositoryError> {
+    pub fn as_article_repository_error(&self) -> Option<&ArticleRepositoryError> {
         match self {
             RepositoryError::ArticleRepository(e) => Some(e),
             _ => None,
         }
     }
 
-    pub fn as_series_repository_error(&self) -> Option<&repository::series::SeriesRepositoryError> {
+    pub fn as_series_repository_error(&self) -> Option<&SeriesRepositoryError> {
         match self {
             RepositoryError::SeriesRepository(e) => Some(e),
             _ => None,
         }
     }
 
-    pub fn as_category_repository_error(
-        &self,
-    ) -> Option<&repository::category::CategoryRepositoryError> {
+    pub fn as_category_repository_error(&self) -> Option<&CategoryRepositoryError> {
         match self {
             RepositoryError::CategoryRepository(e) => Some(e),
             _ => None,
         }
     }
 
-    pub fn as_tag_repository_error(&self) -> Option<&repository::tag::TagRepositoryError> {
+    pub fn as_tag_repository_error(&self) -> Option<&TagRepositoryError> {
         match self {
             RepositoryError::TagRepository(e) => Some(e),
             _ => None,
@@ -86,38 +85,37 @@ impl RepositoryError {
 mod tests {
     use super::DomainError;
     use super::RepositoryError;
-    use crate::domain::entity::article;
-    use crate::domain::repository;
+    use crate::domain::article::repository::ArticleRepositoryError;
+    use crate::domain::category::repository::CategoryRepositoryError;
+    use crate::domain::error::ArticleDomainError;
+    use crate::domain::series::repository::SeriesRepositoryError;
+    use crate::domain::tag::repository::TagRepositoryError;
 
     #[test]
     fn domain_err_case_article_domain_error() {
-        let err = DomainError::Article(article::DomainError::Unknown(anyhow::anyhow!("test")));
+        let err = DomainError::Article(ArticleDomainError::Unknown(anyhow::anyhow!("test")));
 
         assert!(err.is_article_domain_error());
 
         let err = err.as_article_domain_error().unwrap();
 
-        assert!(matches!(err, article::DomainError::Unknown(_)));
+        assert!(matches!(err, ArticleDomainError::Unknown(_)));
     }
 
     #[test]
     fn repository_err_case_article_repository_error() {
-        let err = RepositoryError::ArticleRepository(
-            repository::article::ArticleRepositoryError::Unknown(anyhow::anyhow!("test")),
-        );
+        let err = RepositoryError::ArticleRepository(ArticleRepositoryError::Unknown(
+            anyhow::anyhow!("test"),
+        ));
 
         assert!(err.is_article_repository_error());
 
         let err = err.as_article_repository_error().unwrap();
 
-        assert!(matches!(
-            err,
-            repository::article::ArticleRepositoryError::Unknown(_)
-        ));
+        assert!(matches!(err, ArticleRepositoryError::Unknown(_)));
 
-        let err = RepositoryError::TagRepository(repository::tag::TagRepositoryError::Unknown(
-            anyhow::anyhow!("test"),
-        ));
+        let err =
+            RepositoryError::TagRepository(TagRepositoryError::Unknown(anyhow::anyhow!("test")));
 
         assert_eq!(err.is_article_repository_error(), false);
 
@@ -128,22 +126,19 @@ mod tests {
 
     #[test]
     fn repository_err_case_series_repository_error() {
-        let err = RepositoryError::SeriesRepository(
-            repository::series::SeriesRepositoryError::Unknown(anyhow::anyhow!("test")),
-        );
+        let err = RepositoryError::SeriesRepository(SeriesRepositoryError::Unknown(
+            anyhow::anyhow!("test"),
+        ));
 
         assert!(err.is_series_repository_error());
 
         let err = err.as_series_repository_error().unwrap();
 
-        assert!(matches!(
-            err,
-            repository::series::SeriesRepositoryError::Unknown(_)
-        ));
+        assert!(matches!(err, SeriesRepositoryError::Unknown(_)));
 
-        let err = RepositoryError::ArticleRepository(
-            repository::article::ArticleRepositoryError::Unknown(anyhow::anyhow!("test")),
-        );
+        let err = RepositoryError::ArticleRepository(ArticleRepositoryError::Unknown(
+            anyhow::anyhow!("test"),
+        ));
 
         assert_eq!(err.is_series_repository_error(), false);
 
@@ -154,22 +149,19 @@ mod tests {
 
     #[test]
     fn repository_err_case_category_repository_error() {
-        let err = RepositoryError::CategoryRepository(
-            repository::category::CategoryRepositoryError::Unknown(anyhow::anyhow!("test")),
-        );
+        let err = RepositoryError::CategoryRepository(CategoryRepositoryError::Unknown(
+            anyhow::anyhow!("test"),
+        ));
 
         assert!(err.is_category_repository_error());
 
         let err = err.as_category_repository_error().unwrap();
 
-        assert!(matches!(
-            err,
-            repository::category::CategoryRepositoryError::Unknown(_)
-        ));
+        assert!(matches!(err, CategoryRepositoryError::Unknown(_)));
 
-        let err = RepositoryError::SeriesRepository(
-            repository::series::SeriesRepositoryError::Unknown(anyhow::anyhow!("test")),
-        );
+        let err = RepositoryError::SeriesRepository(SeriesRepositoryError::Unknown(
+            anyhow::anyhow!("test"),
+        ));
 
         assert_eq!(err.is_category_repository_error(), false);
 
@@ -180,22 +172,18 @@ mod tests {
 
     #[test]
     fn repository_err_case_tag_repository_error() {
-        let err = RepositoryError::TagRepository(repository::tag::TagRepositoryError::Unknown(
-            anyhow::anyhow!("test"),
-        ));
+        let err =
+            RepositoryError::TagRepository(TagRepositoryError::Unknown(anyhow::anyhow!("test")));
 
         assert!(err.is_tag_repository_error());
 
         let err = err.as_tag_repository_error().unwrap();
 
-        assert!(matches!(
-            err,
-            repository::tag::TagRepositoryError::Unknown(_)
-        ));
+        assert!(matches!(err, TagRepositoryError::Unknown(_)));
 
-        let err = RepositoryError::CategoryRepository(
-            repository::category::CategoryRepositoryError::Unknown(anyhow::anyhow!("test")),
-        );
+        let err = RepositoryError::CategoryRepository(CategoryRepositoryError::Unknown(
+            anyhow::anyhow!("test"),
+        ));
 
         assert_eq!(err.is_tag_repository_error(), false);
 

@@ -1,4 +1,7 @@
-use crate::domain::entity::{article, category, series, tag};
+use crate::domain::article::vo as article;
+use crate::domain::category::vo as category;
+use crate::domain::series::vo as series;
+use crate::domain::tag::vo as tag;
 
 pub struct CreateArticleCommand {
     pub title: article::Title,
