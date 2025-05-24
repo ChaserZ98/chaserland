@@ -1,6 +1,6 @@
 use crate::{
     app::service::ArticleService,
-    db,
+    db::{DBConfig, connect_db},
     infra::repository::postgres::{
         article::PgArticleRepository, category::PgCategoryRepository, series::PgSeriesRepository,
         tag::PgTagRepository,
@@ -15,8 +15,8 @@ pub struct Server {}
 
 #[allow(dead_code)]
 impl Server {
-    pub async fn run(&self, addr: &str) -> Result<()> {
-        let pool = match db::connect_db().await {
+    pub async fn run(&self, addr: &str, db_config: DBConfig) -> Result<()> {
+        let pool = match connect_db(db_config).await {
             Ok(db) => db,
             Err(why) => {
                 tracing::error!("Failed to create db connection pool: {}", why);

@@ -1,24 +1,33 @@
 use anyhow::Result;
+use serde::Deserialize;
+use serde::Serialize;
 use sqlx::ConnectOptions;
 use sqlx::Postgres;
 use sqlx::postgres::{PgConnectOptions, PgPoolOptions};
 use sqlx::{PgPool, migrate::MigrateDatabase};
-use std::env;
 use std::str::FromStr;
 
-pub async fn connect_db() -> Result<PgPool> {
-    let username = env::var("POSTGRES_USER").unwrap_or("chaserland_article".to_string());
-    let password = env::var("POSTGRES_PASSWORD").unwrap_or("chaserland_article".to_string());
-    let host = env::var("POSTGRES_HOST").unwrap_or("localhost".to_string());
-    let port = env::var("POSTGRES_PORT").unwrap_or("5432".to_string());
-    let db_name = env::var("POSTGRES_DB").unwrap_or("chaserland_article".to_string());
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct DBConfig {
+    pub url: String,
+    pub max_connections: u32,
+    pub slow_threshold: Option<u64>,
+}
 
-    let db_url = format!(
-        "postgres://{}:{}@{}:{}/{}",
-        username, password, host, port, db_name
-    );
+impl Default for DBConfig {
+    fn default() -> Self {
+        Self {
+            url: "postgres://localhost:5432".to_string(),
+            max_connections: 5,
+            slow_threshold: Some(100),
+        }
+    }
+}
 
-    match Postgres::database_exists(&db_url).await {
+pub async fn connect_db(db_config: DBConfig) -> Result<PgPool> {
+    let db_url = &db_config.url;
+
+    match Postgres::database_exists(db_url).await {
         Err(e) => {
             return Err(e.into());
         }
@@ -30,21 +39,18 @@ pub async fn connect_db() -> Result<PgPool> {
         _ => (),
     }
 
-    let opts = PgConnectOptions::from_str(&db_url)?.log_slow_statements(
-        log::LevelFilter::Warn,
-        std::time::Duration::from_millis(100),
-    );
+    let mut opts = PgConnectOptions::from_str(db_url)?;
+    if let Some(slow_threshold) = db_config.slow_threshold {
+        opts = opts.log_slow_statements(
+            log::LevelFilter::Warn,
+            std::time::Duration::from_millis(slow_threshold),
+        );
+    }
 
-    let db = match PgPoolOptions::new()
-        .max_connections(5)
+    let db = PgPoolOptions::new()
+        .max_connections(db_config.max_connections)
         .connect_with(opts)
-        .await
-    {
-        Ok(db) => db,
-        Err(why) => {
-            return Err(why.into());
-        }
-    };
+        .await?;
 
     tracing::info!("Connection to database established.");
 

@@ -4,4 +4,14 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
-serde = { version = "1.0.219", features = ["derive"] }
+serde = { version = "1.0.219", features = ["derive"], optional = true }
+figment = { version = "0.10.19", optional = true }
+
+[features]
+figment-file-provider = [
+    "figment/json",
+    "figment/yaml",
+    "figment/toml",
+    "figment/test",
+]
+pagination = ["serde"]

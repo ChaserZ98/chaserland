@@ -10,20 +10,27 @@ path = "src/lib/lib.rs"
 
 [[bin]]
 name = "server"
-path = "src/bin/server.rs"
+path = "src/bin/server/main.rs"
 
 [[bin]]
 name = "migrate"
-path = "src/bin/migrate.rs"
+path = "src/bin/migrate/main.rs"
 
 [[bin]]
 name = "init"
-path = "src/bin/init.rs"
+path = "src/bin/init/main.rs"
+
+[[bin]]
+name = "trace-test"
+path = "src/bin/trace-test.rs"
 
 [dependencies]
 chaserland-protos = { path = "../chaserland-protos" }
-chaserland-logger = { path = "../chaserland-logger" }
-chaserland-common = { path = "../chaserland-common" }
+chaserland-observability = { path = "../chaserland-observability" }
+chaserland-common = { path = "../chaserland-common", features = [
+    "figment-file-provider",
+    "pagination",
+] }
 tokio = { version = "1.44.1", features = [
     "macros",
     "signal",
@@ -40,3 +47,12 @@ slugify = "0.1.0"
 log = "0.4.27"
 async-trait = "0.1.88"
 thiserror = "2.0.12"
+opentelemetry = "0.29.1"
+opentelemetry_sdk = { version = "0.29.0", features = ["rt-tokio"] }
+opentelemetry-otlp = { version = "0.29.0", features = ["grpc-tonic"] }
+opentelemetry-semantic-conventions = { version = "0.29.0", features = [
+    "semconv_experimental",
+] }
+tracing-opentelemetry = "0.30.0"
+figment = { version = "0.10.19", features = ["env", "test"] }
+clap = { version = "4.5.38", features = ["derive"] }
