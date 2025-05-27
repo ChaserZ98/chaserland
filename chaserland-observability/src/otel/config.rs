@@ -46,9 +46,7 @@ pub struct MetricConfig {
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct OtelConfig {
-    // #[serde(rename = "service-name")]
     pub service_name: Option<String>,
-    // #[serde(rename = "service-version")]
     pub service_version: Option<String>,
     pub endpoint: Option<String>,
     #[serde(rename = "log")]
