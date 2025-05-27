@@ -14,13 +14,38 @@ pub struct DBConfig {
     pub slow_threshold: Option<u64>,
 }
 
+impl DBConfig {
+    pub fn new(url: String, max_connections: u32, slow_threshold: Option<u64>) -> Self {
+        Self {
+            url,
+            max_connections,
+            slow_threshold,
+        }
+    }
+    pub fn parse_db_url(&self) -> (String, u16, String, String, String) {
+        let connection_options = PgConnectOptions::from_str(&self.url).unwrap();
+        let url = connection_options.to_url_lossy();
+        let host = url.host_str().unwrap_or("localhost").into();
+        let port = url.port().unwrap_or(5432);
+        let username = url.username().into();
+        let password = url.password().unwrap_or("").into();
+        let mut database = url.path().trim_start_matches('/');
+        if database.is_empty() {
+            database = "postgres";
+        }
+        let database = database.into();
+
+        (host, port, username, password, database)
+    }
+}
+
 impl Default for DBConfig {
     fn default() -> Self {
-        Self {
-            url: "postgres://localhost:5432".to_string(),
-            max_connections: 5,
-            slow_threshold: Some(100),
-        }
+        Self::new(
+            "postgres://postgres:postgres@localhost:5432".into(),
+            5,
+            Some(100),
+        )
     }
 }
 

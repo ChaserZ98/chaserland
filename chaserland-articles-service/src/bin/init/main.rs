@@ -1,52 +1,71 @@
+mod config;
+
 use anyhow::Result;
 use chaserland_observability::Observability;
+use config::AppConfig;
 use sqlx::{Connection, Executor, PgConnection};
-use std::env;
 
 #[tokio::main]
 pub async fn main() -> Result<()> {
     let otel_provider = Observability::default().init()?;
 
-    let username = env::var("POSTGRES_USER").unwrap_or("postgres".to_string());
-    let password = env::var("POSTGRES_PASSWORD").unwrap_or("postgres".to_string());
-    let host = env::var("POSTGRES_HOST").unwrap_or("localhost".to_string());
-    let port = env::var("POSTGRES_PORT").unwrap_or("5432".to_string());
+    let config = AppConfig::try_load().map_err(|e| {
+        tracing::error!("Failed to load configuration: {}", e);
+        e
+    })?;
 
-    let service_db_name = env::var("ARTICLE_DB_NAME").unwrap_or("chaserland_article".to_string());
-    let service_username = env::var("ARTICLE_DB_USER").unwrap_or("chaserland_article".to_string());
-    let service_password =
-        env::var("ARTICLE_DB_PASSWORD").unwrap_or("chaserland_article".to_string());
+    let db_config = config.db_config;
+    let service_db_config = config.service_db_config;
 
-    let mut db = sqlx::postgres::PgConnection::connect(
-        format!("postgres://{}:{}@{}:{}", username, password, host, port).as_str(),
+    let mut db = sqlx::postgres::PgConnection::connect(&db_config.url)
+        .await
+        .map_err(|e| {
+            tracing::error!("Failed to connect to database: {}", e);
+            e
+        })?;
+
+    create_db(&mut db, &service_db_config.name)
+        .await
+        .map_err(|e| {
+            tracing::error!("Failed to create database: {}", e);
+            e
+        })?;
+
+    db.close().await.map_err(|e| {
+        tracing::error!("Failed to close database connection: {}", e);
+        e
+    })?;
+
+    let (host, port, username, password, _) = db_config.parse_db_url();
+
+    let new_url = format!(
+        "postgres://{}:{}@{}:{}/{}",
+        username, password, host, port, service_db_config.name
+    );
+
+    let mut db = sqlx::postgres::PgConnection::connect(&new_url).await?;
+
+    create_user(
+        &mut db,
+        &service_db_config.username,
+        &service_db_config.password,
     )
-    .await?;
-
-    if let Err(e) = create_db(&mut db, &service_db_name).await {
-        tracing::error!("Failed to create db: {}", e);
-        return Err(e.into());
-    }
-
-    db.close().await?;
-
-    db = sqlx::postgres::PgConnection::connect(
-        format!(
-            "postgres://{}:{}@{}:{}/{}",
-            username, password, host, port, service_db_name
-        )
-        .as_str(),
-    )
-    .await?;
-
-    if let Err(e) = create_user(&mut db, &service_username, &service_password).await {
+    .await
+    .map_err(|e| {
         tracing::error!("Failed to create user: {}", e);
-        return Err(e.into());
-    }
+        e
+    })?;
 
-    if let Err(e) = grant_permissions(&mut db, &service_username, &service_db_name).await {
+    grant_permissions(
+        &mut db,
+        &service_db_config.username,
+        &service_db_config.name,
+    )
+    .await
+    .map_err(|e| {
         tracing::error!("Failed to grant permissions: {}", e);
-        return Err(e.into());
-    }
+        e
+    })?;
 
     tracing::info!("Database initialization complete.");
 
@@ -55,7 +74,9 @@ pub async fn main() -> Result<()> {
     Ok(())
 }
 
-async fn create_db(db: &mut PgConnection, db_name: &str) -> Result<()> {
+async fn create_db(db: &mut PgConnection, db_name: impl AsRef<str>) -> Result<()> {
+    let db_name = db_name.as_ref();
+
     let exists = sqlx::query("SELECT 1 FROM pg_database WHERE datname = $1")
         .bind(db_name)
         .fetch_optional(&mut *db)
@@ -69,13 +90,20 @@ async fn create_db(db: &mut PgConnection, db_name: &str) -> Result<()> {
 
     tracing::info!("Creating database {}...", db_name);
 
-    db.execute(format!("CREATE DATABASE {}", db_name).as_str())
-        .await?;
+    let query = format!("CREATE DATABASE {}", db_name);
+
+    db.execute(query.as_str()).await?;
 
     Ok(())
 }
 
-async fn create_user(db: &mut PgConnection, username: &str, password: &str) -> Result<()> {
+async fn create_user(
+    db: &mut PgConnection,
+    username: impl AsRef<str>,
+    password: impl AsRef<str>,
+) -> Result<()> {
+    let (username, password) = (username.as_ref(), password.as_ref());
+
     let exists = sqlx::query("SELECT 1 FROM pg_roles WHERE rolname = $1")
         .bind(username)
         .fetch_optional(&mut *db)
@@ -89,8 +117,8 @@ async fn create_user(db: &mut PgConnection, username: &str, password: &str) -> R
 
     tracing::info!("Creating user {}...", username);
 
-    db.execute(format!("CREATE USER {} WITH PASSWORD '{}'", username, password).as_str())
-        .await?;
+    let query = format!("CREATE USER {} WITH PASSWORD '{}'", username, password);
+    db.execute(query.as_str()).await?;
 
     Ok(())
 }
@@ -102,17 +130,14 @@ async fn grant_permissions(db: &mut PgConnection, username: &str, db_name: &str)
         db_name
     );
 
-    db.execute(
-        format!(
-            "GRANT ALL PRIVILEGES ON DATABASE {} TO {}",
-            db_name, username
-        )
-        .as_str(),
-    )
-    .await?;
+    let query = format!(
+        "GRANT ALL PRIVILEGES ON DATABASE {} TO {}",
+        db_name, username
+    );
+    db.execute(query.as_str()).await?;
 
-    db.execute(format!("GRANT ALL PRIVILEGES ON SCHEMA public TO {}", username).as_str())
-        .await?;
+    let query = format!("GRANT ALL PRIVILEGES ON SCHEMA public TO {}", username);
+    db.execute(query.as_str()).await?;
 
     Ok(())
 }

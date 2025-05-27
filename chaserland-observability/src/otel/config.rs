@@ -161,12 +161,12 @@ impl OtelConfig {
         Ok((Some(provider), Some(logging_layer)))
     }
 
-    pub fn with_trace(mut self) -> Self {
+    pub fn with_trace(&mut self) -> &mut Self {
         self.trace_config = TraceConfig::default().into();
         self
     }
 
-    pub fn with_logging(mut self) -> Self {
+    pub fn with_logging(&mut self) -> &mut Self {
         self.log_config = LogConfig::default().into();
         self
     }

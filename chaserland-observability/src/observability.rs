@@ -47,7 +47,7 @@ pub struct Observability {
 }
 
 impl Observability {
-    pub fn init(self) -> Result<OtelProvider> {
+    pub fn init(&mut self) -> Result<OtelProvider> {
         let propagator = TraceContextPropagator::new();
         global::set_text_map_propagator(propagator);
 
@@ -75,12 +75,12 @@ impl Observability {
         Ok(otel_provider)
     }
 
-    pub fn with_otel_config(mut self, config: OtelConfig) -> Self {
+    pub fn with_otel_config(&mut self, config: OtelConfig) -> &mut Self {
         self.otel_config = config;
         self
     }
 
-    pub fn with_stdout_format(mut self, format: LogFormat) -> Self {
+    pub fn with_stdout_format(&mut self, format: LogFormat) -> &mut Self {
         self.stdout_format = format;
         self
     }
