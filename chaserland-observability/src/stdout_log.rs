@@ -44,18 +44,17 @@ impl LogFormat {
             .with_line_number(true)
             .with_ansi(true);
 
-        match self {
-            Self::Json => Some(
-                layer
-                    .json()
-                    .with_current_span(true)
-                    .with_span_list(true)
-                    .boxed(),
-            ),
-            Self::Compact => Some(layer.compact().boxed()),
-            Self::Pretty => Some(layer.pretty().boxed()),
-            Self::None => None,
-            _ => Some(layer.boxed()),
-        }
+        let layer = match self {
+            Self::Json => layer
+                .json()
+                .with_current_span(true)
+                .with_span_list(true)
+                .boxed(),
+            Self::Compact => layer.compact().boxed(),
+            Self::Pretty => layer.pretty().boxed(),
+            _ => layer.boxed(),
+        };
+
+        Some(layer)
     }
 }

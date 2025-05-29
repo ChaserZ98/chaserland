@@ -8,31 +8,22 @@ use std::env;
 async fn main() -> Result<()> {
     let otel_provider = Observability::default().init()?;
 
-    let username = env::var("POSTGRES_USER").unwrap_or("chaserland_article".to_string());
-    let password = env::var("POSTGRES_PASSWORD").unwrap_or("chaserland_article".to_string());
-    let host = env::var("POSTGRES_HOST").unwrap_or("localhost".to_string());
-    let port = env::var("POSTGRES_PORT").unwrap_or("5432".to_string());
-    let db_name = env::var("POSTGRES_DB").unwrap_or("chaserland_article".to_string());
-
-    let db_url = format!(
-        "postgres://{}:{}@{}:{}/{}",
-        username, password, host, port, db_name
+    let default_url = String::from(
+        "postgres://chaserland_article:chaserland_article@localhost:5432/chaserland_article",
     );
+    let db_url = env::var("DATABASE_URL").unwrap_or(default_url);
 
-    let db = match PgPoolOptions::new().connect(&db_url).await {
-        Ok(db) => db,
-        Err(why) => {
-            tracing::error!("Failed to connect to database: {}", why);
-            return Err(why.into());
-        }
-    };
+    let db = PgPoolOptions::new().connect(&db_url).await.map_err(|e| {
+        tracing::error!("Failed to connect to database: {}", e);
+        e
+    })?;
 
     tracing::info!("Migrating database...");
 
-    if let Err(e) = MIGRATOR.run(&db).await {
-        tracing::error!("Failed to migrate database: {}", e);
-        return Err(e.into());
-    }
+    MIGRATOR.run(&db).await.map_err(|e| {
+        tracing::error!("Failed to run migrations: {}", e);
+        e
+    })?;
 
     otel_provider.shutdown_all()?;
 

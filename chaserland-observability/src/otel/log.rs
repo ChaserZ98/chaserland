@@ -1,4 +1,5 @@
 use super::config::LogConfig;
+use crate::util::Environment;
 use anyhow::Result;
 use opentelemetry::KeyValue;
 use opentelemetry_otlp::{LogExporter, WithExportConfig};
@@ -20,10 +21,7 @@ where
         .with_endpoint(endpoint)
         .build()?;
 
-    let environment_name = match cfg!(debug_assertions) {
-        true => "development",
-        false => "production",
-    };
+    let environment_name = String::from(Environment::from_env());
 
     let resource = Resource::builder_empty()
         .with_service_name(service_name)

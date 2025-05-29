@@ -59,6 +59,8 @@ impl Observability {
 
         let (logger_provider, logging_layer) = self.otel_config.init_logger()?;
 
+        let meter_provider = self.otel_config.init_meter()?;
+
         subscriber
             .with(global_filter_layer)
             .with(logging_layer)
@@ -69,7 +71,7 @@ impl Observability {
         let otel_provider = OtelProvider {
             logger_provider,
             tracer_provider,
-            meter_provider: None,
+            meter_provider,
         };
 
         Ok(otel_provider)

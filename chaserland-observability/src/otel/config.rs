@@ -1,9 +1,10 @@
-use super::{log::init_logger_provider, trace::init_tracer_provider};
+use super::{log::init_logger_provider, metric::init_meter_provider, trace::init_tracer_provider};
 use anyhow::Result;
 use opentelemetry::trace::TracerProvider;
 use opentelemetry_appender_tracing::layer::OpenTelemetryTracingBridge;
 use opentelemetry_sdk::{
     logs::{SdkLogger, SdkLoggerProvider},
+    metrics::SdkMeterProvider,
     trace::{SdkTracer, SdkTracerProvider},
 };
 use serde::{Deserialize, Serialize};
@@ -37,11 +38,17 @@ impl AsRef<TraceConfig> for TraceConfig {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Default)]
 pub struct MetricConfig {
-    pub service_name: String,
-    pub service_version: String,
-    pub endpoint: String,
+    pub service_name: Option<String>,
+    pub service_version: Option<String>,
+    pub endpoint: Option<String>,
+}
+
+impl AsRef<MetricConfig> for MetricConfig {
+    fn as_ref(&self) -> &MetricConfig {
+        self
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -161,6 +168,38 @@ impl OtelConfig {
         Ok((Some(provider), Some(logging_layer)))
     }
 
+    pub fn init_meter(&self) -> Result<Option<SdkMeterProvider>> {
+        if self.metric_config.is_none() {
+            return Ok(None);
+        }
+        let metric_config = self.metric_config.as_ref().unwrap();
+        let endpoint = metric_config
+            .endpoint
+            .clone()
+            .or(self.endpoint.clone())
+            .unwrap_or("http://localhost:4317".into());
+        let service_name = metric_config
+            .service_name
+            .clone()
+            .or(self.service_name.clone())
+            .unwrap_or("default-service".into());
+        let service_version = metric_config
+            .service_version
+            .clone()
+            .or(self.service_version.clone())
+            .unwrap_or("0.0.1".into());
+
+        let metric_config = MetricConfig {
+            service_name: Some(service_name.clone()),
+            service_version: Some(service_version.clone()),
+            endpoint: Some(endpoint.clone()),
+        };
+
+        let meter_provider = init_meter_provider(metric_config)?;
+
+        Ok(Some(meter_provider))
+    }
+
     pub fn with_trace(&mut self) -> &mut Self {
         self.trace_config = TraceConfig::default().into();
         self
@@ -168,6 +207,11 @@ impl OtelConfig {
 
     pub fn with_logging(&mut self) -> &mut Self {
         self.log_config = LogConfig::default().into();
+        self
+    }
+
+    pub fn with_metric(&mut self) -> &mut Self {
+        self.metric_config = MetricConfig::default().into();
         self
     }
 }
