@@ -1,5 +1,5 @@
+use crate::db::DBConfig;
 use anyhow::Result;
-use chaserland_articles_service::db::DBConfig;
 use chaserland_common::figment::FileProvider;
 use chaserland_observability::OtelConfig;
 use figment::{
@@ -10,7 +10,7 @@ use serde::{Deserialize, Serialize};
 use std::{fs::OpenOptions, path::Path};
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub struct AppConfig {
+pub struct ServerConfig {
     pub host: String,
     pub port: String,
     #[serde(rename = "otel")]
@@ -19,44 +19,46 @@ pub struct AppConfig {
     pub db_config: DBConfig,
 }
 
-impl Default for AppConfig {
+impl Default for ServerConfig {
     fn default() -> Self {
         let host = if cfg!(debug_assertions) {
-            "[::1]".to_string()
+            String::from("[::1]")
         } else {
-            "[::]".to_string()
+            String::from("[::]")
         };
+
+        let port = String::from("8080");
 
         Self {
             host,
-            port: "8080".to_string(),
+            port,
             otel_config: OtelConfig::default(),
             db_config: DBConfig::default(),
         }
     }
 }
 
-pub struct AppConfigLoader<P>
+pub struct ServerConfigLoader<P>
 where
     P: AsRef<Path>,
 {
     path: Option<P>,
 }
 
-impl<P> AppConfigLoader<P>
+impl<P> ServerConfigLoader<P>
 where
     P: AsRef<Path>,
 {
     pub fn new() -> Self {
-        AppConfigLoader { path: None }
+        Self { path: None }
     }
 
     pub fn with_path(self, path: P) -> Self {
-        AppConfigLoader { path: Some(path) }
+        Self { path: Some(path) }
     }
 
-    pub fn load(self) -> Result<AppConfig> {
-        let mut figment = Figment::from(Serialized::defaults(AppConfig::default()))
+    pub fn load(self) -> Result<ServerConfig> {
+        let mut figment = Figment::from(Serialized::defaults(ServerConfig::default()))
             .merge(Env::prefixed("APP__").split("__"));
 
         if let Some(path) = self.path {

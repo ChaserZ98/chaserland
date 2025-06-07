@@ -1,21 +1,22 @@
 use super::{log::init_logger_provider, metric::init_meter_provider, trace::init_tracer_provider};
+use crate::util::Environment;
 use anyhow::Result;
-use opentelemetry::trace::TracerProvider;
+use opentelemetry::{trace::TracerProvider, KeyValue};
 use opentelemetry_appender_tracing::layer::OpenTelemetryTracingBridge;
 use opentelemetry_sdk::{
     logs::{SdkLogger, SdkLoggerProvider},
     metrics::SdkMeterProvider,
     trace::{SdkTracer, SdkTracerProvider},
+    Resource,
 };
+use opentelemetry_semantic_conventions::resource::{DEPLOYMENT_ENVIRONMENT_NAME, SERVICE_VERSION};
 use serde::{Deserialize, Serialize};
 use tracing_core::Subscriber;
 use tracing_opentelemetry::OpenTelemetryLayer;
-use tracing_subscriber::{EnvFilter, Layer, filter::Filtered, registry::LookupSpan};
+use tracing_subscriber::{filter::Filtered, registry::LookupSpan, EnvFilter, Layer};
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Default)]
 pub struct LogConfig {
-    pub service_name: Option<String>,
-    pub service_version: Option<String>,
     pub endpoint: Option<String>,
 }
 
@@ -27,8 +28,6 @@ impl AsRef<LogConfig> for LogConfig {
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Default)]
 pub struct TraceConfig {
-    pub service_name: Option<String>,
-    pub service_version: Option<String>,
     pub endpoint: Option<String>,
 }
 
@@ -40,8 +39,6 @@ impl AsRef<TraceConfig> for TraceConfig {
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Default)]
 pub struct MetricConfig {
-    pub service_name: Option<String>,
-    pub service_version: Option<String>,
     pub endpoint: Option<String>,
 }
 
@@ -53,8 +50,8 @@ impl AsRef<MetricConfig> for MetricConfig {
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct OtelConfig {
-    pub service_name: Option<String>,
-    pub service_version: Option<String>,
+    pub service_name: String,
+    pub service_version: String,
     pub endpoint: Option<String>,
     #[serde(rename = "log")]
     log_config: Option<LogConfig>,
@@ -62,6 +59,19 @@ pub struct OtelConfig {
     metric_config: Option<MetricConfig>,
     #[serde(rename = "trace")]
     trace_config: Option<TraceConfig>,
+}
+
+impl Default for OtelConfig {
+    fn default() -> Self {
+        Self {
+            service_name: String::from("default-service"),
+            service_version: String::from("0.0.1"),
+            endpoint: String::from("http://localhost:4317").into(),
+            log_config: None,
+            metric_config: None,
+            trace_config: None,
+        }
+    }
 }
 
 impl OtelConfig {
@@ -95,26 +105,14 @@ impl OtelConfig {
             .clone()
             .or(self.endpoint.clone())
             .unwrap_or("http://localhost:4317".into());
-        let service_name = trace_config
-            .service_name
-            .clone()
-            .or(self.service_name.clone())
-            .unwrap_or("default-service".into());
-        let service_version = trace_config
-            .service_version
-            .clone()
-            .or(self.service_version.clone())
-            .unwrap_or("0.0.1".into());
 
         let trace_config = TraceConfig {
-            service_name: Some(service_name.clone()),
-            service_version: Some(service_version.clone()),
             endpoint: Some(endpoint.clone()),
         };
 
-        let provider = init_tracer_provider(trace_config)?;
+        let provider = init_tracer_provider(trace_config, self.resource())?;
 
-        let tracer = provider.tracer(service_name.clone());
+        let tracer = provider.tracer(self.service_name.clone());
         let tracing_layer = OpenTelemetryLayer::new(tracer);
 
         Ok((Some(provider), Some(tracing_layer)))
@@ -138,24 +136,12 @@ impl OtelConfig {
             .clone()
             .or(self.endpoint.clone())
             .unwrap_or("http://localhost:4317".into());
-        let service_name = log_config
-            .service_name
-            .clone()
-            .or(self.service_name.clone())
-            .unwrap_or("default-service".into());
-        let service_version = log_config
-            .service_version
-            .clone()
-            .or(self.service_version.clone())
-            .unwrap_or("0.0.1".into());
 
         let log_config = LogConfig {
-            service_name: Some(service_name.clone()),
-            service_version: Some(service_version.clone()),
             endpoint: Some(endpoint.clone()),
         };
 
-        let provider = init_logger_provider(log_config)?;
+        let provider = init_logger_provider(log_config, self.resource())?;
 
         let filter_otel = EnvFilter::new("info")
             .add_directive("hyper=off".parse().unwrap())
@@ -178,24 +164,12 @@ impl OtelConfig {
             .clone()
             .or(self.endpoint.clone())
             .unwrap_or("http://localhost:4317".into());
-        let service_name = metric_config
-            .service_name
-            .clone()
-            .or(self.service_name.clone())
-            .unwrap_or("default-service".into());
-        let service_version = metric_config
-            .service_version
-            .clone()
-            .or(self.service_version.clone())
-            .unwrap_or("0.0.1".into());
 
         let metric_config = MetricConfig {
-            service_name: Some(service_name.clone()),
-            service_version: Some(service_version.clone()),
             endpoint: Some(endpoint.clone()),
         };
 
-        let meter_provider = init_meter_provider(metric_config)?;
+        let meter_provider = init_meter_provider(metric_config, self.resource())?;
 
         Ok(Some(meter_provider))
     }
@@ -214,17 +188,17 @@ impl OtelConfig {
         self.metric_config = MetricConfig::default().into();
         self
     }
-}
 
-impl Default for OtelConfig {
-    fn default() -> Self {
-        Self {
-            service_name: String::from("default-service").into(),
-            service_version: String::from("0.0.1").into(),
-            endpoint: String::from("http://localhost:4317").into(),
-            log_config: None,
-            metric_config: None,
-            trace_config: None,
-        }
+    fn resource(&self) -> Resource {
+        Resource::builder_empty()
+            .with_service_name(self.service_name.clone())
+            .with_attributes(vec![
+                KeyValue::new(
+                    DEPLOYMENT_ENVIRONMENT_NAME,
+                    String::from(Environment::from_env()),
+                ),
+                KeyValue::new(SERVICE_VERSION, self.service_version.clone()),
+            ])
+            .build()
     }
 }
