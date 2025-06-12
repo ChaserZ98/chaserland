@@ -1,8 +1,11 @@
 [workspace]
 resolver = "2"
 members = [
-    "chaserland-articles-service",
     "chaserland-common",
+    "chaserland-gateway",
     "chaserland-observability",
     "chaserland-protos",
+    "chaserland-articles-service/crates/server",
+    "chaserland-articles-service/crates/init",
+    "chaserland-articles-service/crates/migrate",
 ]

@@ -13,5 +13,6 @@ figment-file-provider = [
     "figment/yaml",
     "figment/toml",
     "figment/test",
+    "serde",
 ]
 pagination = ["serde"]

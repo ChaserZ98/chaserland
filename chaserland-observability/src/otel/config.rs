@@ -1,19 +1,19 @@
 use super::{log::init_logger_provider, metric::init_meter_provider, trace::init_tracer_provider};
 use crate::util::Environment;
 use anyhow::Result;
-use opentelemetry::{trace::TracerProvider, KeyValue};
+use opentelemetry::{KeyValue, trace::TracerProvider};
 use opentelemetry_appender_tracing::layer::OpenTelemetryTracingBridge;
 use opentelemetry_sdk::{
+    Resource,
     logs::{SdkLogger, SdkLoggerProvider},
     metrics::SdkMeterProvider,
     trace::{SdkTracer, SdkTracerProvider},
-    Resource,
 };
 use opentelemetry_semantic_conventions::resource::{DEPLOYMENT_ENVIRONMENT_NAME, SERVICE_VERSION};
 use serde::{Deserialize, Serialize};
 use tracing_core::Subscriber;
 use tracing_opentelemetry::OpenTelemetryLayer;
-use tracing_subscriber::{filter::Filtered, registry::LookupSpan, EnvFilter, Layer};
+use tracing_subscriber::{EnvFilter, Layer, filter::Filtered, registry::LookupSpan};
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Default)]
 pub struct LogConfig {
@@ -174,17 +174,17 @@ impl OtelConfig {
         Ok(Some(meter_provider))
     }
 
-    pub fn with_trace(&mut self) -> &mut Self {
+    pub fn with_trace(mut self) -> Self {
         self.trace_config = TraceConfig::default().into();
         self
     }
 
-    pub fn with_logging(&mut self) -> &mut Self {
+    pub fn with_logging(mut self) -> Self {
         self.log_config = LogConfig::default().into();
         self
     }
 
-    pub fn with_metric(&mut self) -> &mut Self {
+    pub fn with_metric(mut self) -> Self {
         self.metric_config = MetricConfig::default().into();
         self
     }

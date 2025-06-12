@@ -2,8 +2,8 @@ use crate::{OtelConfig, stdout_log::LogFormat, util::global_filter_layer};
 use anyhow::Result;
 use opentelemetry::global;
 use opentelemetry_sdk::{
-    logs::SdkLoggerProvider, metrics::SdkMeterProvider, propagation::TraceContextPropagator,
-    trace::SdkTracerProvider,
+    error::OTelSdkError, logs::SdkLoggerProvider, metrics::SdkMeterProvider,
+    propagation::TraceContextPropagator, trace::SdkTracerProvider,
 };
 use tracing_subscriber::{Registry, layer::SubscriberExt, util::SubscriberInitExt};
 
@@ -26,7 +26,7 @@ impl OtelProvider {
         self.meter_provider.as_ref()
     }
 
-    pub fn shutdown_all(&self) -> Result<()> {
+    pub fn shutdown_all(&self) -> Result<(), OTelSdkError> {
         if let Some(tracer_provider) = &self.tracer_provider {
             tracer_provider.shutdown()?;
         }
