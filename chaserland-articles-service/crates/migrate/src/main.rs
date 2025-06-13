@@ -1,5 +1,5 @@
 use anyhow::Result;
-use chaserland_articles_service_server::migrator::MIGRATOR;
+use chaserland_articles_service_migrate::MIGRATOR;
 use chaserland_observability::Observability;
 use sqlx::postgres::PgPoolOptions;
 use std::env;

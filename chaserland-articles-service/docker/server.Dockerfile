@@ -6,7 +6,7 @@ RUN apk update \
 
 FROM builder-base AS builder
 
-WORKDIR /chaserland/chaserland-articles-service
+WORKDIR /chaserland/chaserland-articles-service/crates/server
 
 COPY . /chaserland
 
@@ -16,7 +16,7 @@ FROM alpine:latest AS runner
 
 WORKDIR /app
 
-COPY --from=builder /chaserland/target/release/server /app
+COPY --from=builder /chaserland/target/release/chaserland-articles-service-server /app/server
 
 EXPOSE 8080
 

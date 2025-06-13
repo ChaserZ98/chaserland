@@ -283,6 +283,15 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "baf1de4339761588bc0619e3cbc0120ee582ebb74b53b4efbf79117bd2da40fd"
 
 [[package]]
+name = "chaserland-articles-service-grpc-proxy"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "chaserland-protos",
+ "tokio",
+]
+
+[[package]]
 name = "chaserland-articles-service-init"
 version = "0.1.0"
 dependencies = [
@@ -301,7 +310,6 @@ name = "chaserland-articles-service-migrate"
 version = "0.1.0"
 dependencies = [
  "anyhow",
- "chaserland-articles-service-server",
  "chaserland-observability",
  "sqlx",
  "tokio",
@@ -314,6 +322,7 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "async-trait",
+ "chaserland-articles-service-migrate",
  "chaserland-common",
  "chaserland-observability",
  "chaserland-protos",

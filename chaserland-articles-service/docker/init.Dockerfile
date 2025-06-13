@@ -6,17 +6,17 @@ RUN apk update \
 
 FROM builder-base AS builder
 
-WORKDIR /chaserland/chaserland-articles-service
+WORKDIR /chaserland/chaserland-articles-service/crates/init
 
 COPY . /chaserland
 
-RUN cargo build --release --bin init
+RUN cargo build --release
 
 FROM alpine:latest AS runner
 
 WORKDIR /app
 
-COPY --from=builder /chaserland/target/release/init /app
+COPY --from=builder /chaserland/target/release/chaserland-articles-service-init /app/init
 
 ENV POSTGRES_USER=postgres
 ENV POSTGRES_PASSWORD=postgres

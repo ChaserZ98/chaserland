@@ -1,1 +1,1 @@
-pub static MIGRATOR: sqlx::migrate::Migrator = sqlx::migrate!("../../migrations");
+pub use chaserland_articles_service_migrate::MIGRATOR;
