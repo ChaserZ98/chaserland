@@ -1,5 +1,5 @@
-use crate::db::DBConfig;
 use anyhow::Result;
+use chaserland_articles_service_core::db::DBConfig;
 use chaserland_common::figment::FileProvider;
 use chaserland_observability::OtelConfig;
 use figment::{

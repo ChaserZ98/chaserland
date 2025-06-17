@@ -5,8 +5,8 @@ members = [
     "chaserland-gateway",
     "chaserland-observability",
     "chaserland-protos",
-    "chaserland-articles-service/crates/server",
+    "chaserland-articles-service/crates/core",
     "chaserland-articles-service/crates/init",
     "chaserland-articles-service/crates/migrate",
-    "chaserland-articles-service/crates/grpc-proxy",
+    "chaserland-articles-service/crates/grpc-server",
 ]

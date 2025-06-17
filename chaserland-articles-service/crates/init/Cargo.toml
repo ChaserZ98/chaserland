@@ -4,7 +4,7 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
-chaserland-articles-service-server = { path = "../server" }
+chaserland-articles-service-core = { path = "../core" }
 chaserland-observability = { path = "../../../chaserland-observability" }
 tokio = { version = "1.44.1", features = ["macros", "rt-multi-thread"] }
 tracing = "0.1.41"

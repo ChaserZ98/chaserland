@@ -1,5 +1,5 @@
 use anyhow::Result;
-use chaserland_articles_service_server::bootstrap::{Server, ServerConfig, ServerConfigLoader};
+use chaserland_articles_service_grpc_server::{Server, ServerConfig, ServerConfigLoader};
 use clap::Parser;
 
 #[derive(Parser, Debug)]

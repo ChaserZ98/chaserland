@@ -14,10 +14,10 @@ services:
     image: chaserland/article-service-migrate:${VERSION}
     depends_on:
       - article-init
-  article-service:
+  article-grpc-server:
     build:
       context: .
-      dockerfile: ./chaserland-articles-service/docker/server.Dockerfile
-    image: chaserland/article-service-server:${VERSION}
+      dockerfile: ./chaserland-articles-service/docker/grpc-server.Dockerfile
+    image: chaserland/article-service-grpc-server:${VERSION}
     depends_on:
       - article-migrate

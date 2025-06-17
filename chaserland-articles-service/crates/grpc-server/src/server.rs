@@ -1,15 +1,15 @@
 use super::ServerConfig;
-use crate::{
+use crate::metrics::{MetricHandler, Metrics};
+use anyhow::{Result, anyhow};
+use chaserland_articles_service_core::{
     app::service::ArticleService,
     db::connect_db,
     infra::repository::postgres::{
         article::PgArticleRepository, category::PgCategoryRepository, series::PgSeriesRepository,
         tag::PgTagRepository,
     },
-    metrics::{MetricHandler, Metrics},
     ports::grpc::service::GrpcArticleService,
 };
-use anyhow::{Result, anyhow};
 use chaserland_observability::Observability;
 use chaserland_protos::article::v1::article_service_server::ArticleServiceServer;
 use opentelemetry::{

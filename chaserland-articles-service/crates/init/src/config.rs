@@ -1,5 +1,5 @@
 use anyhow::Result;
-use chaserland_articles_service_server::db::DBConfig;
+use chaserland_articles_service_core::db::DBConfig;
 use figment::{
     Figment,
     providers::{Env, Serialized},

@@ -283,12 +283,51 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "baf1de4339761588bc0619e3cbc0120ee582ebb74b53b4efbf79117bd2da40fd"
 
 [[package]]
-name = "chaserland-articles-service-grpc-proxy"
+name = "chaserland-articles-service-core"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "async-trait",
+ "chaserland-articles-service-migrate",
+ "chaserland-common",
+ "chaserland-observability",
  "chaserland-protos",
+ "chrono",
+ "http",
+ "log",
+ "opentelemetry",
+ "prost-types",
+ "serde",
+ "slugify",
+ "sqlx",
+ "thiserror",
+ "tonic",
+ "tower",
+ "tower-http",
+ "tracing",
+]
+
+[[package]]
+name = "chaserland-articles-service-grpc-server"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "chaserland-articles-service-core",
+ "chaserland-common",
+ "chaserland-observability",
+ "chaserland-protos",
+ "clap",
+ "figment",
+ "http",
+ "opentelemetry",
+ "opentelemetry-http",
+ "serde",
  "tokio",
+ "tonic",
+ "tonic-health",
+ "tower-http",
+ "tracing",
+ "tracing-opentelemetry",
 ]
 
 [[package]]
@@ -296,7 +335,7 @@ name = "chaserland-articles-service-init"
 version = "0.1.0"
 dependencies = [
  "anyhow",
- "chaserland-articles-service-server",
+ "chaserland-articles-service-core",
  "chaserland-observability",
  "figment",
  "serde",
@@ -314,40 +353,6 @@ dependencies = [
  "sqlx",
  "tokio",
  "tracing",
-]
-
-[[package]]
-name = "chaserland-articles-service-server"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "async-trait",
- "chaserland-articles-service-migrate",
- "chaserland-common",
- "chaserland-observability",
- "chaserland-protos",
- "chrono",
- "clap",
- "figment",
- "http",
- "log",
- "opentelemetry",
- "opentelemetry-http",
- "opentelemetry-otlp",
- "opentelemetry-semantic-conventions",
- "opentelemetry_sdk",
- "prost-types",
- "serde",
- "slugify",
- "sqlx",
- "thiserror",
- "tokio",
- "tonic",
- "tonic-health",
- "tower",
- "tower-http",
- "tracing",
- "tracing-opentelemetry",
 ]
 
 [[package]]
