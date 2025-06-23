@@ -12,7 +12,7 @@ pub enum TagRepositoryError {
     #[error("PO to DO conversion error: {0}")]
     DOConversion(String),
     #[error(transparent)]
-    Unknown(#[from] anyhow::Error),
+    Sqlx(#[from] sqlx::Error),
 }
 
 impl TagRepositoryError {
@@ -45,7 +45,8 @@ mod tests {
 
         assert!(err.is_tag_not_found());
 
-        let err = TagRepositoryError::Unknown(anyhow::anyhow!("test"));
+        let new_tag = tag::NewTag::new("test".try_into().unwrap());
+        let err = TagRepositoryError::DuplicateTagSlug(new_tag);
 
         assert_eq!(err.is_tag_not_found(), false);
     }
@@ -57,7 +58,7 @@ mod tests {
 
         assert!(err.is_duplicate_tag_slug());
 
-        let err = TagRepositoryError::Unknown(anyhow::anyhow!("test"));
+        let err = TagRepositoryError::Transaction("test".to_string());
 
         assert_eq!(err.is_duplicate_tag_slug(), false);
     }
@@ -68,7 +69,7 @@ mod tests {
 
         assert!(err.is_transaction_error());
 
-        let err = TagRepositoryError::Unknown(anyhow::anyhow!("test"));
+        let err = TagRepositoryError::DOConversion("test".to_string());
 
         assert_eq!(err.is_transaction_error(), false);
     }
@@ -79,7 +80,8 @@ mod tests {
 
         assert!(err.is_do_conversion_error());
 
-        let err = TagRepositoryError::Unknown(anyhow::anyhow!("test"));
+        let tag_id: tag::Id = 1.try_into().unwrap();
+        let err = TagRepositoryError::TagNotFound(tag_id.as_identifier());
 
         assert_eq!(err.is_do_conversion_error(), false);
     }

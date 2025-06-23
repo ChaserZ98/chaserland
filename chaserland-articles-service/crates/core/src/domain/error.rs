@@ -104,18 +104,16 @@ mod tests {
 
     #[test]
     fn repository_err_case_article_repository_error() {
-        let err = RepositoryError::ArticleRepository(ArticleRepositoryError::Unknown(
-            anyhow::anyhow!("test"),
-        ));
+        let err =
+            RepositoryError::ArticleRepository(ArticleRepositoryError::DOConversion("test".into()));
 
         assert!(err.is_article_repository_error());
 
         let err = err.as_article_repository_error().unwrap();
 
-        assert!(matches!(err, ArticleRepositoryError::Unknown(_)));
+        assert!(matches!(err, ArticleRepositoryError::DOConversion(_)));
 
-        let err =
-            RepositoryError::TagRepository(TagRepositoryError::Unknown(anyhow::anyhow!("test")));
+        let err = RepositoryError::TagRepository(TagRepositoryError::DOConversion("test".into()));
 
         assert_eq!(err.is_article_repository_error(), false);
 
@@ -126,19 +124,17 @@ mod tests {
 
     #[test]
     fn repository_err_case_series_repository_error() {
-        let err = RepositoryError::SeriesRepository(SeriesRepositoryError::Unknown(
-            anyhow::anyhow!("test"),
-        ));
+        let err =
+            RepositoryError::SeriesRepository(SeriesRepositoryError::DOConversion("test".into()));
 
         assert!(err.is_series_repository_error());
 
         let err = err.as_series_repository_error().unwrap();
 
-        assert!(matches!(err, SeriesRepositoryError::Unknown(_)));
+        assert!(matches!(err, SeriesRepositoryError::DOConversion(_)));
 
-        let err = RepositoryError::ArticleRepository(ArticleRepositoryError::Unknown(
-            anyhow::anyhow!("test"),
-        ));
+        let err =
+            RepositoryError::ArticleRepository(ArticleRepositoryError::DOConversion("test".into()));
 
         assert_eq!(err.is_series_repository_error(), false);
 
@@ -149,19 +145,18 @@ mod tests {
 
     #[test]
     fn repository_err_case_category_repository_error() {
-        let err = RepositoryError::CategoryRepository(CategoryRepositoryError::Unknown(
-            anyhow::anyhow!("test"),
+        let err = RepositoryError::CategoryRepository(CategoryRepositoryError::DOConversion(
+            "test".into(),
         ));
 
         assert!(err.is_category_repository_error());
 
         let err = err.as_category_repository_error().unwrap();
 
-        assert!(matches!(err, CategoryRepositoryError::Unknown(_)));
+        assert!(matches!(err, CategoryRepositoryError::DOConversion(_)));
 
-        let err = RepositoryError::SeriesRepository(SeriesRepositoryError::Unknown(
-            anyhow::anyhow!("test"),
-        ));
+        let err =
+            RepositoryError::SeriesRepository(SeriesRepositoryError::DOConversion("test".into()));
 
         assert_eq!(err.is_category_repository_error(), false);
 
@@ -172,17 +167,16 @@ mod tests {
 
     #[test]
     fn repository_err_case_tag_repository_error() {
-        let err =
-            RepositoryError::TagRepository(TagRepositoryError::Unknown(anyhow::anyhow!("test")));
+        let err = RepositoryError::TagRepository(TagRepositoryError::DOConversion("test".into()));
 
         assert!(err.is_tag_repository_error());
 
         let err = err.as_tag_repository_error().unwrap();
 
-        assert!(matches!(err, TagRepositoryError::Unknown(_)));
+        assert!(matches!(err, TagRepositoryError::DOConversion(_)));
 
-        let err = RepositoryError::CategoryRepository(CategoryRepositoryError::Unknown(
-            anyhow::anyhow!("test"),
+        let err = RepositoryError::CategoryRepository(CategoryRepositoryError::DOConversion(
+            "test".into(),
         ));
 
         assert_eq!(err.is_tag_repository_error(), false);

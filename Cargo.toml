@@ -9,4 +9,5 @@ members = [
     "chaserland-articles-service/crates/init",
     "chaserland-articles-service/crates/migrate",
     "chaserland-articles-service/crates/grpc-server",
+    "chaserland-articles-service/crates/rest-server",
 ]

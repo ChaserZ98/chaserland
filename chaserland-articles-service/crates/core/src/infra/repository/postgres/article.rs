@@ -1,7 +1,6 @@
 use crate::domain::tag::vo as tag;
 use crate::domain::category::vo as category;
 use crate::domain::series::vo as series;
-use async_trait::async_trait;
 use chaserland_common::pagination::Pagination;
 use sqlx::{PgPool, Postgres, QueryBuilder};
 use crate::domain::article::{repository::{ArticleRepository, ArticleRepositoryError, ArticlesFilter}, vo as article, entity::Article};
@@ -58,6 +57,7 @@ impl TryInto<Article> for PgArticle {
     }
 }
 
+#[derive(Clone)]
 pub struct PgArticleRepository {
     pool: PgPool,
 }
@@ -68,7 +68,6 @@ impl PgArticleRepository {
     }
 }
 
-#[async_trait]
 impl ArticleRepository for PgArticleRepository {
     async fn create(
         &self,
@@ -106,16 +105,16 @@ impl ArticleRepository for PgArticleRepository {
         .await.map_err(|why| 
             {
                 if !matches!(why, sqlx::Error::Database(_)) {
-                    return ArticleRepositoryError::Unknown(why.into());
+                    return ArticleRepositoryError::Sqlx(why.into());
                 }
                 let db_err = why.as_database_error().unwrap();
                 if db_err.is_unique_violation() {
                     return ArticleRepositoryError::DuplicateArticleSlug(article.title.as_slug());
                 }
                 if db_err.is_foreign_key_violation() && db_err.constraint() == Some("articles_series_id_fkey") {
-                    return ArticleRepositoryError::SeriesNotFound(article.series_id.clone().unwrap().as_identifier());
+                    return ArticleRepositoryError::SeriesNotFound(article.series_id.unwrap().as_identifier());
                 } 
-                ArticleRepositoryError::Unknown(why.into())
+                ArticleRepositoryError::Sqlx(why.into())
             }
         )?;
 
@@ -127,13 +126,13 @@ impl ArticleRepository for PgArticleRepository {
             .await
             .map_err(|why| {
                 if !matches!(why, sqlx::Error::Database(_)) {
-                    return ArticleRepositoryError::Unknown(why.into());
+                    return ArticleRepositoryError::Sqlx(why.into());
                 }
                 let db_err = why.as_database_error().unwrap();
                 if db_err.is_foreign_key_violation() && db_err.constraint() == Some("article_categories_category_id_fkey") {
                     return ArticleRepositoryError::CategoryNotFound(category_id.as_identifier());
                 }
-                ArticleRepositoryError::Unknown(why.into())
+                ArticleRepositoryError::Sqlx(why.into())
             })?;
         }
 
@@ -145,13 +144,13 @@ impl ArticleRepository for PgArticleRepository {
             .await
             .map_err(|why| {
                 if !matches!(why, sqlx::Error::Database(_)) {
-                    return ArticleRepositoryError::Unknown(why.into());
+                    return ArticleRepositoryError::Sqlx(why.into());
                 }
                 let db_err = why.as_database_error().unwrap();
                 if db_err.is_foreign_key_violation() && db_err.constraint() == Some("article_tags_tag_id_fkey") {
                     return ArticleRepositoryError::TagNotFound(tag_id.as_identifier());
                 }
-                ArticleRepositoryError::Unknown(why.into())
+                ArticleRepositoryError::Sqlx(why.into())
             })?;
         }
 
@@ -197,7 +196,7 @@ impl ArticleRepository for PgArticleRepository {
             }
         }
 
-        let pg_article: Option<PgArticle> = query.build_query_as().fetch_optional(&self.pool).await.map_err(|why| ArticleRepositoryError::Unknown(why.into()))?;
+        let pg_article: Option<PgArticle> = query.build_query_as().fetch_optional(&self.pool).await?;
 
         if pg_article.is_none() {
             return Err(ArticleRepositoryError::ArticleNotFound(identifier));
@@ -206,14 +205,13 @@ impl ArticleRepository for PgArticleRepository {
         let pg_article = pg_article.unwrap();
 
         let category_ids: Vec<i32> = sqlx::query_scalar(
-            "SELECT category_id FROM article.article_categories WHERE article_id = $1").bind(pg_article.id).fetch_all(&self.pool).await.map_err(|why| ArticleRepositoryError::Unknown(why.into()))?;
+            "SELECT category_id FROM article.article_categories WHERE article_id = $1").bind(pg_article.id).fetch_all(&self.pool).await?;
 
-        let tag_ids: Vec<i32> = sqlx::query_scalar("SELECT tag_id FROM article.article_tags WHERE article_id = $1").bind(pg_article.id).fetch_all(&self.pool).await.map_err(|why| ArticleRepositoryError::Unknown(why.into()))?;
-
+        let tag_ids: Vec<i32> = sqlx::query_scalar("SELECT tag_id FROM article.article_tags WHERE article_id = $1").bind(pg_article.id).fetch_all(&self.pool).await?;
 
         let mut article: Article = pg_article.try_into().map_err(|why| ArticleRepositoryError::DOConversion(why))?;
-        article.category_ids = category_ids.iter().map(|v| (*v).try_into().unwrap()).collect();
-        article.tag_ids = tag_ids.iter().map(|v| (*v).try_into().unwrap()).collect();
+        article.category_ids = category_ids.iter().map(|v| (*v).try_into()).collect::<Result<Vec<_>, _>>().map_err(|why| ArticleRepositoryError::DOConversion(why))?;
+        article.tag_ids = tag_ids.iter().map(|v| (*v).try_into()).collect::<Result<Vec<_>, _>>().map_err(|why| ArticleRepositoryError::DOConversion(why))?;
 
         Ok(article)
     }
@@ -292,7 +290,7 @@ impl ArticleRepository for PgArticleRepository {
         query.push(" OFFSET ");
         query.push_bind(pagination.as_offset().value());
 
-        let articles: Vec<PgArticle> = query.build_query_as().fetch_all(&self.pool).await.map_err(|why| ArticleRepositoryError::Unknown(why.into()))?;
+        let articles: Vec<PgArticle> = query.build_query_as().fetch_all(&self.pool).await?;
 
         let res = articles.into_iter().map(|v| v.try_into()).collect::<Result<Vec<Article>, String>>().map_err(|why| ArticleRepositoryError::DOConversion(why))?;
 
@@ -304,7 +302,7 @@ impl ArticleRepository for PgArticleRepository {
         let db_article_version: Option<chrono::DateTime<chrono::Utc>> = sqlx::query_scalar("UPDATE article.articles SET series_id = $1, version = NOW() WHERE id = $2 RETURNING (SELECT version FROM article.articles WHERE id = $2) as version").bind(series_id.value()).bind(id.value()).fetch_optional(&mut *tx).await.map_err(|why|
             match why {
                 sqlx::Error::Database(db_err) if db_err.is_foreign_key_violation() => ArticleRepositoryError::SeriesNotFound(series_id.as_identifier()),
-                _ => ArticleRepositoryError::Unknown(why.into())
+                _ => ArticleRepositoryError::Sqlx(why.into())
             }
         )?;
 
@@ -329,7 +327,7 @@ impl ArticleRepository for PgArticleRepository {
     async fn remove_series(&self, id: article::Id, version: article::Version) -> Result<(), ArticleRepositoryError> {
         let mut tx = self.pool.begin().await.map_err(|why| ArticleRepositoryError::Transaction(why.to_string()))?;
 
-        let db_article_version: Option<chrono::DateTime<chrono::Utc>> = sqlx::query_scalar("UPDATE article.articles SET series_id = NULL, version = NOW() WHERE id = $1 RETURNING (SELECT version FROM article.articles WHERE id = $1) as version").bind(id.value()).fetch_optional(&mut *tx).await.map_err(|why| ArticleRepositoryError::Unknown(why.into()))?;
+        let db_article_version: Option<chrono::DateTime<chrono::Utc>> = sqlx::query_scalar("UPDATE article.articles SET series_id = NULL, version = NOW() WHERE id = $1 RETURNING (SELECT version FROM article.articles WHERE id = $1) as version").bind(id.value()).fetch_optional(&mut *tx).await?;
 
         if db_article_version.is_none() {
             return Err(ArticleRepositoryError::ArticleNotFound(id.as_identifier()));
@@ -360,21 +358,21 @@ impl ArticleRepository for PgArticleRepository {
         .map_err(
             |why| {
                 if !matches!(why, sqlx::Error::Database(_)) {
-                    return ArticleRepositoryError::Unknown(why.into());
+                    return ArticleRepositoryError::Sqlx(why.into());
                 }
                 let db_err = why.as_database_error().unwrap();
                 if !db_err.is_foreign_key_violation() {
-                    return ArticleRepositoryError::Unknown(why.into());
+                    return ArticleRepositoryError::Sqlx(why.into());
                 }
                 match db_err.constraint() {
                     Some("article_categories_article_id_fkey") => ArticleRepositoryError::ArticleNotFound(id.as_identifier()),
                     Some("article_categories_category_id_fkey") => ArticleRepositoryError::CategoryNotFound(category_id.as_identifier()),
-                    _ => ArticleRepositoryError::Unknown(why.into())
+                    _ => ArticleRepositoryError::Sqlx(why.into())
                 }
             }
         )?;
         
-        let db_article_version: chrono::DateTime<chrono::Utc> = sqlx::query_scalar("UPDATE article.articles SET version = NOW() WHERE id = $1 RETURNING (SELECT version FROM article.articles WHERE id = $1) as version").bind(id.value()).fetch_one(&mut *tx).await.map_err(|why| ArticleRepositoryError::Unknown(why.into()))?;
+        let db_article_version: chrono::DateTime<chrono::Utc> = sqlx::query_scalar("UPDATE article.articles SET version = NOW() WHERE id = $1 RETURNING (SELECT version FROM article.articles WHERE id = $1) as version").bind(id.value()).fetch_one(&mut *tx).await?;
 
         if db_article_version != version.value() {
             return Err(ArticleRepositoryError::VersionMismatch{
@@ -389,9 +387,9 @@ impl ArticleRepository for PgArticleRepository {
         Ok(())
     }
     async fn remove_category(&self, id: article::Id, category_id: category::Id, version: article::Version) -> Result<(), ArticleRepositoryError> {
-        let mut tx = self.pool.begin().await.map_err(|why| ArticleRepositoryError::Unknown(why.into()))?;
+        let mut tx = self.pool.begin().await.map_err(|why| ArticleRepositoryError::Transaction(why.to_string()))?;
 
-        let db_article_version: Option<chrono::DateTime<chrono::Utc>> = sqlx::query_scalar("UPDATE article.articles SET version = NOW() WHERE id = $1 RETURNING (SELECT version FROM article.articles WHERE id = $1) as version").bind(id.value()).fetch_optional(&mut *tx).await.map_err(|why| ArticleRepositoryError::Unknown(why.into()))?;
+        let db_article_version: Option<chrono::DateTime<chrono::Utc>> = sqlx::query_scalar("UPDATE article.articles SET version = NOW() WHERE id = $1 RETURNING (SELECT version FROM article.articles WHERE id = $1) as version").bind(id.value()).fetch_optional(&mut *tx).await?;
 
         if db_article_version.is_none() {
             return Err(ArticleRepositoryError::ArticleNotFound(id.as_identifier()));
@@ -411,8 +409,7 @@ impl ArticleRepository for PgArticleRepository {
         .bind(id.value())
         .bind(category_id.value())
         .execute(&mut *tx)
-        .await
-        .map_err(|why| ArticleRepositoryError::Unknown(why.into()))?
+        .await?
         .rows_affected();
 
         if rows_affected == 0 {
@@ -434,21 +431,21 @@ impl ArticleRepository for PgArticleRepository {
         .map_err(
             |why| {
                 if !matches!(why, sqlx::Error::Database(_)) {
-                    return ArticleRepositoryError::Unknown(why.into());
+                    return ArticleRepositoryError::Sqlx(why.into());
                 }
                 let db_err = why.as_database_error().unwrap();
                 if !db_err.is_foreign_key_violation() {
-                    return ArticleRepositoryError::Unknown(why.into());
+                    return ArticleRepositoryError::Sqlx(why.into());
                 }
                 match db_err.constraint() {
                     Some("article_tags_article_id_fkey") => ArticleRepositoryError::ArticleNotFound(id.as_identifier()),
                     Some("article_tags_tag_id_fkey") => ArticleRepositoryError::TagNotFound(tag_id.as_identifier()),
-                    _ => ArticleRepositoryError::Unknown(why.into())
+                    _ => ArticleRepositoryError::Sqlx(why.into())
                 }
             }
         )?;
         
-        let db_article_version: chrono::DateTime<chrono::Utc> = sqlx::query_scalar("UPDATE article.articles SET version = NOW() WHERE id = $1 RETURNING (SELECT version FROM article.articles WHERE id = $1) as version").bind(id.value()).fetch_one(&mut *tx).await.map_err(|why| ArticleRepositoryError::Unknown(why.into()))?;
+        let db_article_version: chrono::DateTime<chrono::Utc> = sqlx::query_scalar("UPDATE article.articles SET version = NOW() WHERE id = $1 RETURNING (SELECT version FROM article.articles WHERE id = $1) as version").bind(id.value()).fetch_one(&mut *tx).await?;
 
         if db_article_version != version.value() {
             return Err(ArticleRepositoryError::VersionMismatch{
@@ -465,7 +462,7 @@ impl ArticleRepository for PgArticleRepository {
     async fn remove_tag(&self, id: article::Id, tag_id: tag::Id, version: article::Version) -> Result<(), ArticleRepositoryError> {
         let mut tx = self.pool.begin().await.map_err(|why| ArticleRepositoryError::Transaction(why.to_string()))?;
 
-        let db_article_version: Option<chrono::DateTime<chrono::Utc>> = sqlx::query_scalar("UPDATE article.articles SET version = NOW() WHERE id = $1 RETURNING (SELECT version FROM article.articles WHERE id = $1) as version").bind(id.value()).fetch_optional(&mut *tx).await.map_err(|why| ArticleRepositoryError::Unknown(why.into()))?;
+        let db_article_version: Option<chrono::DateTime<chrono::Utc>> = sqlx::query_scalar("UPDATE article.articles SET version = NOW() WHERE id = $1 RETURNING (SELECT version FROM article.articles WHERE id = $1) as version").bind(id.value()).fetch_optional(&mut *tx).await?;
 
         if db_article_version.is_none() {
             return Err(ArticleRepositoryError::ArticleNotFound(id.as_identifier()));
@@ -485,8 +482,7 @@ impl ArticleRepository for PgArticleRepository {
         .bind(id.value())
         .bind(tag_id.value())
         .execute(&mut *tx)
-        .await
-        .map_err(|why| ArticleRepositoryError::Unknown(why.into()))?
+        .await?
         .rows_affected();
 
         if rows_affected == 0 {
@@ -504,7 +500,7 @@ impl ArticleRepository for PgArticleRepository {
         .bind(published_at.value())
         .bind(id.value())
         .fetch_optional(&mut *tx)
-        .await.map_err(|why| ArticleRepositoryError::Unknown(why.into()))?;
+        .await?;
 
         if db_article_version.is_none() {
             return Err(ArticleRepositoryError::ArticleNotFound(id.as_identifier()));
@@ -530,7 +526,7 @@ impl ArticleRepository for PgArticleRepository {
         let db_article_version: Option<chrono::DateTime<chrono::Utc>> = sqlx::query_scalar("UPDATE article.articles SET published_at = NULL, version = NOW() WHERE id = $1 RETURNING (SELECT version FROM article.articles WHERE id = $1) as version")
         .bind(id.value())
         .fetch_optional(&mut *tx)
-        .await.map_err(|why| ArticleRepositoryError::Unknown(why.into()))?;
+        .await?;
 
         if db_article_version.is_none() {
             return Err(ArticleRepositoryError::ArticleNotFound(id.as_identifier()));
@@ -557,7 +553,7 @@ impl ArticleRepository for PgArticleRepository {
         .bind(deleted_at.value())
         .bind(id.value())
         .fetch_optional(&mut *tx)
-        .await.map_err(|why| ArticleRepositoryError::Unknown(why.into()))?;
+        .await?;
 
         if db_article_version.is_none() {
             return Err(ArticleRepositoryError::ArticleNotFound(id.as_identifier()));
@@ -583,7 +579,7 @@ impl ArticleRepository for PgArticleRepository {
         let db_article_version: Option<chrono::DateTime<chrono::Utc>> = sqlx::query_scalar("UPDATE article.articles SET deleted_at = NULL, version = NOW() WHERE id = $1 RETURNING (SELECT version FROM article.articles WHERE id = $1) as version")
         .bind(id.value())
         .fetch_optional(&mut *tx)
-        .await.map_err(|why| ArticleRepositoryError::Unknown(why.into()))?;
+        .await?;
 
         if db_article_version.is_none() {
             return Err(ArticleRepositoryError::ArticleNotFound(id.as_identifier()));
@@ -622,7 +618,7 @@ impl ArticleRepository for PgArticleRepository {
             }
         };
 
-        let res = query.build().execute(&mut *tx).await.map_err(|why| ArticleRepositoryError::Unknown(why.into()))?;
+        let res = query.build().execute(&mut *tx).await?;
         
         if res.rows_affected() == 0 {
             return Err(ArticleRepositoryError::ArticleNotFound(identifier));

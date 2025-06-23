@@ -1,10 +1,9 @@
 use super::{TagRepositoryError, TagsFilter};
 use crate::domain::tag::{entity::Tag, vo as tag};
-use async_trait::async_trait;
 use chaserland_common::pagination::Pagination;
 
-#[async_trait]
-pub trait TagRepository: Send + Sync + 'static {
+#[trait_variant::make(TagRepository: Send)]
+pub trait LocalTagRepository: Clone + Sync + 'static {
     async fn create(&self, new_tag: tag::NewTag) -> Result<Tag, TagRepositoryError>;
 
     async fn get_one(&self, identifier: tag::Identifier) -> Result<Tag, TagRepositoryError>;

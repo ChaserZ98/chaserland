@@ -3,11 +3,10 @@ use crate::domain::category::{
     repository::{CategoriesFilter, CategoryRepositoryError},
     vo as category,
 };
-use async_trait::async_trait;
 use chaserland_common::pagination::Pagination;
 
-#[async_trait]
-pub trait CategoryRepository: Send + Sync + 'static {
+#[trait_variant::make(CategoryRepository: Send)]
+pub trait LocalCategoryRepository: Clone + Sync + 'static {
     async fn create(
         &self,
         command: category::NewCategory,

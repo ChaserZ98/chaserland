@@ -29,7 +29,7 @@ pub enum ArticleRepositoryError {
     #[error("PO to DO conversion error: {0}")]
     DOConversion(String),
     #[error(transparent)]
-    Unknown(#[from] anyhow::Error),
+    Sqlx(#[from] sqlx::Error),
 }
 
 impl ArticleRepositoryError {
@@ -152,7 +152,7 @@ mod tests {
 
         assert_eq!(err, &article_id.as_identifier());
 
-        let err = ArticleRepositoryError::Unknown(anyhow::anyhow!("test"));
+        let err = ArticleRepositoryError::Transaction("test".into());
 
         assert_eq!(err.is_article_not_found(), false);
 
@@ -176,7 +176,7 @@ mod tests {
 
         assert_eq!(err, &slug);
 
-        let err = ArticleRepositoryError::Unknown(anyhow::anyhow!("test"));
+        let err = ArticleRepositoryError::Transaction("test".into());
 
         assert_eq!(err.is_duplicate_article_slug(), false);
 
@@ -201,7 +201,7 @@ mod tests {
 
         assert_eq!(err, &series_id.as_identifier());
 
-        let err = ArticleRepositoryError::Unknown(anyhow::anyhow!("test"));
+        let err = ArticleRepositoryError::Transaction("test".into());
 
         assert_eq!(err.is_series_not_found(), false);
 
@@ -226,7 +226,7 @@ mod tests {
 
         assert_eq!(err, &category_id.as_identifier());
 
-        let err = ArticleRepositoryError::Unknown(anyhow::anyhow!("test"));
+        let err = ArticleRepositoryError::Transaction("test".into());
 
         assert_eq!(err.is_category_not_found(), false);
 
@@ -251,7 +251,7 @@ mod tests {
 
         assert_eq!(err, &tag_id.as_identifier());
 
-        let err = ArticleRepositoryError::Unknown(anyhow::anyhow!("test"));
+        let err = ArticleRepositoryError::Transaction("test".into());
 
         assert_eq!(err.is_tag_not_found(), false);
 
@@ -282,7 +282,7 @@ mod tests {
 
         assert_eq!(err, (&article_id, &current_version, &db_version));
 
-        let err = ArticleRepositoryError::Unknown(anyhow::anyhow!("test"));
+        let err = ArticleRepositoryError::Transaction("test".into());
 
         assert_eq!(err.is_version_mismatch(), false);
 
@@ -305,7 +305,7 @@ mod tests {
 
         assert_eq!(err, "test");
 
-        let err = ArticleRepositoryError::Unknown(anyhow::anyhow!("test"));
+        let err = ArticleRepositoryError::DOConversion("test".into());
 
         assert_eq!(err.is_transaction_error(), false);
 
@@ -328,7 +328,7 @@ mod tests {
 
         assert_eq!(err, "test");
 
-        let err = ArticleRepositoryError::Unknown(anyhow::anyhow!("test"));
+        let err = ArticleRepositoryError::Transaction("test".into());
 
         assert_eq!(err.is_do_conversion_error(), false);
 

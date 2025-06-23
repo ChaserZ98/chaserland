@@ -3,11 +3,10 @@ use crate::domain::article::{entity::Article, vo as article};
 use crate::domain::category::vo as category;
 use crate::domain::series::vo as series;
 use crate::domain::tag::vo as tag;
-use async_trait::async_trait;
 use chaserland_common::pagination::Pagination;
 
-#[async_trait]
-pub trait ArticleRepository: Send + Sync + 'static {
+#[trait_variant::make(ArticleRepository: Send)]
+pub trait LocalArticleRepository: Clone + Sync + 'static {
     async fn create(&self, article: article::NewArticle)
     -> Result<Article, ArticleRepositoryError>;
 

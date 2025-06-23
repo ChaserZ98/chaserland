@@ -1,4 +1,5 @@
 use super::{Id, Slug};
+use std::fmt::Display;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Identifier {
@@ -42,7 +43,7 @@ impl From<Slug> for Identifier {
     }
 }
 
-impl std::fmt::Display for Identifier {
+impl Display for Identifier {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Identifier::Id(id) => write!(f, "id={}", id),

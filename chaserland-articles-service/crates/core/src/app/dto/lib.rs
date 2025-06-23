@@ -23,6 +23,12 @@ pub struct ArticleDTO {
     pub tags: Vec<TagDTO>,
 }
 
+impl ArticleDTO {
+    pub fn builder() -> ArticleDTOBuilder {
+        ArticleDTOBuilder::new()
+    }
+}
+
 #[derive(Debug, Default)]
 pub struct ArticleDTOBuilder {
     article: Option<Article>,

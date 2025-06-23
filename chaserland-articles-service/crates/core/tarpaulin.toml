@@ -1,6 +1,6 @@
 [chaserland-articles-service]
 manifest-path = "./Cargo.toml"
-include-files = ["chaserland-articles-service/crates/server/src/**"]
+include-files = ["chaserland-articles-service/crates/core/src/**"]
 skip-clean = true
 run-types = ["Lib"]
 

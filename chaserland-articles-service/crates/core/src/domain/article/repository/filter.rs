@@ -2,6 +2,14 @@ use crate::domain::category::vo as category;
 use crate::domain::series::vo as series;
 use crate::domain::tag::vo as tag;
 
+/**
+Note: A valid filter should at least have one of the following:
+    - Non-empty series_identifier
+    - Non-empty category_ids
+    - Non-empty tag_ids
+
+if category_ids and tag_ids is empty, it will be ignored or meaning matching all case.
+*/
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub struct ArticlesFilter {
     series_identifier: Option<series::Identifier>,
@@ -21,6 +29,20 @@ impl ArticlesFilter {
             category_ids,
             tag_ids,
         }
+    }
+
+    pub fn try_new(
+        series_identifier: Option<series::Identifier>,
+        category_ids: Vec<category::Id>,
+        tag_ids: Vec<tag::Id>,
+    ) -> Result<Self, String> {
+        Self::validate(&series_identifier, &category_ids, &tag_ids)?;
+
+        Ok(Self {
+            series_identifier,
+            category_ids,
+            tag_ids,
+        })
     }
 
     pub fn series_identifier(&self) -> &Option<series::Identifier> {

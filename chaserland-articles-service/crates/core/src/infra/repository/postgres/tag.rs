@@ -3,7 +3,6 @@ use crate::domain::tag::{
     repository::{TagRepository, TagRepositoryError, TagsFilter},
     vo as tag,
 };
-use async_trait::async_trait;
 use chaserland_common::pagination::Pagination;
 use sqlx::{FromRow, PgPool, Postgres, QueryBuilder};
 
@@ -27,6 +26,7 @@ impl TryInto<Tag> for PgTag {
     }
 }
 
+#[derive(Clone)]
 pub struct PgTagRepository {
     pool: PgPool,
 }
@@ -37,7 +37,6 @@ impl PgTagRepository {
     }
 }
 
-#[async_trait]
 impl TagRepository for PgTagRepository {
     async fn create(&self, new_tag: tag::NewTag) -> Result<Tag, TagRepositoryError> {
         let mut tx = self
@@ -55,7 +54,7 @@ impl TagRepository for PgTagRepository {
                     sqlx::Error::Database(db_err) if db_err.is_unique_violation() => {
                         TagRepositoryError::DuplicateTagSlug(new_tag)
                     }
-                    _ => TagRepositoryError::Unknown(why.into()),
+                    _ => TagRepositoryError::Sqlx(why.into()),
                 })?;
 
         let tag = tag
@@ -81,11 +80,7 @@ impl TagRepository for PgTagRepository {
             }
         }
 
-        let tag: Option<PgTag> = query
-            .build_query_as()
-            .fetch_optional(&self.pool)
-            .await
-            .map_err(|why| TagRepositoryError::Unknown(why.into()))?;
+        let tag: Option<PgTag> = query.build_query_as().fetch_optional(&self.pool).await?;
 
         if tag.is_none() {
             return Err(TagRepositoryError::TagNotFound(identifier));
@@ -124,11 +119,7 @@ impl TagRepository for PgTagRepository {
             query.push_bind(pagination.as_offset().value());
         }
 
-        let tags: Vec<PgTag> = query
-            .build_query_as()
-            .fetch_all(&self.pool)
-            .await
-            .map_err(|why| TagRepositoryError::Unknown(why.into()))?;
+        let tags: Vec<PgTag> = query.build_query_as().fetch_all(&self.pool).await?;
 
         let tags = tags
             .into_iter()
@@ -159,12 +150,7 @@ impl TagRepository for PgTagRepository {
             }
         };
 
-        let rows_affected = query
-            .build()
-            .execute(&mut *tx)
-            .await
-            .map_err(|why| TagRepositoryError::Unknown(why.into()))?
-            .rows_affected();
+        let rows_affected = query.build().execute(&mut *tx).await?.rows_affected();
 
         if rows_affected == 0 {
             return Err(TagRepositoryError::TagNotFound(identifier));

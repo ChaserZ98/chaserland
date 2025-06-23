@@ -1,3 +1,4 @@
+use crate::app::interface::ArticleService as ArticleServiceInterface;
 use crate::app::service::ArticleService;
 use crate::app::{dto, query};
 use crate::domain::article::vo as article;

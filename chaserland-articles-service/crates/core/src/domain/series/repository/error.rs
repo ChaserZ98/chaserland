@@ -11,8 +11,8 @@ pub enum SeriesRepositoryError {
     Transaction(String),
     #[error("PO to DO conversion error: {0}")]
     DOConversion(String),
-    #[error(transparent)]
-    Unknown(#[from] anyhow::Error),
+    #[error("Sqlx error: {0}")]
+    Sqlx(#[from] sqlx::Error),
 }
 
 impl SeriesRepositoryError {
@@ -45,7 +45,8 @@ mod tests {
 
         assert!(err.is_series_not_found());
 
-        let err = SeriesRepositoryError::Unknown(anyhow::anyhow!("test"));
+        let new_series = series::NewSeries::new("name".try_into().unwrap());
+        let err = SeriesRepositoryError::DuplicateSeriesSlug(new_series);
 
         assert_eq!(err.is_series_not_found(), false);
     }
@@ -57,7 +58,7 @@ mod tests {
 
         assert!(err.is_duplicate_series_slug());
 
-        let err = SeriesRepositoryError::Unknown(anyhow::anyhow!("test"));
+        let err = SeriesRepositoryError::Transaction("test".to_string());
 
         assert_eq!(err.is_duplicate_series_slug(), false);
     }
@@ -68,7 +69,7 @@ mod tests {
 
         assert!(err.is_transaction_error());
 
-        let err = SeriesRepositoryError::Unknown(anyhow::anyhow!("test"));
+        let err = SeriesRepositoryError::DOConversion("test".to_string());
 
         assert_eq!(err.is_transaction_error(), false);
     }
@@ -79,7 +80,8 @@ mod tests {
 
         assert!(err.is_do_conversion_error());
 
-        let err = SeriesRepositoryError::Unknown(anyhow::anyhow!("test"));
+        let series_id: series::Id = 1.try_into().unwrap();
+        let err = SeriesRepositoryError::SeriesNotFound(series_id.as_identifier());
 
         assert_eq!(err.is_do_conversion_error(), false);
     }

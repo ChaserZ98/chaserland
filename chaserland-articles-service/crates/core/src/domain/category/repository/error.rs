@@ -11,8 +11,8 @@ pub enum CategoryRepositoryError {
     Transaction(String),
     #[error("PO to DO conversion error: {0}")]
     DOConversion(String),
-    #[error(transparent)]
-    Unknown(#[from] anyhow::Error),
+    #[error("Sqlx error: {0}")]
+    Sqlx(#[from] sqlx::Error),
 }
 
 impl CategoryRepositoryError {
@@ -41,12 +41,12 @@ mod tests {
     #[test]
     fn category_repository_error_case_category_not_found() {
         let category_id = category::Id::new(1);
-
         let err = CategoryRepositoryError::CategoryNotFound(category_id.as_identifier());
 
         assert!(err.is_category_not_found());
 
-        let err = CategoryRepositoryError::Unknown(anyhow::anyhow!("test"));
+        let new_category = category::NewCategory::new("test".try_into().unwrap());
+        let err = CategoryRepositoryError::DuplicateCategorySlug(new_category);
 
         assert_eq!(err.is_category_not_found(), false);
     }
@@ -58,7 +58,7 @@ mod tests {
 
         assert!(err.is_duplicate_category_slug());
 
-        let err = CategoryRepositoryError::Unknown(anyhow::anyhow!("test"));
+        let err = CategoryRepositoryError::Transaction("test".to_string());
 
         assert_eq!(err.is_duplicate_category_slug(), false);
     }
@@ -69,7 +69,7 @@ mod tests {
 
         assert!(err.is_transaction());
 
-        let err = CategoryRepositoryError::Unknown(anyhow::anyhow!("test"));
+        let err = CategoryRepositoryError::DOConversion("test".to_string());
 
         assert_eq!(err.is_transaction(), false);
     }
@@ -80,7 +80,8 @@ mod tests {
 
         assert!(err.is_do_conversion());
 
-        let err = CategoryRepositoryError::Unknown(anyhow::anyhow!("test"));
+        let category_id = category::Id::new(1);
+        let err = CategoryRepositoryError::CategoryNotFound(category_id.as_identifier());
 
         assert_eq!(err.is_do_conversion(), false);
     }

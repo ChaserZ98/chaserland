@@ -3,7 +3,6 @@ use crate::domain::category::{
     repository::{CategoriesFilter, CategoryRepository, CategoryRepositoryError},
     vo as category,
 };
-use async_trait::async_trait;
 use chaserland_common::pagination::Pagination;
 use sqlx::{PgPool, Postgres, QueryBuilder};
 
@@ -25,6 +24,7 @@ impl TryInto<Category> for PgCategory {
     }
 }
 
+#[derive(Clone)]
 pub struct PgCategoryRepository {
     pool: PgPool,
 }
@@ -35,7 +35,6 @@ impl PgCategoryRepository {
     }
 }
 
-#[async_trait]
 impl CategoryRepository for PgCategoryRepository {
     async fn create(
         &self,
@@ -58,7 +57,7 @@ impl CategoryRepository for PgCategoryRepository {
             sqlx::Error::Database(db_err) if db_err.is_unique_violation() => {
                 CategoryRepositoryError::DuplicateCategorySlug(new_category)
             }
-            _ => CategoryRepositoryError::Unknown(why.into()),
+            _ => CategoryRepositoryError::Sqlx(why.into()),
         })?;
 
         let category = category
@@ -88,11 +87,8 @@ impl CategoryRepository for PgCategoryRepository {
             }
         };
 
-        let category: Option<PgCategory> = query
-            .build_query_as()
-            .fetch_optional(&self.pool)
-            .await
-            .map_err(|why| CategoryRepositoryError::Unknown(why.into()))?;
+        let category: Option<PgCategory> =
+            query.build_query_as().fetch_optional(&self.pool).await?;
 
         if category.is_none() {
             return Err(CategoryRepositoryError::CategoryNotFound(identifier));
@@ -131,19 +127,13 @@ impl CategoryRepository for PgCategoryRepository {
             query.push_bind(pagination.as_offset().value());
         }
 
-        let categories: Vec<PgCategory> = query
-            .build_query_as()
-            .fetch_all(&self.pool)
-            .await
-            .map_err(|why| CategoryRepositoryError::Unknown(why.into()))?;
+        let categories: Vec<PgCategory> = query.build_query_as().fetch_all(&self.pool).await?;
 
         let categories = categories
             .into_iter()
-            .map(|x| {
-                x.try_into()
-                    .map_err(|why: String| CategoryRepositoryError::DOConversion(why))
-            })
-            .collect::<Result<Vec<Category>, CategoryRepositoryError>>()?;
+            .map(|x| x.try_into())
+            .collect::<Result<Vec<Category>, _>>()
+            .map_err(|e| CategoryRepositoryError::DOConversion(e))?;
 
         Ok(categories)
     }
@@ -170,12 +160,7 @@ impl CategoryRepository for PgCategoryRepository {
             }
         };
 
-        let rows_affected = query
-            .build()
-            .execute(&mut *tx)
-            .await
-            .map_err(|why| CategoryRepositoryError::Unknown(why.into()))?
-            .rows_affected();
+        let rows_affected = query.build().execute(&mut *tx).await?.rows_affected();
 
         if rows_affected == 0 {
             return Err(CategoryRepositoryError::CategoryNotFound(identifier));

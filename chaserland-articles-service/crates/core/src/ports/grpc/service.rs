@@ -1,4 +1,4 @@
-use crate::app::service::ArticleService;
+use crate::app::{interface::ArticleService as ArticleServiceInterface, service::ArticleService};
 use crate::domain::article::repository::ArticleRepository;
 use crate::domain::category::repository::CategoryRepository;
 use crate::domain::series::repository::SeriesRepository;
@@ -75,25 +75,7 @@ where
 
         let command = message.try_into()?;
 
-        let article = self.inner().create_article(command).await.map_err(|e| {
-            if !e.is_repository_error() {
-                return Status::internal("Internal Error");
-            }
-
-            let e = e.as_repository_error().unwrap();
-
-            if !e.is_article_repository_error() {
-                return Status::internal("Internal Error");
-            }
-
-            let e = e.as_article_repository_error().unwrap();
-
-            if e.is_duplicate_article_slug() {
-                return Status::already_exists(e.to_string());
-            }
-
-            Status::internal("Internal Error")
-        })?;
+        let article = self.inner().create_article(command).await?;
 
         let reply = CreateArticleResponse::from(article);
         Ok(Response::new(reply))
@@ -107,25 +89,7 @@ where
 
         let command = message.try_into()?;
 
-        let series = self.inner().create_series(command).await.map_err(|why| {
-            if !why.is_repository_error() {
-                return Status::internal("Internal Error");
-            }
-
-            let why = why.as_repository_error().unwrap();
-
-            if !why.is_series_repository_error() {
-                return Status::internal("Internal Error");
-            }
-
-            let why = why.as_series_repository_error().unwrap();
-
-            if why.is_duplicate_series_slug() {
-                return Status::already_exists(why.to_string());
-            }
-
-            Status::internal("Internal Error")
-        })?;
+        let series = self.inner().create_series(command).await?;
 
         let reply = CreateSeriesResponse::from(series);
 
@@ -139,25 +103,7 @@ where
         let message = request.into_inner();
         let command = message.try_into()?;
 
-        let category = self.inner().create_category(command).await.map_err(|why| {
-            if !why.is_repository_error() {
-                return Status::internal("Internal Error");
-            }
-
-            let why = why.as_repository_error().unwrap();
-
-            if !why.is_category_repository_error() {
-                return Status::internal("Internal Error");
-            }
-
-            let why = why.as_category_repository_error().unwrap();
-
-            if why.is_duplicate_category_slug() {
-                return Status::already_exists(why.to_string());
-            }
-
-            Status::internal("Internal Error")
-        })?;
+        let category = self.inner().create_category(command).await?;
 
         let reply = CreateCategoryResponse::from(category);
         Ok(Response::new(reply))
@@ -171,25 +117,7 @@ where
 
         let command = message.try_into()?;
 
-        let tag = self.inner().create_tag(command).await.map_err(|why| {
-            if !why.is_repository_error() {
-                return Status::internal("Internal Error");
-            }
-
-            let why = why.as_repository_error().unwrap();
-
-            if !why.is_tag_repository_error() {
-                return Status::internal("Internal Error");
-            }
-
-            let why = why.as_tag_repository_error().unwrap();
-
-            if why.is_duplicate_tag_slug() {
-                return Status::already_exists(why.to_string());
-            }
-
-            Status::internal("Internal Error")
-        })?;
+        let tag = self.inner().create_tag(command).await?;
 
         let reply = CreateTagResponse::from(tag);
         Ok(Response::new(reply))
@@ -202,25 +130,7 @@ where
         let message = request.into_inner();
         let query = message.try_into()?;
 
-        let article = self.inner().get_article_one(query).await.map_err(|why| {
-            if !why.is_repository_error() {
-                return Status::internal("Internal Error");
-            }
-
-            let why = why.as_repository_error().unwrap();
-
-            if why.is_article_repository_error() {
-                let why = why.as_article_repository_error().unwrap();
-
-                if why.is_article_not_found() {
-                    return Status::not_found(why.to_string());
-                }
-
-                return Status::internal("Internal Error");
-            }
-
-            Status::internal("Internal Error")
-        })?;
+        let article = self.inner().get_article_one(query).await?;
 
         let reply = GetArticleOneResponse {
             article: Some(article.into()),
@@ -236,29 +146,7 @@ where
 
         let query = message.try_into()?;
 
-        let content = self
-            .inner()
-            .get_article_content(query)
-            .await
-            .map_err(|why| {
-                if !why.is_repository_error() {
-                    return Status::internal("Internal Error");
-                }
-
-                let why = why.as_repository_error().unwrap();
-
-                if why.is_article_repository_error() {
-                    let why = why.as_article_repository_error().unwrap();
-
-                    if why.is_article_not_found() {
-                        return Status::not_found(why.to_string());
-                    }
-
-                    return Status::internal("Internal Error");
-                }
-
-                Status::internal("Internal Error")
-            })?;
+        let content = self.inner().get_article_content(query).await?;
 
         let reply = GetArticleContentResponse { content };
         Ok(Response::new(reply))
@@ -271,11 +159,7 @@ where
         let message = request.into_inner();
         let query = message.try_into()?;
 
-        let articles = self
-            .inner()
-            .get_article_many(query)
-            .await
-            .map_err(|_| Status::internal("Internal Error"))?;
+        let articles = self.inner().get_article_many(query).await?;
 
         let reply = GetArticleManyResponse {
             articles: articles.into_iter().map(|x| x.into()).collect(),
@@ -291,25 +175,7 @@ where
 
         let query = message.try_into()?;
 
-        let series = self.inner().get_series_one(query).await.map_err(|why| {
-            if !why.is_repository_error() {
-                return Status::internal("Internal Error");
-            }
-
-            let why = why.as_repository_error().unwrap();
-
-            if !why.is_series_repository_error() {
-                return Status::internal("Internal Error");
-            }
-
-            let why = why.as_series_repository_error().unwrap();
-
-            if why.is_series_not_found() {
-                return Status::not_found(why.to_string());
-            }
-
-            Status::internal("Internal Error")
-        })?;
+        let series = self.inner().get_series_one(query).await?;
 
         let reply = GetSeriesOneResponse {
             series: Some(series.into()),
@@ -325,25 +191,7 @@ where
 
         let query = message.try_into()?;
 
-        let series = self.inner().get_series_many(query).await.map_err(|why| {
-            if !why.is_repository_error() {
-                return Status::internal("Internal Error");
-            }
-
-            let why = why.as_repository_error().unwrap();
-
-            if !why.is_series_repository_error() {
-                return Status::internal("Internal Error");
-            }
-
-            let why = why.as_series_repository_error().unwrap();
-
-            if why.is_series_not_found() {
-                return Status::not_found(why.to_string());
-            }
-
-            Status::internal("Internal Error")
-        })?;
+        let series = self.inner().get_series_many(query).await?;
 
         let reply = GetSeriesManyResponse {
             series: series.into_iter().map(|x| x.into()).collect(),
@@ -360,25 +208,7 @@ where
 
         let query = message.try_into()?;
 
-        let category = self.inner().get_category_one(query).await.map_err(|why| {
-            if !why.is_repository_error() {
-                return Status::internal("Internal Error");
-            }
-
-            let why = why.as_repository_error().unwrap();
-
-            if !why.is_category_repository_error() {
-                return Status::internal("Internal Error");
-            }
-
-            let why = why.as_category_repository_error().unwrap();
-
-            if why.is_category_not_found() {
-                return Status::not_found(why.to_string());
-            }
-
-            Status::internal("Internal Error")
-        })?;
+        let category = self.inner().get_category_one(query).await?;
 
         let reply = GetCategoryOneResponse {
             category: Some(category.into()),
@@ -394,25 +224,7 @@ where
 
         let query = message.try_into()?;
 
-        let categories = self.inner().get_category_many(query).await.map_err(|why| {
-            if !why.is_repository_error() {
-                return Status::internal("Internal Error");
-            }
-
-            let why = why.as_repository_error().unwrap();
-
-            if !why.is_category_repository_error() {
-                return Status::internal("Internal Error");
-            }
-
-            let why = why.as_category_repository_error().unwrap();
-
-            if why.is_category_not_found() {
-                return Status::not_found(why.to_string());
-            }
-
-            Status::internal("Internal Error")
-        })?;
+        let categories = self.inner().get_category_many(query).await?;
 
         let reply = GetCategoryManyResponse {
             categories: categories.into_iter().map(|x| x.into()).collect(),
@@ -429,25 +241,7 @@ where
 
         let query = message.try_into()?;
 
-        let tag = self.inner().get_tag_one(query).await.map_err(|why| {
-            if !why.is_repository_error() {
-                return Status::internal("Internal Error");
-            }
-
-            let why = why.as_repository_error().unwrap();
-
-            if !why.is_tag_repository_error() {
-                return Status::internal("Internal Error");
-            }
-
-            let why = why.as_tag_repository_error().unwrap();
-
-            if why.is_tag_not_found() {
-                return Status::not_found(why.to_string());
-            }
-
-            Status::internal("Internal Error")
-        })?;
+        let tag = self.inner().get_tag_one(query).await?;
 
         let reply = GetTagOneResponse {
             tag: Some(tag.into()),
@@ -463,25 +257,7 @@ where
 
         let query = message.try_into()?;
 
-        let tags = self.inner().get_tag_many(query).await.map_err(|why| {
-            if !why.is_repository_error() {
-                return Status::internal("Internal Error");
-            }
-
-            let why = why.as_repository_error().unwrap();
-
-            if !why.is_tag_repository_error() {
-                return Status::internal("Internal Error");
-            }
-
-            let why = why.as_tag_repository_error().unwrap();
-
-            if why.is_tag_not_found() {
-                return Status::not_found(why.to_string());
-            }
-
-            Status::internal("Internal Error")
-        })?;
+        let tags = self.inner().get_tag_many(query).await?;
 
         let reply = GetTagManyResponse {
             tags: tags.into_iter().map(|x| x.into()).collect(),
@@ -498,40 +274,7 @@ where
 
         let command = message.try_into()?;
 
-        self.inner().publish_article(command).await.map_err(|why| {
-            if why.is_domain_error() {
-                let why = why.as_domain_error().unwrap();
-
-                if !why.is_article_domain_error() {
-                    return Status::internal("Internal Error");
-                }
-
-                let why = why.as_article_domain_error().unwrap();
-
-                if why.is_already_published() {
-                    return Status::failed_precondition(why.to_string());
-                }
-                return Status::internal("Internal Error");
-            }
-
-            if why.is_repository_error() {
-                let why = why.as_repository_error().unwrap();
-
-                if !why.is_article_repository_error() {
-                    return Status::internal("Internal Error");
-                }
-
-                let why = why.as_article_repository_error().unwrap();
-
-                if why.is_article_not_found() {
-                    return Status::not_found(why.to_string());
-                }
-
-                return Status::internal("Internal Error");
-            }
-
-            Status::internal("Internal Error")
-        })?;
+        self.inner().publish_article(command).await?;
 
         Ok(Response::new(PublishArticleResponse {}))
     }
@@ -544,43 +287,7 @@ where
 
         let command = message.try_into()?;
 
-        self.inner()
-            .unpublish_article(command)
-            .await
-            .map_err(|why| {
-                if why.is_domain_error() {
-                    let why = why.as_domain_error().unwrap();
-
-                    if !why.is_article_domain_error() {
-                        return Status::internal("Internal Error");
-                    }
-
-                    let why = why.as_article_domain_error().unwrap();
-
-                    if why.is_not_published() {
-                        return Status::failed_precondition(why.to_string());
-                    }
-                    return Status::internal("Internal Error");
-                }
-
-                if why.is_repository_error() {
-                    let why = why.as_repository_error().unwrap();
-
-                    if !why.is_article_repository_error() {
-                        return Status::internal("Internal Error");
-                    }
-
-                    let why = why.as_article_repository_error().unwrap();
-
-                    if why.is_article_not_found() {
-                        return Status::not_found(why.to_string());
-                    }
-
-                    return Status::internal("Internal Error");
-                }
-
-                Status::internal("Internal Error")
-            })?;
+        self.inner().unpublish_article(command).await?;
 
         Ok(Response::new(UnpublishArticleResponse {}))
     }
@@ -593,43 +300,7 @@ where
 
         let command = message.try_into()?;
 
-        self.inner()
-            .soft_delete_article(command)
-            .await
-            .map_err(|why| {
-                if why.is_domain_error() {
-                    let why = why.as_domain_error().unwrap();
-
-                    if !why.is_article_domain_error() {
-                        return Status::internal("Internal Error");
-                    }
-
-                    let why = why.as_article_domain_error().unwrap();
-
-                    if why.is_already_soft_deleted() {
-                        return Status::failed_precondition(why.to_string());
-                    }
-                    return Status::internal("Internal Error");
-                }
-
-                if why.is_repository_error() {
-                    let why = why.as_repository_error().unwrap();
-
-                    if !why.is_article_repository_error() {
-                        return Status::internal("Internal Error");
-                    }
-
-                    let why = why.as_article_repository_error().unwrap();
-
-                    if why.is_article_not_found() {
-                        return Status::not_found(why.to_string());
-                    }
-
-                    return Status::internal("Internal Error");
-                }
-
-                Status::internal("Internal Error")
-            })?;
+        self.inner().soft_delete_article(command).await?;
 
         Ok(Response::new(SoftDeleteArticleResponse {}))
     }
@@ -642,43 +313,7 @@ where
 
         let command = message.try_into()?;
 
-        self.inner()
-            .revoke_soft_delete_article(command)
-            .await
-            .map_err(|why| {
-                if why.is_domain_error() {
-                    let why = why.as_domain_error().unwrap();
-
-                    if !why.is_article_domain_error() {
-                        return Status::internal("Internal Error");
-                    }
-
-                    let why = why.as_article_domain_error().unwrap();
-
-                    if why.is_not_soft_deleted() {
-                        return Status::failed_precondition(why.to_string());
-                    }
-                    return Status::internal("Internal Error");
-                }
-
-                if why.is_repository_error() {
-                    let why = why.as_repository_error().unwrap();
-
-                    if !why.is_article_repository_error() {
-                        return Status::internal("Internal Error");
-                    }
-
-                    let why = why.as_article_repository_error().unwrap();
-
-                    if why.is_article_not_found() {
-                        return Status::not_found(why.to_string());
-                    }
-
-                    return Status::internal("Internal Error");
-                }
-
-                Status::internal("Internal Error")
-            })?;
+        self.inner().revoke_soft_delete_article(command).await?;
 
         Ok(Response::new(RevokeSoftDeleteArticleResponse {}))
     }
@@ -691,25 +326,7 @@ where
 
         let command = message.try_into()?;
 
-        self.inner().delete_article(command).await.map_err(|why| {
-            if !why.is_repository_error() {
-                return Status::internal("Internal Error");
-            }
-
-            let why = why.as_repository_error().unwrap();
-
-            if !why.is_article_repository_error() {
-                return Status::internal("Internal Error");
-            }
-
-            let why = why.as_article_repository_error().unwrap();
-
-            if why.is_article_not_found() {
-                return Status::not_found(why.to_string());
-            }
-
-            Status::internal("Internal Error")
-        })?;
+        self.inner().delete_article(command).await?;
 
         let reply = DeleteArticleResponse {};
         Ok(Response::new(reply))
@@ -723,25 +340,7 @@ where
 
         let command = message.try_into()?;
 
-        self.inner().delete_series(command).await.map_err(|why| {
-            if !why.is_repository_error() {
-                return Status::internal("Internal Error");
-            }
-
-            let why = why.as_repository_error().unwrap();
-
-            if !why.is_series_repository_error() {
-                return Status::internal("Internal Error");
-            }
-
-            let why = why.as_series_repository_error().unwrap();
-
-            if why.is_series_not_found() {
-                return Status::not_found(why.to_string());
-            }
-
-            Status::internal("Internal Error")
-        })?;
+        self.inner().delete_series(command).await?;
 
         Ok(Response::new(DeleteSeriesResponse {}))
     }
@@ -754,25 +353,7 @@ where
 
         let command = message.try_into()?;
 
-        self.inner().delete_category(command).await.map_err(|why| {
-            if !why.is_repository_error() {
-                return Status::internal("Internal Error");
-            }
-
-            let why = why.as_repository_error().unwrap();
-
-            if !why.is_category_repository_error() {
-                return Status::internal("Internal Error");
-            }
-
-            let why = why.as_category_repository_error().unwrap();
-
-            if why.is_category_not_found() {
-                return Status::not_found(why.to_string());
-            }
-
-            Status::internal("Internal Error")
-        })?;
+        self.inner().delete_category(command).await?;
 
         Ok(Response::new(DeleteCategoryResponse {}))
     }
@@ -785,25 +366,7 @@ where
 
         let command = message.try_into()?;
 
-        self.inner().delete_tag(command).await.map_err(|why| {
-            if !why.is_repository_error() {
-                return Status::internal("Internal Error");
-            }
-
-            let why = why.as_repository_error().unwrap();
-
-            if !why.is_tag_repository_error() {
-                return Status::internal("Internal Error");
-            }
-
-            let why = why.as_tag_repository_error().unwrap();
-
-            if why.is_tag_not_found() {
-                return Status::not_found(why.to_string());
-            }
-
-            Status::internal("Internal Error")
-        })?;
+        self.inner().delete_tag(command).await?;
 
         Ok(Response::new(DeleteTagResponse {}))
     }

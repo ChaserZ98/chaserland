@@ -1,7 +1,6 @@
 use crate::domain::series::entity::Series;
 use crate::domain::series::repository::{SeriesFilter, SeriesRepository, SeriesRepositoryError};
 use crate::domain::series::vo as series;
-use async_trait::async_trait;
 use chaserland_common::pagination::Pagination;
 use sqlx::{Postgres, QueryBuilder};
 
@@ -25,6 +24,7 @@ impl TryInto<Series> for PgSeries {
     }
 }
 
+#[derive(Clone)]
 pub struct PgSeriesRepository {
     pool: sqlx::PgPool,
 }
@@ -35,7 +35,6 @@ impl PgSeriesRepository {
     }
 }
 
-#[async_trait]
 impl SeriesRepository for PgSeriesRepository {
     async fn create(&self, series: series::NewSeries) -> Result<Series, SeriesRepositoryError> {
         let mut tx = self
@@ -50,11 +49,11 @@ impl SeriesRepository for PgSeriesRepository {
                 .bind(&series.slug().value())
                 .fetch_one(&mut *tx)
                 .await
-                .map_err(|why| match why {
+                .map_err(|e| match e {
                     sqlx::Error::Database(db_err) if db_err.is_unique_violation() => {
                         SeriesRepositoryError::DuplicateSeriesSlug(series)
                     }
-                    _ => SeriesRepositoryError::Unknown(why.into()),
+                    _ => SeriesRepositoryError::Sqlx(e.into()),
                 })?;
 
         let series = series
@@ -83,11 +82,7 @@ impl SeriesRepository for PgSeriesRepository {
             }
         };
 
-        let series: Option<PgSeries> = query
-            .build_query_as()
-            .fetch_optional(&self.pool)
-            .await
-            .map_err(|why| SeriesRepositoryError::Unknown(why.into()))?;
+        let series: Option<PgSeries> = query.build_query_as().fetch_optional(&self.pool).await?;
 
         if series.is_none() {
             return Err(SeriesRepositoryError::SeriesNotFound(identifier));
@@ -124,19 +119,13 @@ impl SeriesRepository for PgSeriesRepository {
             query.push(" OFFSET ");
             query.push_bind(pagination.as_offset().value());
         }
-        let series: Vec<PgSeries> = query
-            .build_query_as()
-            .fetch_all(&self.pool)
-            .await
-            .map_err(|why| SeriesRepositoryError::Unknown(why.into()))?;
+        let series: Vec<PgSeries> = query.build_query_as().fetch_all(&self.pool).await?;
 
         let series = series
             .into_iter()
-            .map(|x| {
-                x.try_into()
-                    .map_err(|why: String| SeriesRepositoryError::DOConversion(why))
-            })
-            .collect::<Result<Vec<Series>, SeriesRepositoryError>>()?;
+            .map(|x| x.try_into())
+            .collect::<Result<Vec<Series>, _>>()
+            .map_err(|e| SeriesRepositoryError::DOConversion(e.to_string()))?;
 
         Ok(series)
     }
@@ -160,12 +149,7 @@ impl SeriesRepository for PgSeriesRepository {
             }
         };
 
-        let rows_affected = query
-            .build()
-            .execute(&mut *tx)
-            .await
-            .map_err(|why| SeriesRepositoryError::Unknown(why.into()))?
-            .rows_affected();
+        let rows_affected = query.build().execute(&mut *tx).await?.rows_affected();
 
         if rows_affected == 0 {
             return Err(SeriesRepositoryError::SeriesNotFound(identifier));
