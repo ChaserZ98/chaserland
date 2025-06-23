@@ -1,7 +1,10 @@
-use crate::{app::interface::ArticleService, ports::rest::state::AppState};
+use crate::{
+    app::interface::ArticleService,
+    ports::rest::{response::ErrorResponse, state::AppState},
+};
 use axum::{
     Json,
-    response::{IntoResponse, Response},
+    response::{IntoResponse, Response, Result},
 };
 use http::{HeaderMap, StatusCode, header::ACCEPT};
 use serde::{Deserialize, Serialize};
@@ -58,11 +61,16 @@ impl Default for Health {
         )
     )
 )]
-pub async fn get_health(headers: HeaderMap) -> Response {
+pub async fn get_health(headers: HeaderMap) -> Result<Response, ErrorResponse> {
     match headers.get(ACCEPT).map(|x| x.as_bytes()) {
-        Some(b"application/json") | Some(b"*/*") | None => Json(Health::default()).into_response(),
-        Some(b"text/plain") => Health::text().into_response(),
-        _ => (StatusCode::BAD_REQUEST, "Unsupported Accept header").into_response(),
+        Some(b"application/json") | Some(b"*/*") | None => {
+            Ok(Json(Health::default()).into_response())
+        }
+        Some(b"text/plain") => Ok(Health::text().into_response()),
+        _ => Err(ErrorResponse::new(
+            StatusCode::BAD_REQUEST,
+            "Unsupported Accept header".into(),
+        )),
     }
 }
 
