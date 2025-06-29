@@ -1,5 +1,5 @@
 use anyhow::Result;
-use chaserland_articles_service_grpc_server::{Server, ServerConfigLoader};
+use chaserland_articles_service_rest_server::{Server, ServerConfigLoader};
 use clap::Parser;
 
 #[cfg(not(target_env = "msvc"))]

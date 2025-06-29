@@ -1,6 +1,6 @@
-use super::ServerConfig;
-use crate::metrics::{MetricHandler, Metrics};
-use anyhow::{Result, anyhow};
+use super::{MetricHandler, Metrics, ServerConfig};
+use anyhow::Result;
+use axum::http::Request;
 use chaserland_articles_service_core::{
     app::service::ArticleService,
     db::connect_db,
@@ -8,17 +8,16 @@ use chaserland_articles_service_core::{
         article::PgArticleRepository, category::PgCategoryRepository, series::PgSeriesRepository,
         tag::PgTagRepository,
     },
-    ports::grpc::service::GrpcArticleService,
+    ports::rest::{router::router, state::AppState},
 };
 use chaserland_observability::Observability;
-use chaserland_protos::article::v1::article_service_server::ArticleServiceServer;
 use opentelemetry::{
     global,
     trace::{SpanKind, Status},
 };
 use opentelemetry_http::HeaderExtractor;
-use tonic::transport::Server as TonicServer;
-use tonic_health::server::health_reporter;
+use tokio::net::TcpListener;
+use tower::ServiceBuilder;
 use tower_http::trace::{
     DefaultOnEos, DefaultOnFailure, DefaultOnRequest, DefaultOnResponse, TraceLayer,
 };
@@ -36,7 +35,7 @@ impl Server {
     }
 
     pub fn set_config(&mut self, config: ServerConfig) {
-        self.config = config;
+        self.config = config
     }
 
     pub async fn run(&self) -> Result<()> {
@@ -45,7 +44,7 @@ impl Server {
             .init()
             .map_err(|e| {
                 tracing::error!("Failed to initialize observability: {}", e);
-                anyhow!("Failed to initialize observability: {}", e)
+                e
             })?;
 
         let pool = connect_db(self.config.db_config.clone())
@@ -60,33 +59,24 @@ impl Server {
         let category_repository = PgCategoryRepository::new(pool.clone());
         let tag_repository = PgTagRepository::new(pool.clone());
 
-        let article_service = GrpcArticleService::new(ArticleService::new(
+        let article_service = ArticleService::new(
             article_repository,
             series_repository,
             category_repository,
             tag_repository,
-        ))
-        .into_tonic_service();
+        );
 
-        let (health_reporter, health_service) = health_reporter();
-
-        health_reporter
-            .set_serving::<ArticleServiceServer<
-                GrpcArticleService<
-                    PgArticleRepository,
-                    PgSeriesRepository,
-                    PgCategoryRepository,
-                    PgTagRepository,
-                >,
-            >>()
-            .await;
-
-        let addr = format!("{}:{}", self.config.host, self.config.port).parse()?;
+        let addr = format!("{}:{}", self.config.host, self.config.port);
         tracing::info!("Server binding address set to {}", addr);
 
+        let listener = TcpListener::bind(addr).await.map_err(|e| {
+            tracing::error!("Failed to bind to address: {}", e);
+            e
+        })?;
+
         let service_name = self.config.otel_config.service_name.clone();
-        let trace_layer = TraceLayer::new_for_grpc()
-            .make_span_with(move |req: &http::Request<_>| {
+        let trace_layer = TraceLayer::new_for_http()
+            .make_span_with(move |req: &Request<_>| {
                 let parent_context = global::get_text_map_propagator(|propagator| {
                     propagator.extract(&HeaderExtractor(req.headers()))
                 });
@@ -112,43 +102,34 @@ impl Server {
             .on_failure(DefaultOnFailure::new().level(Level::ERROR));
 
         let metric_handler = MetricHandler::new(Metrics::new());
-        let metric_layer = tower_http::trace::TraceLayer::new_for_grpc()
+        let metric_layer = tower_http::trace::TraceLayer::new_for_http()
             .make_span_with(metric_handler.clone())
             .on_request(metric_handler.clone())
             .on_response(metric_handler.clone())
             .on_failure(metric_handler)
             .on_eos(DefaultOnEos::new().level(Level::TRACE));
 
-        TonicServer::builder()
-            .layer(trace_layer)
-            .layer(metric_layer)
-            .add_service(health_service)
-            .add_service(article_service)
-            .serve_with_shutdown(addr, self.shutdown())
+        let middlewares = ServiceBuilder::new().layer(trace_layer).layer(metric_layer);
+
+        let router = router()
+            .with_state(AppState::new(article_service))
+            .layer(middlewares);
+
+        let shutdown_future = async {
+            if let Err(e) = tokio::signal::ctrl_c().await {
+                tracing::error!("Error while listening for shutdown signal: {}", e);
+                return;
+            }
+            tracing::info!("Shutdown signal received. Starting graceful shutdown...");
+        };
+
+        axum::serve(listener, router.into_make_service())
+            .with_graceful_shutdown(shutdown_future)
             .await?;
 
-        tracing::info!("Server stopped.");
-
-        tracing::info!("Starting resource cleanup...");
-
-        tracing::info!("Closing db connection pool...");
-        pool.close().await;
-
-        tracing::info!("Resource cleanup completed.");
-
-        tracing::info!("Shutting down observability...");
         otel_provider.shutdown_all()?;
 
         Ok(())
-    }
-
-    async fn shutdown(&self) {
-        tracing::info!("Listening for shutdown signal...");
-        if let Err(why) = tokio::signal::ctrl_c().await {
-            tracing::error!("Error while shutting down: {}", why);
-            return;
-        }
-        tracing::info!("Shutdown signal received. Starting graceful shutdown...");
     }
 }
 

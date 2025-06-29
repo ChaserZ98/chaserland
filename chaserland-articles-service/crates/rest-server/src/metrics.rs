@@ -1,3 +1,4 @@
+use axum::http::{Request, Response};
 use opentelemetry::{
     global,
     metrics::{Counter, Histogram, Meter},
@@ -64,19 +65,19 @@ impl MetricHandler {
 }
 
 impl<B> MakeSpan<B> for MetricHandler {
-    fn make_span(&mut self, _: &http::Request<B>) -> tracing::Span {
+    fn make_span(&mut self, _: &Request<B>) -> tracing::Span {
         tracing::trace_span!("metric")
     }
 }
 
 impl<B> OnRequest<B> for MetricHandler {
-    fn on_request(&mut self, _: &http::Request<B>, _: &tracing::Span) {
+    fn on_request(&mut self, _: &Request<B>, _: &tracing::Span) {
         self.inner().total_requests_counter.add(1, &[]);
     }
 }
 
 impl<B> OnResponse<B> for MetricHandler {
-    fn on_response(self, _: &http::Response<B>, latency: std::time::Duration, _: &tracing::Span) {
+    fn on_response(self, _: &Response<B>, latency: std::time::Duration, _: &tracing::Span) {
         self.inner()
             .processing_time_histogram
             .record(latency.as_millis() as u64, &[]);
