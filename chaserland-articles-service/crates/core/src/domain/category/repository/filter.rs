@@ -11,6 +11,12 @@ impl CategoriesFilter {
         Self { category_ids }
     }
 
+    pub fn try_new(category_ids: Vec<category::Id>) -> Result<Self, String> {
+        Self::validate(&category_ids)?;
+
+        Ok(Self { category_ids })
+    }
+
     pub fn category_ids(&self) -> &Vec<category::Id> {
         &self.category_ids
     }

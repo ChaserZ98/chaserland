@@ -1,16 +1,15 @@
+use crate::{
+    app::{
+        command::CreateArticleCommand,
+        dto::{ArticleDTO, CategoryDTO, TagDTO},
+    },
+    ports::rest::{response::ErrorResponse, v1::series::schema as series_schema},
+};
 use http::StatusCode;
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 
-use crate::{
-    app::{
-        command::CreateArticleCommand,
-        dto::{ArticleDTO, CategoryDTO, SeriesDTO, TagDTO},
-    },
-    ports::rest::response::ErrorResponse,
-};
-
-#[derive(Serialize, Deserialize, ToSchema)]
+#[derive(Deserialize, ToSchema)]
 pub struct ArticleCreate {
     pub title: String,
     pub description: String,
@@ -60,14 +59,14 @@ impl TryInto<CreateArticleCommand> for ArticleCreate {
     }
 }
 
-#[derive(Deserialize, Serialize, ToSchema)]
+#[derive(Serialize, ToSchema)]
 pub struct Article {
     pub id: i32,
     pub title: String,
     pub slug: String,
     pub description: String,
     pub content: Option<String>,
-    pub series: Option<Series>,
+    pub series: Option<series_schema::Series>,
     pub categories: Vec<Category>,
     pub tags: Vec<Tag>,
     pub created_at: String,
@@ -108,24 +107,7 @@ impl From<ArticleDTO> for Article {
     }
 }
 
-#[derive(Deserialize, Serialize, ToSchema)]
-pub struct Series {
-    pub id: i32,
-    pub name: String,
-    pub slug: String,
-}
-
-impl From<SeriesDTO> for Series {
-    fn from(value: SeriesDTO) -> Self {
-        Self {
-            id: value.id,
-            name: value.name,
-            slug: value.slug,
-        }
-    }
-}
-
-#[derive(Deserialize, Serialize, ToSchema)]
+#[derive(Serialize, ToSchema)]
 pub struct Category {
     pub id: i32,
     pub name: String,
@@ -142,7 +124,7 @@ impl From<CategoryDTO> for Category {
     }
 }
 
-#[derive(Deserialize, Serialize, ToSchema)]
+#[derive(Serialize, ToSchema)]
 pub struct Tag {
     pub id: i32,
     pub name: String,

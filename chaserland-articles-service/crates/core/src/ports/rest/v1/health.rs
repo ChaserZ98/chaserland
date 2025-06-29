@@ -38,8 +38,10 @@ impl Default for Health {
 
 #[utoipa::path(
     get,
-    path = "",
     tag = TAG,
+    summary = "Get health",
+    description = "Get health",
+    path = "",
     params(
         ("accept" = Option<String>, Header, description = "Accept header")
     ),

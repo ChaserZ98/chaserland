@@ -12,8 +12,17 @@ pub fn router<T: ArticleService>() -> OpenApiRouter<AppState<T>> {
     let router = OpenApiRouter::new()
         .routes(routes!(
             handlers::create_article,
-            handlers::get_article_many
+            handlers::get_article_many,
         ))
-        .routes(routes!(handlers::get_article_one));
+        .routes(routes!(handlers::get_article_one, handlers::delete_article))
+        .routes(routes!(handlers::get_article_content))
+        .routes(routes!(
+            handlers::publish_article,
+            handlers::unpublish_article
+        ))
+        .routes(routes!(
+            handlers::soft_delete_article,
+            handlers::revoke_soft_delete_article
+        ));
     router
 }

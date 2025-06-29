@@ -11,6 +11,12 @@ impl SeriesFilter {
         Self { series_ids }
     }
 
+    pub fn try_new(series_ids: Vec<series::Id>) -> Result<Self, String> {
+        Self::validate(&series_ids)?;
+
+        Ok(Self { series_ids })
+    }
+
     pub fn series_ids(&self) -> &Vec<series::Id> {
         &self.series_ids
     }

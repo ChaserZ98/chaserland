@@ -15,11 +15,13 @@ use axum_extra::extract::Query;
 
 #[utoipa::path(
     post,
+    tag = TAG,
+    summary = "Create article",
+    description = "Create article",
     path = "",
     params(
         ("accept" = Option<String>, Header, description = "Accept header")
     ),
-    tag = TAG,
     request_body(content = schema::ArticleCreate, description = "Request body for create article", content_type = "application/json"),
     responses(
         (
@@ -56,8 +58,10 @@ pub async fn create_article<T: ArticleService>(
 
 #[utoipa::path(
     get,
-    path = "/{identifier}",
     tag = TAG,
+    summary = "Get article",
+    description = "Get article by article identifier",
+    path = "/{identifier}",
     params(
         ("accept" = Option<String>, Header, description = "Accept header"),
         params::GetArticleOneQuery
@@ -91,8 +95,43 @@ pub async fn get_article_one<T: ArticleService>(
 
 #[utoipa::path(
     get,
-    path = "",
     tag = TAG,
+    summary = "Get article content",
+    description = "Get article content by article identifier",
+    path = "/{identifier}/content",
+    responses(
+        (
+            status = 200,
+            description = "OK",
+            content((String = "text/plain"))
+        ),
+        (
+            status = StatusCode::NOT_FOUND,
+            description = "Not found",
+            content((ErrorBody = "application/json"))
+        )
+    )
+)]
+pub async fn get_article_content<T: ArticleService>(
+    State(state): State<AppState<T>>,
+    Path(identifier): Path<String>,
+    Query(query): Query<params::GetArticleContentQuery>,
+) -> Result<Response, ErrorResponse> {
+    let query = (identifier, query).try_into()?;
+
+    let content = state.article_service.get_article_content(query).await?;
+
+    let res = content.into_response();
+
+    Ok(res)
+}
+
+#[utoipa::path(
+    get,
+    tag = TAG,
+    summary = "List articles",
+    description = "List articles",
+    path = "",
     params(
         ("accept" = Option<String>, Header, description = "Accept header"),
         params::GetArticleManyQuery
@@ -122,4 +161,177 @@ pub async fn get_article_many<T: ArticleService>(
     .into_response();
 
     Ok(res)
+}
+
+#[utoipa::path(
+    delete,
+    tag = TAG,
+    summary = "Delete article",
+    description = "Delete article by article identifier",
+    path = "/{identifier}",
+    responses(
+        (
+            status = StatusCode::OK,
+            description = "OK",
+            content((()))
+        ),
+        (
+            status = StatusCode::NOT_FOUND,
+            description = "Not found",
+            content((ErrorBody = "application/json"))
+        )
+    )
+)]
+pub async fn delete_article<T: ArticleService>(
+    State(state): State<AppState<T>>,
+    Path(identifier): Path<String>,
+) -> Result<Response, ErrorResponse> {
+    let command = identifier.try_into()?;
+
+    state.article_service.delete_article(command).await?;
+
+    Ok(().into_response())
+}
+
+#[utoipa::path(
+    put,
+    tag = TAG,
+    summary = "Publish article",
+    description = "Publish article by article identifier",
+    path = "/{identifier}/publish",
+    responses(
+        (
+            status = StatusCode::OK,
+            description = "OK",
+            content((()))
+        ),
+        (
+            status = StatusCode::NOT_FOUND,
+            description = "Not found",
+            content((ErrorBody = "application/json"))
+        ),
+        (
+            status = StatusCode::CONFLICT,
+            description = "Already published or database state changed during request",
+            content((ErrorBody = "application/json"))
+        )
+    )
+)]
+pub async fn publish_article<T: ArticleService>(
+    State(state): State<AppState<T>>,
+    Path(identifier): Path<String>,
+) -> Result<Response, ErrorResponse> {
+    let command = identifier.try_into()?;
+
+    state.article_service.publish_article(command).await?;
+
+    Ok(().into_response())
+}
+
+#[utoipa::path(
+    delete,
+    tag = TAG,
+    summary = "Unpublish article",
+    description = "Unpublish article by article identifier",
+    path = "/{identifier}/publish",
+    responses(
+        (
+            status = StatusCode::OK,
+            description = "OK",
+            content((()))
+        ),
+        (
+            status = StatusCode::NOT_FOUND,
+            description = "Not found",
+            content((ErrorBody = "application/json"))
+        ),
+        (
+            status = StatusCode::CONFLICT,
+            description = "Not published or database state changed during request",
+            content((ErrorBody = "application/json"))
+        )
+    )
+)]
+pub async fn unpublish_article<T: ArticleService>(
+    State(state): State<AppState<T>>,
+    Path(identifier): Path<String>,
+) -> Result<Response, ErrorResponse> {
+    let command = identifier.try_into()?;
+
+    state.article_service.unpublish_article(command).await?;
+
+    Ok(().into_response())
+}
+
+#[utoipa::path(
+    put,
+    tag = TAG,
+    summary = "Soft delete article",
+    description = "Soft delete article by article identifier",
+    path = "/{identifier}/soft_delete",
+    responses(
+        (
+            status = StatusCode::OK,
+            description = "OK",
+            content((()))
+        ),
+        (
+            status = StatusCode::NOT_FOUND,
+            description = "Not found",
+            content((ErrorBody = "application/json"))
+        ),
+        (
+            status = StatusCode::CONFLICT,
+            description = "Already soft-deleted or database state changed during request",
+            content((ErrorBody = "application/json"))
+        )
+    )
+)]
+pub async fn soft_delete_article<T: ArticleService>(
+    State(state): State<AppState<T>>,
+    Path(identifier): Path<String>,
+) -> Result<Response, ErrorResponse> {
+    let command = identifier.try_into()?;
+
+    state.article_service.soft_delete_article(command).await?;
+
+    Ok(().into_response())
+}
+
+#[utoipa::path(
+    delete,
+    tag = TAG,
+    summary = "Revoke soft delete article",
+    description = "Revoke soft delete article by article identifier",
+    path = "/{identifier}/soft_delete",
+    responses(
+        (
+            status = StatusCode::OK,
+            description = "OK",
+            content((()))
+        ),
+        (
+            status = StatusCode::NOT_FOUND,
+            description = "Not found",
+            content((ErrorBody = "application/json"))
+        ),
+        (
+            status = StatusCode::CONFLICT,
+            description = "Not soft-deleted or database state changed during request",
+            content((ErrorBody = "application/json"))
+        )
+    )
+)]
+pub async fn revoke_soft_delete_article<T: ArticleService>(
+    State(state): State<AppState<T>>,
+    Path(identifier): Path<String>,
+) -> Result<Response, ErrorResponse> {
+    let command = identifier.try_into()?;
+
+    state
+        .article_service
+        .revoke_soft_delete_article(command)
+        .await?;
+
+    Ok(().into_response())
 }

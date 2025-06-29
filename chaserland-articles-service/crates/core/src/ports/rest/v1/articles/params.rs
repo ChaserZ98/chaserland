@@ -1,5 +1,5 @@
 use crate::{
-    app::query,
+    app::{command, query},
     domain::{
         article::{repository::ArticlesFilter, vo as article},
         category::vo as category,
@@ -46,6 +46,38 @@ impl TryInto<query::GetArticleOneQuery> for (String, GetArticleOneQuery) {
             identifier,
             public_only,
             with_content,
+        })
+    }
+}
+
+#[derive(IntoParams, Deserialize)]
+#[into_params(parameter_in = Query)]
+pub struct GetArticleContentQuery {
+    /// Search in public articles only
+    #[param(default = false)]
+    pub public_only: Option<bool>,
+}
+
+impl TryInto<query::GetArticleContentQuery> for (String, GetArticleContentQuery) {
+    type Error = ErrorResponse;
+    fn try_into(self) -> Result<query::GetArticleContentQuery, Self::Error> {
+        let (identifier, query) = self;
+
+        let identifier = match identifier.parse::<i32>() {
+            Ok(id) => id
+                .try_into()
+                .map(|id| article::Identifier::Id(id))
+                .map_err(|e| ErrorResponse::new(StatusCode::BAD_REQUEST, e)),
+            _ => identifier
+                .try_into()
+                .map(|slug| article::Identifier::Slug(slug))
+                .map_err(|e| ErrorResponse::new(StatusCode::BAD_REQUEST, e)),
+        }?;
+        let public_only = query.public_only.unwrap_or(false);
+
+        Ok(query::GetArticleContentQuery {
+            identifier,
+            public_only,
         })
     }
 }
@@ -143,5 +175,95 @@ impl TryInto<query::GetArticleManyQuery> for GetArticleManyQuery {
             with_content,
             filter,
         })
+    }
+}
+
+impl TryInto<command::DeleteArticleCommand> for String {
+    type Error = ErrorResponse;
+    fn try_into(self) -> Result<command::DeleteArticleCommand, Self::Error> {
+        let identifier = match self.parse::<i32>() {
+            Ok(id) => id
+                .try_into()
+                .map(|id| article::Identifier::Id(id))
+                .map_err(|e| ErrorResponse::new(StatusCode::BAD_REQUEST, e)),
+            _ => self
+                .try_into()
+                .map(|slug| article::Identifier::Slug(slug))
+                .map_err(|e| ErrorResponse::new(StatusCode::BAD_REQUEST, e)),
+        }?;
+
+        Ok(command::DeleteArticleCommand { identifier })
+    }
+}
+
+impl TryInto<command::PublishArticleCommand> for String {
+    type Error = ErrorResponse;
+    fn try_into(self) -> Result<command::PublishArticleCommand, Self::Error> {
+        let identifier = match self.parse::<i32>() {
+            Ok(id) => id
+                .try_into()
+                .map(|id| article::Identifier::Id(id))
+                .map_err(|e| ErrorResponse::new(StatusCode::BAD_REQUEST, e)),
+            _ => self
+                .try_into()
+                .map(|slug| article::Identifier::Slug(slug))
+                .map_err(|e| ErrorResponse::new(StatusCode::BAD_REQUEST, e)),
+        }?;
+
+        Ok(command::PublishArticleCommand { identifier })
+    }
+}
+
+impl TryInto<command::UnpublishArticleCommand> for String {
+    type Error = ErrorResponse;
+    fn try_into(self) -> Result<command::UnpublishArticleCommand, Self::Error> {
+        let identifier = match self.parse::<i32>() {
+            Ok(id) => id
+                .try_into()
+                .map(|id| article::Identifier::Id(id))
+                .map_err(|e| ErrorResponse::new(StatusCode::BAD_REQUEST, e)),
+            _ => self
+                .try_into()
+                .map(|slug| article::Identifier::Slug(slug))
+                .map_err(|e| ErrorResponse::new(StatusCode::BAD_REQUEST, e)),
+        }?;
+
+        Ok(command::UnpublishArticleCommand { identifier })
+    }
+}
+
+impl TryInto<command::SoftDeleteArticleCommand> for String {
+    type Error = ErrorResponse;
+    fn try_into(self) -> Result<command::SoftDeleteArticleCommand, Self::Error> {
+        let identifier = match self.parse::<i32>() {
+            Ok(id) => id
+                .try_into()
+                .map(|id| article::Identifier::Id(id))
+                .map_err(|e| ErrorResponse::new(StatusCode::BAD_REQUEST, e)),
+            _ => self
+                .try_into()
+                .map(|slug| article::Identifier::Slug(slug))
+                .map_err(|e| ErrorResponse::new(StatusCode::BAD_REQUEST, e)),
+        }?;
+
+        Ok(command::SoftDeleteArticleCommand { identifier })
+    }
+}
+
+impl TryInto<command::RevokeSoftDeleteArticleCommand> for String {
+    type Error = ErrorResponse;
+    fn try_into(self) -> Result<command::RevokeSoftDeleteArticleCommand, Self::Error> {
+        let identifier = match self.parse::<i32>() {
+            Ok(id) => id
+                .try_into()
+                .map(|id| article::Identifier::Id(id))
+                .map_err(|e| ErrorResponse::new(StatusCode::BAD_REQUEST, e)),
+            _ => self
+                .try_into()
+                .map(|slug| article::Identifier::Slug(slug))
+                .map_err(|e| ErrorResponse::new(StatusCode::BAD_REQUEST, e)),
+        }?;
+
+        Ok(command::RevokeSoftDeleteArticleCommand { identifier })
     }
 }

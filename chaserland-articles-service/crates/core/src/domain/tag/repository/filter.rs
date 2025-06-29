@@ -11,6 +11,12 @@ impl TagsFilter {
         Self { tag_ids }
     }
 
+    pub fn try_new(tag_ids: Vec<tag::Id>) -> Result<Self, String> {
+        Self::validate(&tag_ids)?;
+
+        Ok(Self { tag_ids })
+    }
+
     pub fn tag_ids(&self) -> &Vec<tag::Id> {
         &self.tag_ids
     }
