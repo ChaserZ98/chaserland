@@ -1,5 +1,6 @@
 use chrono::{DateTime, ParseError, Utc};
 use serde::{Deserialize, Serialize};
+use std::str::FromStr;
 
 /**
     ## ArticleVersion
@@ -8,9 +9,9 @@ use serde::{Deserialize, Serialize};
     * Any time the article aggregate is updated, the version should be updated with chrono::Utc::now()
 */
 #[derive(Debug, Serialize, Deserialize, Clone, Copy, PartialEq, Eq)]
-pub struct Version(DateTime<Utc>);
+pub struct TimestampVersion(DateTime<Utc>);
 
-impl Version {
+impl TimestampVersion {
     pub fn new(version: DateTime<Utc>) -> Self {
         Self(version)
     }
@@ -25,19 +26,27 @@ impl Version {
     }
 }
 
-impl Default for Version {
+impl Default for TimestampVersion {
     fn default() -> Self {
         Self(Utc::now())
     }
 }
 
-impl From<DateTime<Utc>> for Version {
+impl From<DateTime<Utc>> for TimestampVersion {
     fn from(value: DateTime<Utc>) -> Self {
         Self(value)
     }
 }
 
-impl TryFrom<String> for Version {
+impl FromStr for TimestampVersion {
+    type Err = ParseError;
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        let value: DateTime<Utc> = s.parse()?;
+        Ok(value.into())
+    }
+}
+
+impl TryFrom<String> for TimestampVersion {
     type Error = ParseError;
     fn try_from(value: String) -> Result<Self, Self::Error> {
         let value: DateTime<Utc> = value.parse()?;
@@ -45,7 +54,7 @@ impl TryFrom<String> for Version {
     }
 }
 
-impl TryFrom<&str> for Version {
+impl TryFrom<&str> for TimestampVersion {
     type Error = ParseError;
     fn try_from(value: &str) -> Result<Self, Self::Error> {
         let value: DateTime<Utc> = value.parse()?;
@@ -53,7 +62,7 @@ impl TryFrom<&str> for Version {
     }
 }
 
-impl std::fmt::Display for Version {
+impl std::fmt::Display for TimestampVersion {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "{}", self.0)
     }
@@ -61,12 +70,14 @@ impl std::fmt::Display for Version {
 
 #[cfg(test)]
 mod tests {
-    use super::Version;
+    use std::str::FromStr;
+
+    use super::TimestampVersion;
 
     #[test]
     fn article_version_case_new() {
         let time = chrono::Utc::now();
-        let version = Version::new(time);
+        let version = TimestampVersion::new(time);
 
         assert_eq!(version.value(), time);
     }
@@ -74,7 +85,7 @@ mod tests {
     #[test]
     fn article_version_case_default() {
         let time = chrono::Utc::now();
-        let version = Version::default();
+        let version = TimestampVersion::default();
 
         assert!(version.value() - time < chrono::Duration::seconds(1));
     }
@@ -82,7 +93,7 @@ mod tests {
     #[test]
     fn article_version_case_to_string() {
         let time = chrono::Utc::now();
-        let version = Version::new(time);
+        let version = TimestampVersion::new(time);
 
         assert_eq!(version.to_string(), time.to_string());
     }
@@ -90,7 +101,7 @@ mod tests {
     #[test]
     fn article_version_case_bump() {
         let time = "2022-01-01 00:00:00 UTC".parse().unwrap();
-        let mut version = Version::new(time);
+        let mut version = TimestampVersion::new(time);
 
         assert_eq!(version.value(), time);
 
@@ -102,7 +113,7 @@ mod tests {
     #[test]
     fn article_version_case_from_chrono() {
         let time = chrono::Utc::now();
-        let version = Version::from(time);
+        let version = TimestampVersion::from(time);
 
         assert_eq!(version.value(), time);
     }
@@ -110,7 +121,7 @@ mod tests {
     #[test]
     fn article_version_case_try_from_string() {
         let time = chrono::Utc::now();
-        let res = Version::try_from(time.to_string());
+        let res = TimestampVersion::try_from(time.to_string());
 
         assert!(res.is_ok());
 
@@ -118,7 +129,7 @@ mod tests {
 
         assert_eq!(res.value(), time);
 
-        let res = Version::try_from(String::from("invalid string"));
+        let res = TimestampVersion::try_from(String::from("invalid string"));
 
         assert!(res.is_err());
     }
@@ -126,16 +137,23 @@ mod tests {
     #[test]
     fn article_version_case_try_from_str_ref() {
         let time = chrono::Utc::now();
-        let res = Version::try_from(time.to_string().as_str());
 
+        let res = TimestampVersion::try_from(time.to_string().as_str());
         assert!(res.is_ok());
 
         let res = res.unwrap();
-
         assert_eq!(res.value(), time);
 
-        let res = Version::try_from("invalid string");
+        let res = TimestampVersion::from_str(time.to_string().as_str());
+        assert!(res.is_ok());
 
+        let res = res.unwrap();
+        assert_eq!(res.value(), time);
+
+        let res = TimestampVersion::try_from("invalid string");
+        assert!(res.is_err());
+
+        let res = TimestampVersion::from_str("invalid string");
         assert!(res.is_err());
     }
 }

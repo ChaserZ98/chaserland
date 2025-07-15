@@ -2,11 +2,15 @@ use super::{MetricHandler, Metrics, ServerConfig};
 use anyhow::Result;
 use axum::http::Request;
 use chaserland_articles_service_core::{
-    app::service::ArticleService,
+    app::{command::service::ArticleCommandService, query::service::ArticleQueryService},
     db::connect_db,
-    infra::repository::postgres::{
-        article::PgArticleRepository, category::PgCategoryRepository, series::PgSeriesRepository,
-        tag::PgTagRepository,
+    infra::postgres::{
+        query_handler::{
+            PgArticleQueryHandler, PgCategoryQueryHandler, PgSeriesQueryHandler, PgTagQueryHandler,
+        },
+        repository::{
+            PgArticleRepository, PgCategoryRepository, PgSeriesRepository, PgTagRepository,
+        },
     },
     ports::rest::{router::router, state::AppState},
 };
@@ -54,16 +58,29 @@ impl Server {
                 e
             })?;
 
-        let article_repository = PgArticleRepository::new(pool.clone());
-        let series_repository = PgSeriesRepository::new(pool.clone());
-        let category_repository = PgCategoryRepository::new(pool.clone());
-        let tag_repository = PgTagRepository::new(pool.clone());
+        let article_repository = PgArticleRepository::new();
+        let series_repository = PgSeriesRepository::new();
+        let category_repository = PgCategoryRepository::new();
+        let tag_repository = PgTagRepository::new();
 
-        let article_service = ArticleService::new(
+        let article_command_service = ArticleCommandService::new(
             article_repository,
             series_repository,
             category_repository,
             tag_repository,
+            pool.clone(),
+        );
+
+        let article_query_handler = PgArticleQueryHandler::new(pool.clone());
+        let series_query_handler = PgSeriesQueryHandler::new(pool.clone());
+        let category_query_handler = PgCategoryQueryHandler::new(pool.clone());
+        let tag_query_handler = PgTagQueryHandler::new(pool.clone());
+
+        let article_query_service = ArticleQueryService::new(
+            article_query_handler,
+            series_query_handler,
+            category_query_handler,
+            tag_query_handler,
         );
 
         let addr = format!("{}:{}", self.config.host, self.config.port);
@@ -111,9 +128,9 @@ impl Server {
 
         let middlewares = ServiceBuilder::new().layer(trace_layer).layer(metric_layer);
 
-        let router = router()
-            .with_state(AppState::new(article_service))
-            .layer(middlewares);
+        let state = AppState::new(article_command_service, article_query_service);
+
+        let router = router().with_state(state).layer(middlewares);
 
         let shutdown_future = async {
             if let Err(e) = tokio::signal::ctrl_c().await {

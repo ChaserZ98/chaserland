@@ -36,12 +36,11 @@ async fn get_one_case_id_1(pool: sqlx::PgPool) {
         Some(1.try_into().unwrap()),
         vec![],
         vec![],
-        chrono::Utc::now().into(),
     );
 
     assert!(res.is_ok());
 
-    let res = res.unwrap();
+    let (res, _) = res.unwrap();
 
     assert_eq!(res.id, target.id);
     assert_eq!(res.title, target.title);
@@ -92,12 +91,11 @@ async fn get_one_case_id_2(pool: sqlx::PgPool) {
         Some(2.try_into().unwrap()),
         vec![1.try_into().unwrap(), 2.try_into().unwrap()],
         vec![2.try_into().unwrap(), 3.try_into().unwrap()],
-        chrono::Utc::now().into(),
     );
 
     assert!(res.is_ok());
 
-    let res = res.unwrap();
+    let (res, _) = res.unwrap();
 
     assert_eq!(res.id, target.id);
     assert_eq!(res.title, target.title);
@@ -144,8 +142,8 @@ async fn get_one_case_all_with_content_id(pool: sqlx::PgPool) {
         Some(1.try_into().unwrap()),
         vec![],
         vec![],
-        "2020-01-01 00:00:00 UTC".try_into().unwrap(),
     );
+    let target_version = "2020-01-01 00:00:00 UTC".try_into().unwrap();
 
     let res = repo
         .get_one(title.as_slug().as_identifier(), public_only, with_content)
@@ -153,7 +151,7 @@ async fn get_one_case_all_with_content_id(pool: sqlx::PgPool) {
 
     assert!(res.is_ok());
 
-    let res = res.unwrap();
+    let (res, version) = res.unwrap();
 
     assert_eq!(res.id, target.id);
     assert_eq!(res.title, target.title);
@@ -167,7 +165,7 @@ async fn get_one_case_all_with_content_id(pool: sqlx::PgPool) {
     assert_eq!(res.series_id, target.series_id);
     assert_eq!(res.category_ids, target.category_ids);
     assert_eq!(res.tag_ids, target.tag_ids);
-    assert_eq!(res.version, target.version);
+    assert_eq!(version, target_version);
 }
 
 #[sqlx::test(
@@ -202,9 +200,9 @@ async fn get_one_case_public_with_content_slug(pool: sqlx::PgPool) {
         Some(1.try_into().unwrap()),
         vec![],
         vec![],
-        "2020-01-01 00:00:00 UTC".try_into().unwrap(),
     );
     target.published_at = Some("2020-01-01 00:00:00 UTC".try_into().unwrap());
+    let target_version = "2020-01-01 00:00:00 UTC".try_into().unwrap();
 
     let res = repo
         .get_one(title.as_slug().as_identifier(), public_only, with_content)
@@ -212,7 +210,7 @@ async fn get_one_case_public_with_content_slug(pool: sqlx::PgPool) {
 
     assert!(res.is_ok());
 
-    let res = res.unwrap();
+    let (res, version) = res.unwrap();
 
     assert_eq!(res.id, target.id);
     assert_eq!(res.title, target.title);
@@ -226,7 +224,7 @@ async fn get_one_case_public_with_content_slug(pool: sqlx::PgPool) {
     assert_eq!(res.series_id, target.series_id);
     assert_eq!(res.category_ids, target.category_ids);
     assert_eq!(res.tag_ids, target.tag_ids);
-    assert_eq!(res.version, target.version);
+    assert_eq!(version, target_version);
 }
 
 #[sqlx::test(
@@ -261,9 +259,9 @@ async fn get_one_case_public_without_content_slug(pool: sqlx::PgPool) {
         Some(1.try_into().unwrap()),
         vec![],
         vec![],
-        "2020-01-01 00:00:00 UTC".try_into().unwrap(),
     );
     target.published_at = Some("2020-01-01 00:00:00 UTC".try_into().unwrap());
+    let target_version = "2020-01-01 00:00:00 UTC".try_into().unwrap();
 
     let res = repo
         .get_one(title.as_slug().as_identifier(), public_only, with_content)
@@ -271,7 +269,7 @@ async fn get_one_case_public_without_content_slug(pool: sqlx::PgPool) {
 
     assert!(res.is_ok());
 
-    let res = res.unwrap();
+    let (res, version) = res.unwrap();
 
     assert_eq!(res.id, target.id);
     assert_eq!(res.title, target.title);
@@ -285,7 +283,7 @@ async fn get_one_case_public_without_content_slug(pool: sqlx::PgPool) {
     assert_eq!(res.series_id, target.series_id);
     assert_eq!(res.category_ids, target.category_ids);
     assert_eq!(res.tag_ids, target.tag_ids);
-    assert_eq!(res.version, target.version);
+    assert_eq!(version, target_version);
 }
 
 #[sqlx::test(

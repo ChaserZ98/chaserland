@@ -47,4 +47,25 @@ mod tests {
     fn categories_filter_case_new_panic() {
         CategoriesFilter::new(vec![]);
     }
+
+    #[test]
+    fn categories_filter_case_try_new() {
+        let category_ids = vec![1.try_into().unwrap(), 2.try_into().unwrap()];
+
+        let res = CategoriesFilter::try_new(category_ids.clone());
+
+        assert!(res.is_ok());
+
+        let filter = res.unwrap();
+
+        assert_eq!(filter.category_ids(), &category_ids);
+
+        let res = CategoriesFilter::try_new(vec![]);
+
+        assert!(res.is_err());
+
+        let err = res.unwrap_err();
+
+        assert_eq!(err, "At least one category id must be specified");
+    }
 }

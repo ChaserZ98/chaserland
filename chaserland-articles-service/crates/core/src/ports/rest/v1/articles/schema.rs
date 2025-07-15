@@ -1,7 +1,7 @@
 use crate::{
     app::{
         command::CreateArticleCommand,
-        dto::{ArticleDTO, CategoryDTO, TagDTO},
+        query::dto::{ArticleDTO, CategoryDTO, TagDTO},
     },
     ports::rest::{response::ErrorResponse, v1::series::schema as series_schema},
 };

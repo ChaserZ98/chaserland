@@ -1,6 +1,6 @@
 use super::{TAG, params, schema};
 use crate::{
-    app::interface::ArticleService,
+    app::{command::interface::ArticleCommandService, query::interface::ArticleQueryService},
     ports::rest::{
         response::{ErrorBody, ErrorResponse},
         state::AppState,
@@ -12,6 +12,7 @@ use axum::{
     response::{IntoResponse, Response, Result},
 };
 use axum_extra::extract::Query;
+use http::StatusCode;
 
 #[utoipa::path(
     post,
@@ -27,7 +28,6 @@ use axum_extra::extract::Query;
         (
             status = 201,
             description = "Created",
-            content((schema::Article = "application/json"))
         ),
         (
             status = StatusCode::CONFLICT,
@@ -36,14 +36,14 @@ use axum_extra::extract::Query;
         )
     )
 )]
-pub async fn create_article<T: ArticleService>(
-    State(state): State<AppState<T>>,
+pub async fn create_article<C: ArticleCommandService, Q: ArticleQueryService>(
+    State(state): State<AppState<C, Q>>,
     Json(payload): Json<schema::ArticleCreate>,
 ) -> Result<Response, ErrorResponse> {
     let command = payload.try_into()?;
 
-    let article = state
-        .article_service
+    state
+        .article_command_service
         .create_article(command)
         .await
         .map_err(|e| {
@@ -51,7 +51,7 @@ pub async fn create_article<T: ArticleService>(
             e
         })?;
 
-    let res = Json(schema::Article::from(article)).into_response();
+    let res = StatusCode::CREATED.into_response();
 
     Ok(res)
 }
@@ -79,14 +79,14 @@ pub async fn create_article<T: ArticleService>(
         )
     )
 )]
-pub async fn get_article_one<T: ArticleService>(
-    State(state): State<AppState<T>>,
+pub async fn get_article_one<C: ArticleCommandService, Q: ArticleQueryService>(
+    State(state): State<AppState<C, Q>>,
     Path(identifier): Path<String>,
     Query(query): Query<params::GetArticleOneQuery>,
 ) -> Result<Response, ErrorResponse> {
     let query = (identifier, query).try_into()?;
 
-    let article = state.article_service.get_article_one(query).await?;
+    let article = state.article_query_service.get_article_one(query).await?;
 
     let res = Json(schema::Article::from(article)).into_response();
 
@@ -112,14 +112,17 @@ pub async fn get_article_one<T: ArticleService>(
         )
     )
 )]
-pub async fn get_article_content<T: ArticleService>(
-    State(state): State<AppState<T>>,
+pub async fn get_article_content<C: ArticleCommandService, Q: ArticleQueryService>(
+    State(state): State<AppState<C, Q>>,
     Path(identifier): Path<String>,
     Query(query): Query<params::GetArticleContentQuery>,
 ) -> Result<Response, ErrorResponse> {
     let query = (identifier, query).try_into()?;
 
-    let content = state.article_service.get_article_content(query).await?;
+    let content = state
+        .article_query_service
+        .get_article_content(query)
+        .await?;
 
     let res = content.into_response();
 
@@ -144,13 +147,13 @@ pub async fn get_article_content<T: ArticleService>(
         )
     )
 )]
-pub async fn get_article_many<T: ArticleService>(
-    State(state): State<AppState<T>>,
+pub async fn get_article_many<C: ArticleCommandService, Q: ArticleQueryService>(
+    State(state): State<AppState<C, Q>>,
     Query(query): Query<params::GetArticleManyQuery>,
 ) -> Result<Response, ErrorResponse> {
     let query = query.try_into()?;
 
-    let articles = state.article_service.get_article_many(query).await?;
+    let articles = state.article_query_service.get_article_many(query).await?;
 
     let res = Json(
         articles
@@ -182,13 +185,16 @@ pub async fn get_article_many<T: ArticleService>(
         )
     )
 )]
-pub async fn delete_article<T: ArticleService>(
-    State(state): State<AppState<T>>,
+pub async fn delete_article<C: ArticleCommandService, Q: ArticleQueryService>(
+    State(state): State<AppState<C, Q>>,
     Path(identifier): Path<String>,
 ) -> Result<Response, ErrorResponse> {
     let command = identifier.try_into()?;
 
-    state.article_service.delete_article(command).await?;
+    state
+        .article_command_service
+        .delete_article(command)
+        .await?;
 
     Ok(().into_response())
 }
@@ -217,13 +223,16 @@ pub async fn delete_article<T: ArticleService>(
         )
     )
 )]
-pub async fn publish_article<T: ArticleService>(
-    State(state): State<AppState<T>>,
+pub async fn publish_article<C: ArticleCommandService, Q: ArticleQueryService>(
+    State(state): State<AppState<C, Q>>,
     Path(identifier): Path<String>,
 ) -> Result<Response, ErrorResponse> {
     let command = identifier.try_into()?;
 
-    state.article_service.publish_article(command).await?;
+    state
+        .article_command_service
+        .publish_article(command)
+        .await?;
 
     Ok(().into_response())
 }
@@ -252,13 +261,16 @@ pub async fn publish_article<T: ArticleService>(
         )
     )
 )]
-pub async fn unpublish_article<T: ArticleService>(
-    State(state): State<AppState<T>>,
+pub async fn unpublish_article<C: ArticleCommandService, Q: ArticleQueryService>(
+    State(state): State<AppState<C, Q>>,
     Path(identifier): Path<String>,
 ) -> Result<Response, ErrorResponse> {
     let command = identifier.try_into()?;
 
-    state.article_service.unpublish_article(command).await?;
+    state
+        .article_command_service
+        .unpublish_article(command)
+        .await?;
 
     Ok(().into_response())
 }
@@ -287,13 +299,16 @@ pub async fn unpublish_article<T: ArticleService>(
         )
     )
 )]
-pub async fn soft_delete_article<T: ArticleService>(
-    State(state): State<AppState<T>>,
+pub async fn soft_delete_article<C: ArticleCommandService, Q: ArticleQueryService>(
+    State(state): State<AppState<C, Q>>,
     Path(identifier): Path<String>,
 ) -> Result<Response, ErrorResponse> {
     let command = identifier.try_into()?;
 
-    state.article_service.soft_delete_article(command).await?;
+    state
+        .article_command_service
+        .soft_delete_article(command)
+        .await?;
 
     Ok(().into_response())
 }
@@ -322,14 +337,14 @@ pub async fn soft_delete_article<T: ArticleService>(
         )
     )
 )]
-pub async fn revoke_soft_delete_article<T: ArticleService>(
-    State(state): State<AppState<T>>,
+pub async fn revoke_soft_delete_article<C: ArticleCommandService, Q: ArticleQueryService>(
+    State(state): State<AppState<C, Q>>,
     Path(identifier): Path<String>,
 ) -> Result<Response, ErrorResponse> {
     let command = identifier.try_into()?;
 
     state
-        .article_service
+        .article_command_service
         .revoke_soft_delete_article(command)
         .await?;
 

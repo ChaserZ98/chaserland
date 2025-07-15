@@ -1,5 +1,5 @@
 use crate::{
-    app::{command::CreateSeriesCommand, dto::SeriesDTO},
+    app::{command::CreateSeriesCommand, query::dto::SeriesDTO},
     ports::rest::response::ErrorResponse,
 };
 use http::StatusCode;

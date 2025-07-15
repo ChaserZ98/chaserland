@@ -49,7 +49,6 @@ async fn get_many_case_pagination(pool: PgPool) {
         Some(1.try_into().unwrap()),
         vec![],
         vec![],
-        chrono::Utc::now().into(),
     );
 
     assert_eq!(res[0].id, target.id);
@@ -90,7 +89,6 @@ async fn get_many_case_pagination(pool: PgPool) {
         Some(2.try_into().unwrap()),
         vec![1.try_into().unwrap(), 2.try_into().unwrap()],
         vec![2.try_into().unwrap(), 3.try_into().unwrap()],
-        chrono::Utc::now().into(),
     );
 
     let article = &res[0];
@@ -151,7 +149,6 @@ async fn get_many_case_all_without_content_no_filter(pool: PgPool) {
         Some(1.try_into().unwrap()),
         vec![],
         vec![],
-        chrono::Utc::now().into(),
     );
 
     let target_2 = Article::new(
@@ -164,7 +161,6 @@ async fn get_many_case_all_without_content_no_filter(pool: PgPool) {
         Some(2.try_into().unwrap()),
         vec![1.try_into().unwrap(), 2.try_into().unwrap()],
         vec![2.try_into().unwrap(), 3.try_into().unwrap()],
-        chrono::Utc::now().into(),
     );
 
     let article_1 = &res[0];
@@ -246,7 +242,6 @@ async fn get_many_case_all_with_content_no_filter(pool: PgPool) {
         Some(1.try_into().unwrap()),
         vec![],
         vec![],
-        chrono::Utc::now().into(),
     );
 
     let target_2 = Article::new(
@@ -259,7 +254,6 @@ async fn get_many_case_all_with_content_no_filter(pool: PgPool) {
         Some(2.try_into().unwrap()),
         vec![1.try_into().unwrap(), 2.try_into().unwrap()],
         vec![2.try_into().unwrap(), 3.try_into().unwrap()],
-        chrono::Utc::now().into(),
     );
 
     let article_1 = &res[0];
@@ -326,7 +320,6 @@ async fn get_many_case_all_with_content_with_series_filter(pool: PgPool) {
         Some(2.try_into().unwrap()),
         vec![1.try_into().unwrap(), 2.try_into().unwrap()],
         vec![2.try_into().unwrap(), 3.try_into().unwrap()],
-        chrono::Utc::now().into(),
     );
 
     let pagination = Pagination::new(1.try_into().unwrap(), 10.try_into().unwrap());
@@ -435,7 +428,6 @@ async fn get_many_case_all_with_content_with_category_filter(pool: PgPool) {
         Some(2.try_into().unwrap()),
         vec![1.try_into().unwrap(), 2.try_into().unwrap()],
         vec![2.try_into().unwrap(), 3.try_into().unwrap()],
-        chrono::Utc::now().into(),
     );
 
     let article = &res[0];
@@ -512,7 +504,6 @@ async fn get_many_case_all_with_content_with_tag_filter(pool: PgPool) {
         Some(2.try_into().unwrap()),
         vec![1.try_into().unwrap(), 2.try_into().unwrap()],
         vec![2.try_into().unwrap(), 3.try_into().unwrap()],
-        chrono::Utc::now().into(),
     );
 
     let article = &res[0];
@@ -591,7 +582,6 @@ async fn get_many_case_all_with_content_with_series_category_tag_filter(pool: Pg
         Some(2.try_into().unwrap()),
         vec![1.try_into().unwrap(), 2.try_into().unwrap()],
         vec![2.try_into().unwrap(), 3.try_into().unwrap()],
-        "2020-01-01 00:00:00 UTC".try_into().unwrap(),
     );
 
     let article = &res[0];
@@ -685,7 +675,6 @@ async fn get_many_case_public_with_content_no_filter(pool: PgPool) {
         Some(1.try_into().unwrap()),
         vec![],
         vec![],
-        "2020-01-01 00:00:00 UTC".try_into().unwrap(),
     );
     target.published_at = Some("2020-01-01 00:00:00 UTC".try_into().unwrap());
 
@@ -748,7 +737,6 @@ async fn get_many_case_public_with_content_with_series_filter(pool: PgPool) {
         Some(1.try_into().unwrap()),
         vec![],
         vec![],
-        "2020-01-01 00:00:00 UTC".try_into().unwrap(),
     );
     target.published_at = Some("2020-01-01 00:00:00 UTC".try_into().unwrap());
 

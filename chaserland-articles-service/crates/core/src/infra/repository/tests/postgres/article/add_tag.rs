@@ -24,13 +24,13 @@ async fn add_tag_case_1(pool: sqlx::PgPool) {
 
     let mut article = Article::default();
     article.id = 1.try_into().unwrap();
-    article.version = "2020-01-01 00:00:00 UTC".try_into().unwrap();
+    let version = "2020-01-01 00:00:00 UTC".try_into().unwrap();
     article.tag_ids = vec![];
 
     let tag_id = tag::Id::new(1);
     article.add_tag_id(tag_id).unwrap();
 
-    let res = repo.add_tag(article.id, tag_id, article.version).await;
+    let res = repo.add_tag(article.id, tag_id, version).await;
 
     assert!(res.is_ok());
 }
@@ -53,13 +53,13 @@ async fn add_tag_case_article_not_found(pool: sqlx::PgPool) {
 
     let mut article = Article::default();
     article.id = 4.try_into().unwrap();
-    article.version = "2020-01-01 00:00:00 UTC".try_into().unwrap();
+    let version = "2020-01-01 00:00:00 UTC".try_into().unwrap();
     article.tag_ids = vec![];
 
     let tag_id = tag::Id::new(1);
     article.add_tag_id(tag_id).unwrap();
 
-    let res = repo.add_tag(article.id, tag_id, article.version).await;
+    let res = repo.add_tag(article.id, tag_id, version).await;
 
     assert!(res.is_err());
 
@@ -89,13 +89,13 @@ async fn add_tag_case_tag_not_found(pool: sqlx::PgPool) {
 
     let mut article = Article::default();
     article.id = 1.try_into().unwrap();
-    article.version = "2020-01-01 00:00:00 UTC".try_into().unwrap();
+    let version = "2020-01-01 00:00:00 UTC".try_into().unwrap();
     article.tag_ids = vec![];
 
     let tag_id = tag::Id::new(4);
     article.add_tag_id(tag_id).unwrap();
 
-    let res = repo.add_tag(article.id, tag_id, article.version).await;
+    let res = repo.add_tag(article.id, tag_id, version).await;
 
     assert!(res.is_err());
 
@@ -126,13 +126,13 @@ async fn add_tag_case_both_not_found(pool: sqlx::PgPool) {
 
     let mut article = Article::default();
     article.id = 4.try_into().unwrap();
-    article.version = "2020-01-01 00:00:00 UTC".try_into().unwrap();
+    let version = "2020-01-01 00:00:00 UTC".try_into().unwrap();
     article.tag_ids = vec![];
 
     let tag_id = tag::Id::new(4);
     article.add_tag_id(tag_id).unwrap();
 
-    let res = repo.add_tag(article.id, tag_id, article.version).await;
+    let res = repo.add_tag(article.id, tag_id, version).await;
 
     assert!(res.is_err());
 
@@ -162,17 +162,17 @@ async fn add_tag_case_version_mismatch(pool: sqlx::PgPool) {
 
     let mut article = Article::default();
     article.id = 1.try_into().unwrap();
-    article.version = "2020-01-01 00:00:00 UTC".try_into().unwrap();
+    let version = "2020-01-01 00:00:00 UTC".try_into().unwrap();
     article.tag_ids = vec![];
 
     let tag_id = tag::Id::new(1);
     article.add_tag_id(tag_id).unwrap();
 
-    let res = repo.add_tag(article.id, tag_id, article.version).await;
+    let res = repo.add_tag(article.id, tag_id, version).await;
 
     assert!(res.is_ok());
 
-    let res = repo.add_tag(article.id, tag_id, article.version).await;
+    let res = repo.add_tag(article.id, tag_id, version).await;
 
     assert!(res.is_err());
 
@@ -183,8 +183,7 @@ async fn add_tag_case_version_mismatch(pool: sqlx::PgPool) {
             id,
             current_version,
             db_version,
-        } =>
-            id == article.id && current_version == article.version && db_version != article.version,
+        } => id == article.id && current_version == version && db_version != version,
         _ => false,
     });
 }

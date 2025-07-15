@@ -31,17 +31,13 @@ async fn publish_case_id(pool: sqlx::PgPool) {
         Some(1.try_into().unwrap()),
         vec![1.try_into().unwrap(), 2.try_into().unwrap()],
         vec![1.try_into().unwrap(), 2.try_into().unwrap()],
-        "2020-01-01 00:00:00 UTC".try_into().unwrap(),
     );
+    let version = "2020-01-01 00:00:00 UTC".try_into().unwrap();
 
     article.publish().unwrap();
 
     let res = repo
-        .publish(
-            article.id,
-            article.published_at.clone().unwrap(),
-            article.version,
-        )
+        .publish(article.id, article.published_at.clone().unwrap(), version)
         .await;
 
     assert!(res.is_ok());
@@ -73,17 +69,13 @@ async fn publish_case_id_not_found(pool: sqlx::PgPool) {
         Some(1.try_into().unwrap()),
         vec![1.try_into().unwrap(), 2.try_into().unwrap()],
         vec![1.try_into().unwrap(), 2.try_into().unwrap()],
-        chrono::Utc::now().into(),
     );
+    let version = chrono::Utc::now().into();
 
     article.publish().unwrap();
 
     let res = repo
-        .publish(
-            article.id,
-            article.published_at.clone().unwrap(),
-            article.version,
-        )
+        .publish(article.id, article.published_at.clone().unwrap(), version)
         .await;
 
     assert!(res.is_err());
@@ -114,26 +106,18 @@ async fn publish_case_version_mismatch(pool: sqlx::PgPool) {
 
     let mut article = Article::default();
     article.id = 1.try_into().unwrap();
-    article.version = "2020-01-01 00:00:00 UTC".try_into().unwrap();
+    let version = "2020-01-01 00:00:00 UTC".try_into().unwrap();
 
     article.publish().unwrap();
 
     let res = repo
-        .publish(
-            article.id,
-            article.published_at.clone().unwrap(),
-            article.version,
-        )
+        .publish(article.id, article.published_at.clone().unwrap(), version)
         .await;
 
     assert!(res.is_ok());
 
     let res = repo
-        .publish(
-            article.id,
-            article.published_at.clone().unwrap(),
-            article.version,
-        )
+        .publish(article.id, article.published_at.clone().unwrap(), version)
         .await;
 
     assert!(res.is_err());
@@ -145,8 +129,7 @@ async fn publish_case_version_mismatch(pool: sqlx::PgPool) {
             id,
             current_version,
             db_version,
-        } =>
-            id == article.id && current_version == article.version && db_version != article.version,
+        } => id == article.id && current_version == version && db_version != version,
         _ => false,
     });
 }

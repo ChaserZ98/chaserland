@@ -9,7 +9,6 @@ message CreateArticleRequest {
 }
 
 message CreateArticleResponse {
-  Article article = 1;
 }
 
 message CreateSeriesRequest {
@@ -17,7 +16,6 @@ message CreateSeriesRequest {
 }
 
 message CreateSeriesResponse {
-  Series series = 1;
 }
 
 message CreateCategoryRequest {
@@ -25,7 +23,6 @@ message CreateCategoryRequest {
 }
 
 message CreateCategoryResponse {
-  Category category = 1;
 }
 
 message CreateTagRequest {
@@ -33,7 +30,6 @@ message CreateTagRequest {
 }
 
 message CreateTagResponse {
-  Tag tag = 1;
 }
 
 message GetArticleOneRequest {

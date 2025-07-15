@@ -1,5 +1,8 @@
 use super::v1;
-use crate::{app::interface::ArticleService, ports::rest::state::AppState};
+use crate::{
+    app::{command::interface::ArticleCommandService, query::interface::ArticleQueryService},
+    ports::rest::state::AppState,
+};
 use axum::Router;
 use utoipa::{
     Modify, OpenApi,
@@ -11,9 +14,10 @@ use utoipa_redoc::{Redoc, Servable};
 use utoipa_scalar::{Scalar, Servable as ScalarServable};
 use utoipa_swagger_ui::SwaggerUi;
 
-pub fn router<T>() -> Router<AppState<T>>
+pub fn router<C, Q>() -> Router<AppState<C, Q>>
 where
-    T: ArticleService,
+    C: ArticleCommandService,
+    Q: ArticleQueryService,
 {
     let v1_router = v1::router();
     let (router, api) = OpenApiRouter::with_openapi(ApiDoc::openapi())

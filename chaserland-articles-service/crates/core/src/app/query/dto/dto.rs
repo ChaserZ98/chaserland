@@ -177,8 +177,7 @@ impl From<Tag> for TagDTO {
 
 #[cfg(test)]
 mod tests {
-    use super::ArticleDTOBuilder;
-    use crate::app::dto::{ArticleDTOError, CategoryDTO, SeriesDTO, TagDTO};
+    use super::{ArticleDTOBuilder, ArticleDTOError, CategoryDTO, SeriesDTO, TagDTO};
     use crate::domain::article::entity::Article;
     use crate::domain::category::entity::Category;
     use crate::domain::series::entity::Series;
@@ -205,7 +204,6 @@ mod tests {
             Some(series.id),
             categories.iter().map(|x| x.id).collect(),
             tags.iter().map(|x| x.id).collect(),
-            "2020-01-01 00:00:00 UTC".try_into().unwrap(),
         );
         article.published_at = Some("2020-01-01 00:00:00 UTC".try_into().unwrap());
         article.deleted_at = Some("2020-01-01 00:00:00 UTC".try_into().unwrap());
@@ -295,7 +293,6 @@ mod tests {
             None,
             vec![],
             vec![],
-            "2020-01-01 00:00:00 UTC".try_into().unwrap(),
         );
         article.published_at = Some("2020-01-01 00:00:00 UTC".try_into().unwrap());
         article.deleted_at = Some("2020-01-01 00:00:00 UTC".try_into().unwrap());
@@ -335,7 +332,6 @@ mod tests {
             None,
             vec![1.try_into().unwrap(), 2.try_into().unwrap()],
             vec![],
-            "2020-01-01 00:00:00 UTC".try_into().unwrap(),
         );
 
         let article_dto_builder = ArticleDTOBuilder::new()
@@ -375,7 +371,6 @@ mod tests {
             None,
             vec![2.try_into().unwrap()],
             vec![],
-            "2020-01-01 00:00:00 UTC".try_into().unwrap(),
         );
 
         let article_dto_builder = ArticleDTOBuilder::new()
@@ -408,7 +403,6 @@ mod tests {
             None,
             vec![],
             vec![1.try_into().unwrap(), 2.try_into().unwrap()],
-            "2020-01-01 00:00:00 UTC".try_into().unwrap(),
         );
 
         let article_dto_builder = ArticleDTOBuilder::new()
@@ -443,7 +437,6 @@ mod tests {
             None,
             vec![],
             vec![2.try_into().unwrap()],
-            "2020-01-01 00:00:00 UTC".try_into().unwrap(),
         );
 
         let article_dto_builder = ArticleDTOBuilder::new()

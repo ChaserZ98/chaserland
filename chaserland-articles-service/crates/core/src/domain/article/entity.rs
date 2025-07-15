@@ -1,6 +1,6 @@
 use super::error::ArticleDomainError;
 use super::vo::{
-    Content, CreatedAt, DeletedAt, Description, Id, PublishedAt, Slug, Title, UpdatedAt, Version,
+    Content, CreatedAt, DeletedAt, Description, Id, PublishedAt, Slug, Title, UpdatedAt,
 };
 use crate::domain::category::vo as category;
 use crate::domain::series::vo as series;
@@ -21,7 +21,6 @@ pub struct Article {
     pub series_id: Option<series::Id>,
     pub category_ids: Vec<category::Id>,
     pub tag_ids: Vec<tag::Id>,
-    pub version: Version,
 }
 
 impl Article {
@@ -35,7 +34,6 @@ impl Article {
         series_id: Option<series::Id>,
         category_ids: Vec<category::Id>,
         tag_ids: Vec<tag::Id>,
-        version: Version,
     ) -> Self {
         let slug = title.as_slug();
         Self {
@@ -51,35 +49,45 @@ impl Article {
             series_id,
             category_ids,
             tag_ids,
-            version,
         }
     }
+
     pub fn set_title(&mut self, title: Title) {
         self.slug = title.as_slug();
         self.title = title;
+        self.bump_updated_at();
     }
+
     pub fn set_description(&mut self, description: Description) {
         self.description = description;
+        self.bump_updated_at();
     }
+
     pub fn set_content(&mut self, content: Content) {
         self.content = Some(content);
+        self.bump_updated_at();
     }
+
     pub fn slug(&self) -> &Slug {
         &self.slug
     }
+
     pub fn is_published(&self) -> bool {
         self.published_at.is_some()
     }
+
     pub fn publish(&mut self) -> Result<(), ArticleDomainError> {
         match self.published_at {
             Some(_) => Err(ArticleDomainError::AlreadyPublished(self.id)),
             None => {
                 let utc_now = chrono::Utc::now();
                 self.published_at = Some(PublishedAt::new(utc_now));
+                self.bump_updated_at();
                 Ok(())
             }
         }
     }
+
     pub fn unpublish(&mut self) -> Result<(), ArticleDomainError> {
         match self.published_at {
             Some(_) => {
@@ -89,6 +97,7 @@ impl Article {
             None => Err(ArticleDomainError::NotPublished(self.id)),
         }
     }
+
     pub fn soft_delete(&mut self) -> Result<(), ArticleDomainError> {
         match self.deleted_at {
             Some(_) => Err(ArticleDomainError::AlreadySoftDeleted(self.id)),
@@ -98,6 +107,7 @@ impl Article {
             }
         }
     }
+
     pub fn revoke_soft_delete(&mut self) -> Result<(), ArticleDomainError> {
         match self.deleted_at {
             Some(_) => {
@@ -107,18 +117,19 @@ impl Article {
             None => Err(ArticleDomainError::NotSoftDeleted(self.id)),
         }
     }
-    pub fn bump_updated_at(&mut self) {
+
+    fn bump_updated_at(&mut self) {
         self.updated_at.update();
     }
-    pub fn bump_version(&mut self) {
-        self.version.bump();
-    }
+
     pub fn set_series_id(&mut self, series_id: series::Id) {
         self.series_id = Some(series_id);
     }
+
     pub fn remove_series_id(&mut self) {
         self.series_id = None;
     }
+
     pub fn add_category_id(&mut self, category_id: category::Id) -> Result<(), ArticleDomainError> {
         if self.category_ids.contains(&category_id) {
             return Err(ArticleDomainError::CategoryAlreadyAttached(
@@ -129,6 +140,7 @@ impl Article {
         self.category_ids.push(category_id);
         Ok(())
     }
+
     pub fn remove_category_id(
         &mut self,
         category_id: category::Id,
@@ -139,6 +151,7 @@ impl Article {
         self.category_ids.retain(|id| *id != category_id);
         Ok(())
     }
+
     pub fn add_tag_id(&mut self, tag_id: tag::Id) -> Result<(), ArticleDomainError> {
         if self.tag_ids.contains(&tag_id) {
             return Err(ArticleDomainError::TagAlreadyAttached(self.id, tag_id));
@@ -146,6 +159,7 @@ impl Article {
         self.tag_ids.push(tag_id);
         Ok(())
     }
+
     pub fn remove_tag_id(&mut self, tag_id: tag::Id) -> Result<(), ArticleDomainError> {
         if !self.tag_ids.contains(&tag_id) {
             return Err(ArticleDomainError::TagNotFound(self.id, tag_id));
@@ -167,7 +181,6 @@ impl Default for Article {
         let series_id = None;
         let category_ids = vec![];
         let tag_ids = vec![];
-        let version = Version::new(now);
         Self::new(
             id,
             title,
@@ -178,7 +191,6 @@ impl Default for Article {
             series_id,
             category_ids,
             tag_ids,
-            version,
         )
     }
 }
@@ -202,7 +214,6 @@ mod tests {
             None,
             vec![1.try_into().unwrap(), 2.try_into().unwrap()],
             vec![3.try_into().unwrap(), 4.try_into().unwrap()],
-            now.into(),
         );
 
         let target = Article {
@@ -218,7 +229,6 @@ mod tests {
             series_id: None,
             category_ids: vec![1.try_into().unwrap(), 2.try_into().unwrap()],
             tag_ids: vec![3.try_into().unwrap(), 4.try_into().unwrap()],
-            version: now.into(),
         };
 
         assert_eq!(article.id, target.id);
@@ -233,7 +243,6 @@ mod tests {
         assert_eq!(article.series_id, target.series_id);
         assert_eq!(article.category_ids, target.category_ids);
         assert_eq!(article.tag_ids, target.tag_ids);
-        assert_eq!(article.version, target.version);
     }
 
     #[test]
@@ -253,7 +262,6 @@ mod tests {
             series_id: None,
             category_ids: vec![],
             tag_ids: vec![],
-            version: now.into(),
         };
 
         assert_eq!(article.id, target.id);
@@ -272,7 +280,6 @@ mod tests {
         assert_eq!(article.series_id, target.series_id);
         assert_eq!(article.category_ids, target.category_ids);
         assert_eq!(article.tag_ids, target.tag_ids);
-        assert!(target.version.value() - article.version.value() < chrono::Duration::seconds(1));
     }
 
     #[test]
@@ -441,18 +448,6 @@ mod tests {
         assert!(
             article.updated_at.value() - previous_updated_at.value() < chrono::Duration::seconds(1)
         );
-    }
-
-    #[test]
-    fn article_case_bump_version() {
-        let mut article = Article::default();
-
-        let previous_version = article.version;
-
-        article.bump_version();
-
-        assert!(article.version != previous_version);
-        assert!(article.version.value() - previous_version.value() < chrono::Duration::seconds(1));
     }
 
     #[test]

@@ -1,5 +1,5 @@
 use crate::{
-    app::interface::ArticleService,
+    app::{command::interface::ArticleCommandService, query::interface::ArticleQueryService},
     ports::rest::{response::ErrorResponse, state::AppState},
 };
 use axum::{
@@ -76,9 +76,10 @@ pub async fn get_health(headers: HeaderMap) -> Result<Response, ErrorResponse> {
     }
 }
 
-pub fn router<T>() -> OpenApiRouter<AppState<T>>
+pub fn router<C, Q>() -> OpenApiRouter<AppState<C, Q>>
 where
-    T: ArticleService,
+    C: ArticleCommandService,
+    Q: ArticleQueryService,
 {
     OpenApiRouter::new().routes(routes!(get_health))
 }

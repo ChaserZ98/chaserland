@@ -38,11 +38,12 @@ impl ArticlesFilter {
     ) -> Result<Self, String> {
         Self::validate(&series_identifier, &category_ids, &tag_ids)?;
 
-        Ok(Self {
+        let res = Self {
             series_identifier,
             category_ids,
             tag_ids,
-        })
+        };
+        Ok(res)
     }
 
     pub fn series_identifier(&self) -> &Option<series::Identifier> {
@@ -95,5 +96,33 @@ mod tests {
     #[should_panic(expected = "At least one filter must be specified")]
     fn articles_filter_case_new_panic() {
         ArticlesFilter::new(None, vec![], vec![]);
+    }
+
+    #[test]
+    fn articles_filter_case_try_new() {
+        let series_id = series::Id::new(1);
+        let category_ids = vec![1.try_into().unwrap(), 2.try_into().unwrap()];
+        let tag_ids = vec![1.try_into().unwrap(), 2.try_into().unwrap()];
+
+        let res = ArticlesFilter::try_new(
+            Some(series_id.as_identifier()),
+            category_ids.clone(),
+            tag_ids.clone(),
+        );
+
+        assert!(res.is_ok());
+
+        let filter = res.unwrap();
+
+        assert_eq!(filter.series_identifier(), &Some(series_id.as_identifier()));
+        assert_eq!(filter.category_ids(), &category_ids);
+        assert_eq!(filter.tag_ids(), &tag_ids);
+
+        let res = ArticlesFilter::try_new(None, vec![], vec![]);
+
+        assert!(res.is_err());
+
+        let err = res.unwrap_err();
+        assert_eq!(err, "At least one filter must be specified");
     }
 }

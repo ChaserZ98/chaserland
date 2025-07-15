@@ -24,14 +24,10 @@ async fn soft_delete_case_id(pool: sqlx::PgPool) {
     let mut article = Article::default();
     article.id = 1.try_into().unwrap();
     article.soft_delete().unwrap();
-    article.version = "2020-01-01 00:00:00 UTC".try_into().unwrap();
+    let version = "2020-01-01 00:00:00 UTC".try_into().unwrap();
 
     let res = repo
-        .soft_delete(
-            article.id,
-            article.deleted_at.clone().unwrap(),
-            article.version,
-        )
+        .soft_delete(article.id, article.deleted_at.clone().unwrap(), version)
         .await;
 
     assert!(res.is_ok());
@@ -40,7 +36,7 @@ async fn soft_delete_case_id(pool: sqlx::PgPool) {
 
     assert!(res.is_ok());
 
-    let res = res.unwrap();
+    let (res, _) = res.unwrap();
 
     assert_eq!(res.id, article.id);
     assert_eq!(res.deleted_at.is_some(), true);
@@ -65,15 +61,11 @@ async fn soft_delete_case_id_not_found(pool: sqlx::PgPool) {
 
     let mut article = Article::default();
     article.id = 4.try_into().unwrap();
-    article.version = "2020-01-01 00:00:00 UTC".try_into().unwrap();
+    let version = "2020-01-01 00:00:00 UTC".try_into().unwrap();
     article.soft_delete().unwrap();
 
     let res = repo
-        .soft_delete(
-            article.id,
-            article.deleted_at.clone().unwrap(),
-            article.version,
-        )
+        .soft_delete(article.id, article.deleted_at.clone().unwrap(), version)
         .await;
 
     assert!(res.is_err());
@@ -105,25 +97,17 @@ async fn soft_delete_case_version_mismatch(pool: sqlx::PgPool) {
 
     let mut article = Article::default();
     article.id = 2.try_into().unwrap();
-    article.version = "2020-01-01 00:00:00 UTC".try_into().unwrap();
+    let version = "2020-01-01 00:00:00 UTC".try_into().unwrap();
     article.soft_delete().unwrap();
 
     let res = repo
-        .soft_delete(
-            article.id,
-            article.deleted_at.clone().unwrap(),
-            article.version,
-        )
+        .soft_delete(article.id, article.deleted_at.clone().unwrap(), version)
         .await;
 
     assert!(res.is_ok());
 
     let res = repo
-        .soft_delete(
-            article.id,
-            article.deleted_at.clone().unwrap(),
-            article.version,
-        )
+        .soft_delete(article.id, article.deleted_at.clone().unwrap(), version)
         .await;
 
     assert!(res.is_err());
@@ -135,8 +119,7 @@ async fn soft_delete_case_version_mismatch(pool: sqlx::PgPool) {
             id,
             current_version,
             db_version,
-        } =>
-            id == article.id && current_version == article.version && db_version != article.version,
+        } => id == article.id && current_version == version && db_version != version,
         _ => false,
     });
 }

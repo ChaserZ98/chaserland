@@ -24,14 +24,12 @@ async fn add_category_case_1(pool: sqlx::PgPool) {
 
     let mut article = Article::default();
     article.id = 1.try_into().unwrap();
-    article.version = "2020-01-01 00:00:00 UTC".try_into().unwrap();
+    let version = "2020-01-01 00:00:00 UTC".try_into().unwrap();
 
     let category_id = category::Id::new(1);
     article.add_category_id(category_id).unwrap();
 
-    let res = repo
-        .add_category(article.id, category_id, article.version)
-        .await;
+    let res = repo.add_category(article.id, category_id, version).await;
 
     assert!(res.is_ok());
 }
@@ -54,14 +52,12 @@ async fn add_category_case_article_id_not_found(pool: sqlx::PgPool) {
 
     let mut article = Article::default();
     article.id = 4.try_into().unwrap();
-    article.version = "2020-01-01 00:00:00 UTC".try_into().unwrap();
+    let version = "2020-01-01 00:00:00 UTC".try_into().unwrap();
 
     let category_id = category::Id::new(1);
     article.add_category_id(category_id).unwrap();
 
-    let res = repo
-        .add_category(article.id, category_id, article.version)
-        .await;
+    let res = repo.add_category(article.id, category_id, version).await;
 
     assert!(res.is_err());
 
@@ -93,14 +89,12 @@ async fn add_category_case_category_id_not_found(pool: sqlx::PgPool) {
 
     let mut article = Article::default();
     article.id = 1.try_into().unwrap();
-    article.version = "2020-01-01 00:00:00 UTC".try_into().unwrap();
+    let version = "2020-01-01 00:00:00 UTC".try_into().unwrap();
 
     let category_id = category::Id::new(4);
     article.add_category_id(category_id).unwrap();
 
-    let res = repo
-        .add_category(article.id, category_id, article.version)
-        .await;
+    let res = repo.add_category(article.id, category_id, version).await;
 
     assert!(res.is_err());
 
@@ -132,14 +126,12 @@ async fn add_category_case_both_not_found(pool: sqlx::PgPool) {
 
     let mut article = Article::default();
     article.id = 4.try_into().unwrap();
-    article.version = "2020-01-01 00:00:00 UTC".try_into().unwrap();
+    let version = "2020-01-01 00:00:00 UTC".try_into().unwrap();
 
     let category_id = category::Id::new(4);
     article.add_category_id(category_id).unwrap();
 
-    let res = repo
-        .add_category(article.id, category_id, article.version)
-        .await;
+    let res = repo.add_category(article.id, category_id, version).await;
 
     assert!(res.is_err());
 
@@ -169,20 +161,16 @@ async fn add_category_case_version_mismatch(pool: sqlx::PgPool) {
 
     let mut article = Article::default();
     article.id = 1.try_into().unwrap();
-    article.version = "2020-01-01 00:00:00 UTC".try_into().unwrap();
+    let version = "2020-01-01 00:00:00 UTC".try_into().unwrap();
 
     let category_id = category::Id::new(1);
     article.add_category_id(category_id).unwrap();
 
-    let res = repo
-        .add_category(article.id, category_id, article.version)
-        .await;
+    let res = repo.add_category(article.id, category_id, version).await;
 
     assert!(res.is_ok());
 
-    let res = repo
-        .add_category(article.id, category_id, article.version)
-        .await;
+    let res = repo.add_category(article.id, category_id, version).await;
 
     assert!(res.is_err());
 
@@ -193,8 +181,7 @@ async fn add_category_case_version_mismatch(pool: sqlx::PgPool) {
             id,
             current_version,
             db_version,
-        } =>
-            id == article.id && current_version == article.version && db_version != article.version,
+        } => id == article.id && current_version == version && db_version != version,
         _ => false,
     });
 }

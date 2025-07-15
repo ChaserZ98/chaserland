@@ -1,17 +1,15 @@
-use crate::app::interface::ArticleService as ArticleServiceInterface;
-use crate::app::service::ArticleService;
-use crate::app::{dto, query};
-use crate::domain::article::vo as article;
-use crate::infra::repository::postgres::{
-    article::PgArticleRepository, category::PgCategoryRepository, series::PgSeriesRepository,
-    tag::PgTagRepository,
+use crate::common::init_query_service;
+use chaserland_articles_service_core::{
+    app::query::{self as query, dto, interface::ArticleQueryService},
+    domain::article::vo as article,
+    migrator::MIGRATOR,
 };
 use sqlx::PgPool;
 
 #[sqlx::test(
-    migrator = "crate::migrator::MIGRATOR",
+    migrator = "MIGRATOR",
     fixtures(
-        path = "../../../../tests/fixtures",
+        path = "../../../tests/fixtures",
         scripts(
             "series",
             "categories",
@@ -22,17 +20,8 @@ use sqlx::PgPool;
         )
     )
 )]
-async fn get_article(pool: PgPool) {
-    let article_repository = PgArticleRepository::new(pool.clone());
-    let series_repository = PgSeriesRepository::new(pool.clone());
-    let category_repository = PgCategoryRepository::new(pool.clone());
-    let tag_repository = PgTagRepository::new(pool.clone());
-    let service = ArticleService::new(
-        article_repository,
-        series_repository,
-        category_repository,
-        tag_repository,
-    );
+async fn get_article_case_1(pool: PgPool) {
+    let query_service = init_query_service(pool);
 
     let article_dto = dto::ArticleDTO {
         id: 1,
@@ -59,7 +48,7 @@ async fn get_article(pool: PgPool) {
         with_content: true,
     };
 
-    let res = service.get_article_one(query).await;
+    let res = query_service.get_article_one(query).await;
 
     assert!(res.is_ok());
 

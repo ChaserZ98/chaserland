@@ -1,5 +1,5 @@
+mod dto;
 mod error;
-mod lib;
 
+pub use dto::*;
 pub use error::*;
-pub use lib::*;

@@ -1,5 +1,5 @@
 use crate::{
-    app::{command::CreateCategoryCommand, dto::CategoryDTO},
+    app::{command::CreateCategoryCommand, query::dto::CategoryDTO},
     ports::rest::response::ErrorResponse,
 };
 use http::StatusCode;

@@ -1,6 +1,6 @@
 use super::{TAG, params, schema};
 use crate::{
-    app::interface::ArticleService,
+    app::{command::interface::ArticleCommandService, query::interface::ArticleQueryService},
     ports::rest::{
         response::{ErrorBody, ErrorResponse},
         state::AppState,
@@ -12,6 +12,7 @@ use axum::{
     response::{IntoResponse, Response, Result},
 };
 use axum_extra::extract::Query;
+use http::StatusCode;
 
 #[utoipa::path(
     post,
@@ -27,7 +28,6 @@ use axum_extra::extract::Query;
         (
             status = 201,
             description = "Created",
-            content((schema::Series = "application/json"))
         ),
         (
             status = StatusCode::CONFLICT,
@@ -36,14 +36,14 @@ use axum_extra::extract::Query;
         )
     )
 )]
-pub async fn create_series<T: ArticleService>(
-    State(state): State<AppState<T>>,
+pub async fn create_series<C: ArticleCommandService, Q: ArticleQueryService>(
+    State(state): State<AppState<C, Q>>,
     Json(payload): Json<schema::SeriesCreate>,
 ) -> Result<Response, ErrorResponse> {
     let command = payload.try_into()?;
 
-    let series = state
-        .article_service
+    state
+        .article_command_service
         .create_series(command)
         .await
         .map_err(|e| {
@@ -51,7 +51,7 @@ pub async fn create_series<T: ArticleService>(
             e
         })?;
 
-    let res = Json(schema::Series::from(series)).into_response();
+    let res = StatusCode::CREATED.into_response();
 
     Ok(res)
 }
@@ -78,13 +78,13 @@ pub async fn create_series<T: ArticleService>(
         )
     )
 )]
-pub async fn get_series_one<T: ArticleService>(
-    State(state): State<AppState<T>>,
+pub async fn get_series_one<C: ArticleCommandService, Q: ArticleQueryService>(
+    State(state): State<AppState<C, Q>>,
     Path(identifier): Path<String>,
 ) -> Result<Response, ErrorResponse> {
     let query = identifier.try_into()?;
 
-    let series = state.article_service.get_series_one(query).await?;
+    let series = state.article_query_service.get_series_one(query).await?;
 
     let res = Json(schema::Series::from(series)).into_response();
 
@@ -109,13 +109,13 @@ pub async fn get_series_one<T: ArticleService>(
         )
     )
 )]
-pub async fn get_series_many<T: ArticleService>(
-    State(state): State<AppState<T>>,
+pub async fn get_series_many<C: ArticleCommandService, Q: ArticleQueryService>(
+    State(state): State<AppState<C, Q>>,
     Query(query): Query<params::GetSeriesManyQuery>,
 ) -> Result<Response, ErrorResponse> {
     let query = query.try_into()?;
 
-    let series = state.article_service.get_series_many(query).await?;
+    let series = state.article_query_service.get_series_many(query).await?;
 
     let res = Json(
         series
@@ -146,13 +146,13 @@ pub async fn get_series_many<T: ArticleService>(
         )
     )
 )]
-pub async fn delete_series<T: ArticleService>(
-    State(state): State<AppState<T>>,
+pub async fn delete_series<C: ArticleCommandService, Q: ArticleQueryService>(
+    State(state): State<AppState<C, Q>>,
     Path(identifier): Path<String>,
 ) -> Result<Response, ErrorResponse> {
     let command = identifier.try_into()?;
 
-    state.article_service.delete_series(command).await?;
+    state.article_command_service.delete_series(command).await?;
 
     Ok(().into_response())
 }

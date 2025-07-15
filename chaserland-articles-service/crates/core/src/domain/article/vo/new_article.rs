@@ -1,7 +1,11 @@
-use super::{Content, Description, Title, Version};
-use crate::domain::category::vo as category;
-use crate::domain::series::vo as series;
-use crate::domain::tag::vo as tag;
+use super::{Content, Description, TimestampVersion, Title};
+use crate::domain::{
+    article::vo::{CreatedAt, UpdatedAt},
+    category::vo as category,
+    series::vo as series,
+    tag::vo as tag,
+};
+use chrono::Utc;
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq, Eq)]
@@ -9,10 +13,12 @@ pub struct NewArticle {
     pub title: Title,
     pub description: Description,
     pub content: Option<Content>,
+    pub created_at: CreatedAt,
+    pub updated_at: UpdatedAt,
     pub series_id: Option<series::Id>,
     pub category_ids: Vec<category::Id>,
     pub tag_ids: Vec<tag::Id>,
-    version: Version,
+    version: TimestampVersion,
 }
 
 impl Default for NewArticle {
@@ -23,7 +29,10 @@ impl Default for NewArticle {
         let series_id = None;
         let category_ids = vec![];
         let tag_ids = vec![];
-        let version = Version::default();
+        let now = Utc::now();
+        let created_at = CreatedAt::new(now);
+        let updated_at = UpdatedAt::new(now);
+        let version = TimestampVersion::new(now);
         Self {
             title,
             description,
@@ -31,6 +40,8 @@ impl Default for NewArticle {
             series_id,
             category_ids,
             tag_ids,
+            created_at,
+            updated_at,
             version,
         }
     }
@@ -45,7 +56,10 @@ impl NewArticle {
         category_ids: Vec<category::Id>,
         tag_ids: Vec<tag::Id>,
     ) -> Self {
-        let version = Version::default();
+        let now = Utc::now();
+        let created_at = CreatedAt::new(now);
+        let updated_at = UpdatedAt::new(now);
+        let version = TimestampVersion::new(now);
         Self {
             title,
             description,
@@ -53,17 +67,20 @@ impl NewArticle {
             series_id,
             category_ids,
             tag_ids,
+            created_at,
+            updated_at,
             version,
         }
     }
-    pub fn version(&self) -> Version {
+    pub fn version(&self) -> TimestampVersion {
         self.version
     }
 }
 
 #[cfg(test)]
 mod tests {
-    use super::{NewArticle, Version};
+    use super::{NewArticle, TimestampVersion};
+    use chrono::Utc;
 
     #[test]
     fn new_article_case_new() {
@@ -83,7 +100,9 @@ mod tests {
             series_id: None,
             category_ids: vec![1.try_into().unwrap(), 2.try_into().unwrap()],
             tag_ids: vec![3.try_into().unwrap(), 4.try_into().unwrap()],
-            version: Version::default(),
+            created_at: Utc::now().into(),
+            updated_at: Utc::now().into(),
+            version: TimestampVersion::default(),
         };
 
         assert_eq!(article.title, target.title);
@@ -92,6 +111,12 @@ mod tests {
         assert_eq!(article.series_id, target.series_id);
         assert_eq!(article.category_ids, target.category_ids);
         assert_eq!(article.tag_ids, target.tag_ids);
+        assert!(
+            target.created_at.value() - article.created_at.value() < chrono::Duration::seconds(1)
+        );
+        assert!(
+            target.updated_at.value() - article.updated_at.value() < chrono::Duration::seconds(1)
+        );
         assert!(target.version.value() - article.version.value() < chrono::Duration::seconds(1));
     }
 
@@ -105,7 +130,9 @@ mod tests {
             series_id: None,
             category_ids: vec![],
             tag_ids: vec![],
-            version: Version::default(),
+            created_at: Utc::now().into(),
+            updated_at: Utc::now().into(),
+            version: TimestampVersion::default(),
         };
 
         assert_eq!(article.title, target.title);
@@ -114,6 +141,12 @@ mod tests {
         assert_eq!(article.series_id, target.series_id);
         assert_eq!(article.category_ids, target.category_ids);
         assert_eq!(article.tag_ids, target.tag_ids);
+        assert!(
+            target.created_at.value() - article.created_at.value() < chrono::Duration::seconds(1)
+        );
+        assert!(
+            target.updated_at.value() - article.updated_at.value() < chrono::Duration::seconds(1)
+        );
         assert!(target.version.value() - article.version.value() < chrono::Duration::seconds(1));
     }
 }

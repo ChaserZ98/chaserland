@@ -1,4 +1,4 @@
-use crate::app::dto::{ArticleDTO, CategoryDTO, SeriesDTO, TagDTO};
+use crate::app::query::dto::{ArticleDTO, CategoryDTO, SeriesDTO, TagDTO};
 use chaserland_protos::article::v1;
 use chrono::{DateTime, Utc};
 
@@ -42,14 +42,14 @@ impl From<ArticleDTO> for v1::Article {
     }
 }
 
-impl From<ArticleDTO> for v1::CreateArticleResponse {
-    fn from(value: ArticleDTO) -> Self {
-        let article = v1::Article::from(value);
-        Self {
-            article: Some(article),
-        }
-    }
-}
+// impl From<ArticleDTO> for v1::CreateArticleResponse {
+//     fn from(value: ArticleDTO) -> Self {
+//         let article = v1::Article::from(value);
+//         Self {
+//             article: Some(article),
+//         }
+//     }
+// }
 
 impl From<SeriesDTO> for v1::Series {
     fn from(value: SeriesDTO) -> Self {
@@ -61,13 +61,13 @@ impl From<SeriesDTO> for v1::Series {
     }
 }
 
-impl From<SeriesDTO> for v1::CreateSeriesResponse {
-    fn from(value: SeriesDTO) -> Self {
-        Self {
-            series: Some(v1::Series::from(value)),
-        }
-    }
-}
+// impl From<SeriesDTO> for v1::CreateSeriesResponse {
+//     fn from(value: SeriesDTO) -> Self {
+//         Self {
+//             series: Some(v1::Series::from(value)),
+//         }
+//     }
+// }
 
 impl From<CategoryDTO> for v1::Category {
     fn from(value: CategoryDTO) -> Self {
@@ -79,13 +79,13 @@ impl From<CategoryDTO> for v1::Category {
     }
 }
 
-impl From<CategoryDTO> for v1::CreateCategoryResponse {
-    fn from(value: CategoryDTO) -> Self {
-        Self {
-            category: Some(v1::Category::from(value)),
-        }
-    }
-}
+// impl From<CategoryDTO> for v1::CreateCategoryResponse {
+//     fn from(value: CategoryDTO) -> Self {
+//         Self {
+//             category: Some(v1::Category::from(value)),
+//         }
+//     }
+// }
 
 impl From<TagDTO> for v1::Tag {
     fn from(value: TagDTO) -> Self {
@@ -97,10 +97,10 @@ impl From<TagDTO> for v1::Tag {
     }
 }
 
-impl From<TagDTO> for v1::CreateTagResponse {
-    fn from(value: TagDTO) -> Self {
-        Self {
-            tag: Some(v1::Tag::from(value)),
-        }
-    }
-}
+// impl From<TagDTO> for v1::CreateTagResponse {
+//     fn from(value: TagDTO) -> Self {
+//         Self {
+//             tag: Some(v1::Tag::from(value)),
+//         }
+//     }
+// }

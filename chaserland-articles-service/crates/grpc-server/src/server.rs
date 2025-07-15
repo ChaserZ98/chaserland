@@ -2,11 +2,16 @@ use super::ServerConfig;
 use crate::metrics::{MetricHandler, Metrics};
 use anyhow::{Result, anyhow};
 use chaserland_articles_service_core::{
-    app::service::ArticleService,
+    app::{command::service::ArticleCommandService, query::service::ArticleQueryService},
     db::connect_db,
-    infra::repository::postgres::{
-        article::PgArticleRepository, category::PgCategoryRepository, series::PgSeriesRepository,
-        tag::PgTagRepository,
+    infra::postgres::{
+        Postgres,
+        query_handler::{
+            PgArticleQueryHandler, PgCategoryQueryHandler, PgSeriesQueryHandler, PgTagQueryHandler,
+        },
+        repository::{
+            PgArticleRepository, PgCategoryRepository, PgSeriesRepository, PgTagRepository,
+        },
     },
     ports::grpc::service::GrpcArticleService,
 };
@@ -55,28 +60,47 @@ impl Server {
                 e
             })?;
 
-        let article_repository = PgArticleRepository::new(pool.clone());
-        let series_repository = PgSeriesRepository::new(pool.clone());
-        let category_repository = PgCategoryRepository::new(pool.clone());
-        let tag_repository = PgTagRepository::new(pool.clone());
-
-        let article_service = GrpcArticleService::new(ArticleService::new(
+        let article_repository = PgArticleRepository::new();
+        let series_repository = PgSeriesRepository::new();
+        let category_repository = PgCategoryRepository::new();
+        let tag_repository = PgTagRepository::new();
+        let article_command_service = ArticleCommandService::new(
             article_repository,
             series_repository,
             category_repository,
             tag_repository,
-        ))
-        .into_tonic_service();
+            pool.clone(),
+        );
+
+        let article_query_handler = PgArticleQueryHandler::new(pool.clone());
+        let series_query_handler = PgSeriesQueryHandler::new(pool.clone());
+        let category_query_handler = PgCategoryQueryHandler::new(pool.clone());
+        let tag_query_handler = PgTagQueryHandler::new(pool.clone());
+        let article_query_service = ArticleQueryService::new(
+            article_query_handler,
+            series_query_handler,
+            category_query_handler,
+            tag_query_handler,
+        );
+
+        let article_service =
+            GrpcArticleService::new(article_command_service, article_query_service)
+                .into_tonic_service();
 
         let (health_reporter, health_service) = health_reporter();
 
         health_reporter
             .set_serving::<ArticleServiceServer<
                 GrpcArticleService<
+                    Postgres,
                     PgArticleRepository,
                     PgSeriesRepository,
                     PgCategoryRepository,
                     PgTagRepository,
+                    PgArticleQueryHandler,
+                    PgSeriesQueryHandler,
+                    PgCategoryQueryHandler,
+                    PgTagQueryHandler,
                 >,
             >>()
             .await;

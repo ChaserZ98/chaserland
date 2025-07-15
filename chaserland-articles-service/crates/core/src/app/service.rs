@@ -1,4 +1,11 @@
-use super::{command, error, interface::ArticleService as ArticleServiceInterface, query};
+use super::{
+    command, error,
+    interface::{
+        ArticleCommandService as ArticleCommandServiceInterface,
+        ArticleQueryService as ArticleQueryServiceInterface,
+    },
+    query,
+};
 use crate::{
     app::dto,
     domain::{
@@ -56,7 +63,7 @@ where
 }
 
 #[derive(Clone)]
-pub struct ArticleService<R, S, C, T>
+pub struct ArticleCommandService<R, S, C, T>
 where
     R: ArticleRepository,
     S: SeriesRepository,
@@ -69,7 +76,7 @@ where
     tag_repository: T,
 }
 
-impl<R, S, C, T> ArticleService<R, S, C, T>
+impl<R, S, C, T> ArticleCommandService<R, S, C, T>
 where
     R: ArticleRepository,
     S: SeriesRepository,
@@ -91,7 +98,7 @@ where
     }
 }
 
-impl<R, S, C, T> ArticleServiceInterface for ArticleService<R, S, C, T>
+impl<R, S, C, T> ArticleCommandServiceInterface for ArticleCommandService<R, S, C, T>
 where
     R: ArticleRepository,
     S: SeriesRepository,
@@ -196,7 +203,7 @@ where
         //     },
         // };
 
-        let article = self
+        let (article, _) = self
             .article_repository
             .get_one(identifier.clone(), public_only, with_content)
             .await?;
@@ -247,7 +254,7 @@ where
     ) -> Result<String, error::GetArticleContentError> {
         let identifier = query.identifier;
         let public_only = query.public_only;
-        let article = self
+        let (article, _) = self
             .article_repository
             .get_one(identifier, public_only, true)
             .await?;
@@ -386,7 +393,7 @@ where
     ) -> Result<(), error::PublishArticleError> {
         let identifier = command.identifier;
 
-        let mut article = self
+        let (mut article, version) = self
             .article_repository
             .get_one(identifier.clone(), false, false)
             .await?;
@@ -399,11 +406,7 @@ where
         })?;
 
         self.article_repository
-            .publish(
-                article.id,
-                article.published_at.clone().unwrap(),
-                article.version,
-            )
+            .publish(article.id, article.published_at.clone().unwrap(), version)
             .await
             .map_err(|e| match e {
                 ArticleRepositoryError::ArticleNotFound(_)
@@ -421,7 +424,7 @@ where
     ) -> Result<(), error::UnpublishArticleError> {
         let identifier = command.identifier;
 
-        let mut article = self
+        let (mut article, version) = self
             .article_repository
             .get_one(identifier.clone(), false, false)
             .await?;
@@ -434,7 +437,7 @@ where
         })?;
 
         self.article_repository
-            .unpublish(article.id, article.version)
+            .unpublish(article.id, version)
             .await
             .map_err(|e| match e {
                 ArticleRepositoryError::ArticleNotFound(_)
@@ -452,7 +455,7 @@ where
     ) -> Result<(), error::SoftDeleteArticleError> {
         let identifier = command.identifier;
 
-        let mut article = self
+        let (mut article, version) = self
             .article_repository
             .get_one(identifier.clone(), false, false)
             .await?;
@@ -465,7 +468,7 @@ where
         })?;
 
         self.article_repository
-            .soft_delete(article.id, article.deleted_at.unwrap(), article.version)
+            .soft_delete(article.id, article.deleted_at.unwrap(), version)
             .await
             .map_err(|e| match e {
                 ArticleRepositoryError::ArticleNotFound(_)
@@ -483,7 +486,7 @@ where
     ) -> Result<(), error::RevokeSoftDeleteError> {
         let identifier = command.identifier;
 
-        let mut article = self
+        let (mut article, version) = self
             .article_repository
             .get_one(identifier.clone(), false, false)
             .await?;
@@ -496,7 +499,7 @@ where
         })?;
 
         self.article_repository
-            .revoke_soft_delete(article.id, article.version)
+            .revoke_soft_delete(article.id, version)
             .await
             .map_err(|e| match e {
                 ArticleRepositoryError::ArticleNotFound(_)
@@ -544,5 +547,45 @@ where
         let identifier = command.identifier;
         self.tag_repository.delete(identifier).await?;
         Ok(())
+    }
+}
+
+pub struct ArticleQueryService<A>
+where
+    A: Article,
+{
+    article_query_handler: A,
+}
+
+// impl<T> ArticleQueryService<T>
+// where
+//     T: sqlx::Database,
+// {
+//     pub fn new(db_pool: sqlx::Pool<T>) -> Self {
+//         Self { db_pool }
+//     }
+// }
+
+impl<T> ArticleQueryServiceInterface for ArticleQueryService<T>
+where
+    T: sqlx::Database,
+{
+    async fn get_article_one(
+        &self,
+        query: query::GetArticleOneQuery,
+    ) -> Result<dto::ArticleDTO, error::GetArticleOneError> {
+        todo!()
+    }
+    async fn get_article_content(
+        &self,
+        query: query::GetArticleContentQuery,
+    ) -> Result<String, error::GetArticleContentError> {
+        todo!()
+    }
+    async fn get_article_many_(
+        &self,
+        query: query::GetArticleManyQuery,
+    ) -> Result<Vec<dto::ArticleDTO>, error::GetArticleManyError> {
+        todo!()
     }
 }

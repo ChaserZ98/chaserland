@@ -1,18 +1,26 @@
-use crate::app::interface::ArticleService;
+use crate::app::{
+    command::interface::ArticleCommandService, query::interface::ArticleQueryService,
+};
 
 #[derive(Clone)]
-pub struct AppState<T>
+pub struct AppState<C, Q>
 where
-    T: ArticleService,
+    C: ArticleCommandService,
+    Q: ArticleQueryService,
 {
-    pub article_service: T,
+    pub article_command_service: C,
+    pub article_query_service: Q,
 }
 
-impl<T> AppState<T>
+impl<C, Q> AppState<C, Q>
 where
-    T: ArticleService,
+    C: ArticleCommandService,
+    Q: ArticleQueryService,
 {
-    pub fn new(article_service: T) -> Self {
-        Self { article_service }
+    pub fn new(article_command_service: C, article_query_service: Q) -> Self {
+        Self {
+            article_command_service,
+            article_query_service,
+        }
     }
 }

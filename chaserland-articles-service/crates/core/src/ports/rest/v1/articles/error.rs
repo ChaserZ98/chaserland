@@ -1,18 +1,21 @@
-use crate::{app::error as app_error, ports::rest::response::ErrorResponse};
+use crate::{
+    app::{command::error as command_error, query::error as query_error},
+    ports::rest::response::ErrorResponse,
+};
 use http::StatusCode;
 
-impl From<app_error::CreateArticleError> for ErrorResponse {
-    fn from(value: app_error::CreateArticleError) -> Self {
+impl From<command_error::CreateArticleError> for ErrorResponse {
+    fn from(value: command_error::CreateArticleError) -> Self {
         match value {
-            app_error::CreateArticleError::SeriesNotFound(_)
-            | app_error::CreateArticleError::CategoryNotFound(_)
-            | app_error::CreateArticleError::TagNotFound(_) => {
+            command_error::CreateArticleError::SeriesNotFound(_)
+            | command_error::CreateArticleError::CategoryNotFound(_)
+            | command_error::CreateArticleError::TagNotFound(_) => {
                 Self::new(StatusCode::BAD_REQUEST, value.to_string())
             }
-            app_error::CreateArticleError::DuplicateSlug(_) => {
+            command_error::CreateArticleError::DuplicateSlug(_) => {
                 Self::new(StatusCode::CONFLICT, value.to_string())
             }
-            app_error::CreateArticleError::DataVersionConflict(message) => {
+            command_error::CreateArticleError::DataVersionConflict(message) => {
                 Self::new(StatusCode::CONFLICT, message)
             }
             _ => Self::new_default(StatusCode::INTERNAL_SERVER_ERROR),
@@ -20,24 +23,10 @@ impl From<app_error::CreateArticleError> for ErrorResponse {
     }
 }
 
-impl From<app_error::GetArticleOneError> for ErrorResponse {
-    fn from(value: app_error::GetArticleOneError) -> Self {
+impl From<query_error::GetArticleOneError> for ErrorResponse {
+    fn from(value: query_error::GetArticleOneError) -> Self {
         match value {
-            app_error::GetArticleOneError::NotFound(_) => {
-                Self::new(StatusCode::NOT_FOUND, value.to_string())
-            }
-            app_error::GetArticleOneError::DataVersionConflict(message) => {
-                Self::new(StatusCode::CONFLICT, message)
-            }
-            _ => Self::new_default(StatusCode::INTERNAL_SERVER_ERROR),
-        }
-    }
-}
-
-impl From<app_error::GetArticleContentError> for ErrorResponse {
-    fn from(value: app_error::GetArticleContentError) -> Self {
-        match value {
-            app_error::GetArticleContentError::NotFound(_) => {
+            query_error::GetArticleOneError::NotFound(_) => {
                 Self::new(StatusCode::NOT_FOUND, value.to_string())
             }
             _ => Self::new_default(StatusCode::INTERNAL_SERVER_ERROR),
@@ -45,21 +34,10 @@ impl From<app_error::GetArticleContentError> for ErrorResponse {
     }
 }
 
-impl From<app_error::GetArticleManyError> for ErrorResponse {
-    fn from(value: app_error::GetArticleManyError) -> Self {
+impl From<query_error::GetArticleContentError> for ErrorResponse {
+    fn from(value: query_error::GetArticleContentError) -> Self {
         match value {
-            app_error::GetArticleManyError::DataVersionConflict(message) => {
-                Self::new(StatusCode::CONFLICT, message)
-            }
-            _ => Self::new_default(StatusCode::INTERNAL_SERVER_ERROR),
-        }
-    }
-}
-
-impl From<app_error::DeleteArticleError> for ErrorResponse {
-    fn from(value: app_error::DeleteArticleError) -> Self {
-        match value {
-            app_error::DeleteArticleError::NotFound(_) => {
+            query_error::GetArticleContentError::NotFound(_) => {
                 Self::new(StatusCode::NOT_FOUND, value.to_string())
             }
             _ => Self::new_default(StatusCode::INTERNAL_SERVER_ERROR),
@@ -67,14 +45,31 @@ impl From<app_error::DeleteArticleError> for ErrorResponse {
     }
 }
 
-impl From<app_error::PublishArticleError> for ErrorResponse {
-    fn from(value: app_error::PublishArticleError) -> Self {
+impl From<query_error::GetArticleManyError> for ErrorResponse {
+    fn from(_value: query_error::GetArticleManyError) -> Self {
+        Self::new_default(StatusCode::INTERNAL_SERVER_ERROR)
+    }
+}
+
+impl From<command_error::DeleteArticleError> for ErrorResponse {
+    fn from(value: command_error::DeleteArticleError) -> Self {
         match value {
-            app_error::PublishArticleError::NotFound(_) => {
+            command_error::DeleteArticleError::NotFound(_) => {
                 Self::new(StatusCode::NOT_FOUND, value.to_string())
             }
-            app_error::PublishArticleError::AlreadyPublished(_)
-            | app_error::PublishArticleError::DataVersionConflict(_) => {
+            _ => Self::new_default(StatusCode::INTERNAL_SERVER_ERROR),
+        }
+    }
+}
+
+impl From<command_error::PublishArticleError> for ErrorResponse {
+    fn from(value: command_error::PublishArticleError) -> Self {
+        match value {
+            command_error::PublishArticleError::NotFound(_) => {
+                Self::new(StatusCode::NOT_FOUND, value.to_string())
+            }
+            command_error::PublishArticleError::AlreadyPublished(_)
+            | command_error::PublishArticleError::DataVersionConflict(_) => {
                 Self::new(StatusCode::CONFLICT, value.to_string())
             }
             _ => Self::new_default(StatusCode::INTERNAL_SERVER_ERROR),
@@ -82,14 +77,14 @@ impl From<app_error::PublishArticleError> for ErrorResponse {
     }
 }
 
-impl From<app_error::UnpublishArticleError> for ErrorResponse {
-    fn from(value: app_error::UnpublishArticleError) -> Self {
+impl From<command_error::UnpublishArticleError> for ErrorResponse {
+    fn from(value: command_error::UnpublishArticleError) -> Self {
         match value {
-            app_error::UnpublishArticleError::NotFound(_) => {
+            command_error::UnpublishArticleError::NotFound(_) => {
                 Self::new(StatusCode::NOT_FOUND, value.to_string())
             }
-            app_error::UnpublishArticleError::NotPublished(_)
-            | app_error::UnpublishArticleError::DataVersionConflict(_) => {
+            command_error::UnpublishArticleError::NotPublished(_)
+            | command_error::UnpublishArticleError::DataVersionConflict(_) => {
                 Self::new(StatusCode::CONFLICT, value.to_string())
             }
             _ => Self::new_default(StatusCode::INTERNAL_SERVER_ERROR),
@@ -97,14 +92,14 @@ impl From<app_error::UnpublishArticleError> for ErrorResponse {
     }
 }
 
-impl From<app_error::SoftDeleteArticleError> for ErrorResponse {
-    fn from(value: app_error::SoftDeleteArticleError) -> Self {
+impl From<command_error::SoftDeleteArticleError> for ErrorResponse {
+    fn from(value: command_error::SoftDeleteArticleError) -> Self {
         match value {
-            app_error::SoftDeleteArticleError::NotFound(_) => {
+            command_error::SoftDeleteArticleError::NotFound(_) => {
                 Self::new(StatusCode::NOT_FOUND, value.to_string())
             }
-            app_error::SoftDeleteArticleError::AlreadySoftDeleted(_)
-            | app_error::SoftDeleteArticleError::DataVersionConflict(_) => {
+            command_error::SoftDeleteArticleError::AlreadySoftDeleted(_)
+            | command_error::SoftDeleteArticleError::DataVersionConflict(_) => {
                 Self::new(StatusCode::CONFLICT, value.to_string())
             }
             _ => Self::new_default(StatusCode::INTERNAL_SERVER_ERROR),
@@ -112,14 +107,14 @@ impl From<app_error::SoftDeleteArticleError> for ErrorResponse {
     }
 }
 
-impl From<app_error::RevokeSoftDeleteError> for ErrorResponse {
-    fn from(value: app_error::RevokeSoftDeleteError) -> Self {
+impl From<command_error::RevokeSoftDeleteError> for ErrorResponse {
+    fn from(value: command_error::RevokeSoftDeleteError) -> Self {
         match value {
-            app_error::RevokeSoftDeleteError::NotFound(_) => {
+            command_error::RevokeSoftDeleteError::NotFound(_) => {
                 Self::new(StatusCode::NOT_FOUND, value.to_string())
             }
-            app_error::RevokeSoftDeleteError::NotSoftDeleted(_)
-            | app_error::RevokeSoftDeleteError::DataVersionConflict(_) => {
+            command_error::RevokeSoftDeleteError::NotSoftDeleted(_)
+            | command_error::RevokeSoftDeleteError::DataVersionConflict(_) => {
                 Self::new(StatusCode::CONFLICT, value.to_string())
             }
             _ => Self::new_default(StatusCode::INTERNAL_SERVER_ERROR),

@@ -27,7 +27,7 @@ async fn delete_hard_case_id(pool: sqlx::PgPool) {
 
     assert!(res.is_ok());
 
-    let res = res.unwrap();
+    let (res, _) = res.unwrap();
 
     assert_eq!(res.id, id);
 
@@ -70,7 +70,7 @@ async fn delete_hard_case_slug(pool: sqlx::PgPool) {
 
     assert!(res.is_ok());
 
-    let res = res.unwrap();
+    let (res, _) = res.unwrap();
 
     assert_eq!(res.slug(), &slug);
 

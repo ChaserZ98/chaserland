@@ -1,22 +1,32 @@
-use super::{SeriesFilter, SeriesRepositoryError};
+use super::SeriesRepositoryError;
 use crate::domain::series::entity::Series;
 use crate::domain::series::vo as series;
-use chaserland_common::pagination::Pagination;
+use sqlx::{Database, Transaction};
 
 #[trait_variant::make(SeriesRepository: Send)]
 pub trait LocalSeriesRepository: Clone + Sync + 'static {
-    async fn create(&self, series: series::NewSeries) -> Result<Series, SeriesRepositoryError>;
+    type DB: Database;
+    async fn create(
+        &self,
+        series: series::NewSeries,
+        tx: &mut Transaction<'static, Self::DB>,
+    ) -> Result<Series, SeriesRepositoryError>;
 
     async fn get_one(
         &self,
         identifier: series::Identifier,
+        tx: &mut Transaction<'static, Self::DB>,
     ) -> Result<Series, SeriesRepositoryError>;
 
-    async fn get_many(
-        &self,
-        filter: Option<SeriesFilter>,
-        pagination: Option<Pagination>,
-    ) -> Result<Vec<Series>, SeriesRepositoryError>;
+    // async fn get_many(
+    //     &self,
+    //     filter: Option<SeriesFilter>,
+    //     pagination: Option<Pagination>,
+    // ) -> Result<Vec<Series>, SeriesRepositoryError>;
 
-    async fn delete(&self, identifier: series::Identifier) -> Result<(), SeriesRepositoryError>;
+    async fn delete(
+        &self,
+        identifier: series::Identifier,
+        tx: &mut Transaction<'static, Self::DB>,
+    ) -> Result<(), SeriesRepositoryError>;
 }

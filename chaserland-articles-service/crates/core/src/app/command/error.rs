@@ -1,16 +1,15 @@
-use crate::{
-    app::dto::ArticleDTOError,
-    domain::{
-        article::{error::ArticleDomainError, repository::ArticleRepositoryError, vo as article},
-        category::{repository::CategoryRepositoryError, vo as category},
-        error::{DomainError, RepositoryError},
-        series::{repository::SeriesRepositoryError, vo as series},
-        tag::{repository::TagRepositoryError, vo as tag},
-    },
+use crate::domain::{
+    article::{error::ArticleDomainError, repository::ArticleRepositoryError, vo as article},
+    category::{repository::CategoryRepositoryError, vo as category},
+    error::{DomainError, RepositoryError},
+    series::{repository::SeriesRepositoryError, vo as series},
+    tag::{repository::TagRepositoryError, vo as tag},
 };
 
 #[derive(Debug, thiserror::Error)]
 pub enum CreateArticleError {
+    #[error("Transaction error: {0}")]
+    Transaction(#[from] sqlx::Error),
     #[error("Series with identifier {0} not found")]
     SeriesNotFound(series::Identifier),
     #[error("Category with identifier {0} not found")]
@@ -23,8 +22,6 @@ pub enum CreateArticleError {
     DataVersionConflict(String),
     #[error(transparent)]
     Repository(#[from] RepositoryError),
-    #[error("DO to DTO conversion error: {0}")]
-    DTOConversion(#[from] ArticleDTOError),
 }
 
 impl From<SeriesRepositoryError> for CreateArticleError {
@@ -84,6 +81,8 @@ pub enum CreateSeriesError {
     DuplicateSlug(series::Slug),
     #[error(transparent)]
     Repository(#[from] RepositoryError),
+    #[error("Transaction error: {0}")]
+    Transaction(#[from] sqlx::Error),
 }
 
 impl From<SeriesRepositoryError> for CreateSeriesError {
@@ -103,6 +102,8 @@ pub enum CreateCategoryError {
     DuplicateSlug(category::Slug),
     #[error(transparent)]
     Repository(#[from] RepositoryError),
+    #[error("Transaction error: {0}")]
+    Transaction(#[from] sqlx::Error),
 }
 
 impl From<CategoryRepositoryError> for CreateCategoryError {
@@ -122,6 +123,8 @@ pub enum CreateTagError {
     DuplicateSlug(tag::Slug),
     #[error(transparent)]
     Repository(#[from] RepositoryError),
+    #[error("Transaction error: {0}")]
+    Transaction(#[from] sqlx::Error),
 }
 
 impl From<TagRepositoryError> for CreateTagError {
@@ -132,225 +135,6 @@ impl From<TagRepositoryError> for CreateTagError {
             }
             _ => Self::Repository(value.into()),
         }
-    }
-}
-
-#[derive(Debug, thiserror::Error)]
-pub enum GetArticleOneError {
-    #[error("Article with identifier {0} not found")]
-    NotFound(article::Identifier),
-    #[error("Version conflict: {0}")]
-    DataVersionConflict(String),
-    #[error("DO to DTO conversion error: {0}")]
-    DTOConversion(String),
-    #[error(transparent)]
-    Repository(#[from] RepositoryError),
-}
-
-impl From<ArticleRepositoryError> for GetArticleOneError {
-    fn from(value: ArticleRepositoryError) -> Self {
-        match value {
-            ArticleRepositoryError::ArticleNotFound(identifier) => Self::NotFound(identifier),
-            _ => Self::Repository(value.into()),
-        }
-    }
-}
-
-impl From<SeriesRepositoryError> for GetArticleOneError {
-    fn from(value: SeriesRepositoryError) -> Self {
-        match value {
-            SeriesRepositoryError::SeriesNotFound(identifier) => {
-                Self::DataVersionConflict(format!(
-                    "Series with identifier {identifier} not found in database when getting article"
-                ))
-            }
-            _ => Self::Repository(value.into()),
-        }
-    }
-}
-
-impl From<CategoryRepositoryError> for GetArticleOneError {
-    fn from(value: CategoryRepositoryError) -> Self {
-        Self::Repository(value.into())
-    }
-}
-
-impl From<TagRepositoryError> for GetArticleOneError {
-    fn from(value: TagRepositoryError) -> Self {
-        Self::Repository(value.into())
-    }
-}
-
-impl From<ArticleDTOError> for GetArticleOneError {
-    fn from(value: ArticleDTOError) -> Self {
-        match value {
-            ArticleDTOError::CategoriesLengthMismatch { .. }
-            | ArticleDTOError::CategoriesElementMismatch(_)
-            | ArticleDTOError::TagsLengthMismatch { .. }
-            | ArticleDTOError::TagsElementMismatch(_) => {
-                Self::DataVersionConflict(value.to_string())
-            }
-            _ => Self::DTOConversion(value.to_string()),
-        }
-    }
-}
-
-#[derive(Debug, thiserror::Error)]
-pub enum GetArticleContentError {
-    #[error("Article with identifier {0} not found")]
-    NotFound(article::Identifier),
-    #[error(transparent)]
-    Repository(#[from] RepositoryError),
-}
-
-impl From<ArticleRepositoryError> for GetArticleContentError {
-    fn from(value: ArticleRepositoryError) -> Self {
-        match value {
-            ArticleRepositoryError::ArticleNotFound(identifier) => Self::NotFound(identifier),
-            _ => Self::Repository(value.into()),
-        }
-    }
-}
-
-#[derive(Debug, thiserror::Error)]
-pub enum GetArticleManyError {
-    #[error("Version conflict: {0}")]
-    DataVersionConflict(String),
-    #[error("DO to DTO conversion error: {0}")]
-    DTOConversion(String),
-    #[error(transparent)]
-    Repository(#[from] RepositoryError),
-}
-
-impl From<ArticleRepositoryError> for GetArticleManyError {
-    fn from(value: ArticleRepositoryError) -> Self {
-        Self::Repository(value.into())
-    }
-}
-
-impl From<SeriesRepositoryError> for GetArticleManyError {
-    fn from(value: SeriesRepositoryError) -> Self {
-        match value {
-            SeriesRepositoryError::SeriesNotFound(identifier) => {
-                Self::DataVersionConflict(format!(
-                    "Series with identifier {identifier} not found in database when getting article"
-                ))
-            }
-            _ => Self::Repository(value.into()),
-        }
-    }
-}
-
-impl From<CategoryRepositoryError> for GetArticleManyError {
-    fn from(value: CategoryRepositoryError) -> Self {
-        Self::Repository(value.into())
-    }
-}
-
-impl From<TagRepositoryError> for GetArticleManyError {
-    fn from(value: TagRepositoryError) -> Self {
-        Self::Repository(value.into())
-    }
-}
-
-impl From<ArticleDTOError> for GetArticleManyError {
-    fn from(value: ArticleDTOError) -> Self {
-        match value {
-            ArticleDTOError::CategoriesLengthMismatch { .. }
-            | ArticleDTOError::CategoriesElementMismatch(_)
-            | ArticleDTOError::TagsLengthMismatch { .. }
-            | ArticleDTOError::TagsElementMismatch(_) => {
-                Self::DataVersionConflict(value.to_string())
-            }
-            _ => Self::DTOConversion(value.to_string()),
-        }
-    }
-}
-
-#[derive(Debug, thiserror::Error)]
-pub enum GetSeriesOneError {
-    #[error("Series with identifier {0} not found")]
-    NotFound(series::Identifier),
-    #[error(transparent)]
-    Repository(#[from] RepositoryError),
-}
-
-impl From<SeriesRepositoryError> for GetSeriesOneError {
-    fn from(value: SeriesRepositoryError) -> Self {
-        match value {
-            SeriesRepositoryError::SeriesNotFound(identifier) => Self::NotFound(identifier),
-            _ => Self::Repository(value.into()),
-        }
-    }
-}
-
-#[derive(Debug, thiserror::Error)]
-pub enum GetSeriesManyError {
-    #[error(transparent)]
-    Repository(#[from] RepositoryError),
-}
-
-impl From<SeriesRepositoryError> for GetSeriesManyError {
-    fn from(value: SeriesRepositoryError) -> Self {
-        Self::Repository(value.into())
-    }
-}
-
-#[derive(Debug, thiserror::Error)]
-pub enum GetCategoryOneError {
-    #[error("Category with identifier {0} not found")]
-    NotFound(category::Identifier),
-    #[error(transparent)]
-    Repository(#[from] RepositoryError),
-}
-
-impl From<CategoryRepositoryError> for GetCategoryOneError {
-    fn from(value: CategoryRepositoryError) -> Self {
-        match value {
-            CategoryRepositoryError::CategoryNotFound(identifier) => Self::NotFound(identifier),
-            _ => Self::Repository(value.into()),
-        }
-    }
-}
-
-#[derive(Debug, thiserror::Error)]
-pub enum GetCategoryManyError {
-    #[error(transparent)]
-    Repository(#[from] RepositoryError),
-}
-
-impl From<CategoryRepositoryError> for GetCategoryManyError {
-    fn from(value: CategoryRepositoryError) -> Self {
-        Self::Repository(value.into())
-    }
-}
-
-#[derive(Debug, thiserror::Error)]
-pub enum GetTagOneError {
-    #[error("Tag with identifier {0} not found")]
-    NotFound(tag::Identifier),
-    #[error(transparent)]
-    Repository(#[from] RepositoryError),
-}
-
-impl From<TagRepositoryError> for GetTagOneError {
-    fn from(value: TagRepositoryError) -> Self {
-        match value {
-            TagRepositoryError::TagNotFound(identifier) => Self::NotFound(identifier),
-            _ => Self::Repository(value.into()),
-        }
-    }
-}
-
-#[derive(Debug, thiserror::Error)]
-pub enum GetTagManyError {
-    #[error(transparent)]
-    Repository(#[from] RepositoryError),
-}
-
-impl From<TagRepositoryError> for GetTagManyError {
-    fn from(value: TagRepositoryError) -> Self {
-        Self::Repository(value.into())
     }
 }
 
@@ -366,6 +150,8 @@ pub enum PublishArticleError {
     Domain(#[from] DomainError),
     #[error(transparent)]
     Repository(#[from] RepositoryError),
+    #[error("Transaction error: {0}")]
+    Transaction(#[from] sqlx::Error),
 }
 
 impl From<ArticleRepositoryError> for PublishArticleError {
@@ -400,6 +186,8 @@ pub enum UnpublishArticleError {
     Domain(#[from] DomainError),
     #[error(transparent)]
     Repository(#[from] RepositoryError),
+    #[error("Transaction error: {0}")]
+    Transaction(#[from] sqlx::Error),
 }
 
 impl From<ArticleRepositoryError> for UnpublishArticleError {
@@ -432,6 +220,8 @@ pub enum SoftDeleteArticleError {
     Domain(#[from] DomainError),
     #[error(transparent)]
     Repository(#[from] RepositoryError),
+    #[error("Transaction error: {0}")]
+    Transaction(#[from] sqlx::Error),
 }
 
 impl From<ArticleRepositoryError> for SoftDeleteArticleError {
@@ -466,6 +256,8 @@ pub enum RevokeSoftDeleteError {
     Domain(#[from] DomainError),
     #[error(transparent)]
     Repository(#[from] RepositoryError),
+    #[error("Transaction error: {0}")]
+    Transaction(#[from] sqlx::Error),
 }
 
 impl From<ArticleRepositoryError> for RevokeSoftDeleteError {
@@ -494,6 +286,8 @@ pub enum DeleteArticleError {
     NotFound(article::Identifier),
     #[error(transparent)]
     Repository(#[from] RepositoryError),
+    #[error("Transaction error: {0}")]
+    Transaction(#[from] sqlx::Error),
 }
 
 impl From<ArticleRepositoryError> for DeleteArticleError {
@@ -511,6 +305,8 @@ pub enum DeleteSeriesError {
     NotFound(series::Identifier),
     #[error(transparent)]
     Repository(#[from] RepositoryError),
+    #[error("Transaction error: {0}")]
+    Transaction(#[from] sqlx::Error),
 }
 
 impl From<SeriesRepositoryError> for DeleteSeriesError {
@@ -528,6 +324,8 @@ pub enum DeleteCategoryError {
     NotFound(category::Identifier),
     #[error(transparent)]
     Repository(#[from] RepositoryError),
+    #[error("Transaction error: {0}")]
+    Transaction(#[from] sqlx::Error),
 }
 
 impl From<CategoryRepositoryError> for DeleteCategoryError {
@@ -545,6 +343,8 @@ pub enum DeleteTagError {
     NotFound(tag::Identifier),
     #[error(transparent)]
     Repository(#[from] RepositoryError),
+    #[error("Transaction error: {0}")]
+    Transaction(#[from] sqlx::Error),
 }
 
 impl From<TagRepositoryError> for DeleteTagError {

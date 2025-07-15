@@ -47,4 +47,26 @@ mod tests {
     fn series_filter_case_new_panic() {
         SeriesFilter::new(vec![]);
     }
+
+    #[test]
+    fn series_filter_case_try_new() {
+        let series_ids = vec![1.try_into().unwrap(), 2.try_into().unwrap()];
+
+        let res = SeriesFilter::try_new(series_ids.clone());
+
+        assert!(res.is_ok());
+
+        let filter = res.unwrap();
+
+        assert_eq!(filter.series_ids(), &series_ids);
+
+        let res = SeriesFilter::try_new(vec![]);
+
+        assert!(res.is_err());
+
+        assert_eq!(
+            res.err().unwrap(),
+            "At least one series id must be specified"
+        );
+    }
 }

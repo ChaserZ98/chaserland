@@ -1,6 +1,6 @@
 use super::health;
 use crate::{
-    app::interface::ArticleService,
+    app::{command::interface::ArticleCommandService, query::interface::ArticleQueryService},
     ports::rest::{
         state::AppState,
         v1::{articles, categories, series, tags},
@@ -8,9 +8,10 @@ use crate::{
 };
 use utoipa_axum::router::OpenApiRouter;
 
-pub fn router<T>() -> OpenApiRouter<AppState<T>>
+pub fn router<C, Q>() -> OpenApiRouter<AppState<C, Q>>
 where
-    T: ArticleService,
+    C: ArticleCommandService,
+    Q: ArticleQueryService,
 {
     let router = OpenApiRouter::new()
         .nest("/health", health::router())

@@ -19,10 +19,10 @@ pub enum ArticleRepositoryError {
     #[error(
         "Article with id {id} has mismatched version: current version {current_version} != database version {db_version}"
     )]
-    VersionMismatch {
+    ConcurrentConflict {
         id: article::Id,
-        current_version: article::Version,
-        db_version: article::Version,
+        current_version: article::TimestampVersion,
+        db_version: article::TimestampVersion,
     },
     #[error("Transaction error: {0}")]
     Transaction(String),
@@ -53,8 +53,8 @@ impl ArticleRepositoryError {
         matches!(self, ArticleRepositoryError::TagNotFound(_))
     }
 
-    pub fn is_version_mismatch(&self) -> bool {
-        matches!(self, ArticleRepositoryError::VersionMismatch { .. })
+    pub fn is_concurrent_conflict(&self) -> bool {
+        matches!(self, ArticleRepositoryError::ConcurrentConflict { .. })
     }
 
     pub fn is_transaction_error(&self) -> bool {
@@ -100,11 +100,15 @@ impl ArticleRepositoryError {
         }
     }
 
-    pub fn as_version_mismatch(
+    pub fn as_concurrent_conflict(
         &self,
-    ) -> Option<(&article::Id, &article::Version, &article::Version)> {
+    ) -> Option<(
+        &article::Id,
+        &article::TimestampVersion,
+        &article::TimestampVersion,
+    )> {
         match self {
-            ArticleRepositoryError::VersionMismatch {
+            ArticleRepositoryError::ConcurrentConflict {
                 id,
                 current_version,
                 db_version,
@@ -261,20 +265,21 @@ mod tests {
     }
 
     #[test]
-    fn article_repository_error_version_mismatch() {
+    fn article_repository_error_concurrent_conflict() {
         let article_id = article::Id::new(1);
-        let current_version = article::Version::new("2020-01-01 00:00:00 UTC".parse().unwrap());
-        let db_version = article::Version::new("2021-01-01 00:00:00 UTC".parse().unwrap());
+        let current_version =
+            article::TimestampVersion::new("2020-01-01 00:00:00 UTC".parse().unwrap());
+        let db_version = article::TimestampVersion::new("2021-01-01 00:00:00 UTC".parse().unwrap());
 
-        let err = ArticleRepositoryError::VersionMismatch {
+        let err = ArticleRepositoryError::ConcurrentConflict {
             id: article_id.clone(),
             current_version: current_version.clone(),
             db_version: db_version.clone(),
         };
 
-        assert!(err.is_version_mismatch());
+        assert!(err.is_concurrent_conflict());
 
-        let err = err.as_version_mismatch();
+        let err = err.as_concurrent_conflict();
 
         assert!(err.is_some());
 
@@ -284,9 +289,9 @@ mod tests {
 
         let err = ArticleRepositoryError::Transaction("test".into());
 
-        assert_eq!(err.is_version_mismatch(), false);
+        assert_eq!(err.is_concurrent_conflict(), false);
 
-        let err = err.as_version_mismatch();
+        let err = err.as_concurrent_conflict();
 
         assert!(err.is_none());
     }

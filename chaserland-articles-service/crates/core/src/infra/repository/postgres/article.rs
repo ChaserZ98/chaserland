@@ -1,4 +1,4 @@
-use crate::domain::tag::vo as tag;
+use crate::domain::{article::vo::TimestampVersion, tag::vo as tag};
 use crate::domain::category::vo as category;
 use crate::domain::series::vo as series;
 use chaserland_common::pagination::Pagination;
@@ -47,13 +47,22 @@ impl TryInto<Article> for PgArticle {
 
         let category_ids = self.category_ids.iter().map(|category_id| (*category_id).try_into()).collect::<Result<Vec<_>, _>>()?;
         let tag_ids = self.tag_ids.iter().map(|tag_id| (*tag_id).try_into()).collect::<Result<Vec<_>, _>>()?;
-        let version = self.version.into();
 
-        let mut article = Article::new(id, title, description, content, created_at, updated_at, series_id, category_ids, tag_ids, version);
+        let mut article = Article::new(id, title, description, content, created_at, updated_at, series_id, category_ids, tag_ids);
         article.published_at = published_at;
         article.deleted_at = deleted_at;
 
         Ok(article)
+    }
+}
+
+impl TryInto<(Article, TimestampVersion)> for PgArticle {
+    type Error = String;
+    fn try_into(self) -> Result<(Article, TimestampVersion), Self::Error> {
+        let version = self.version.into();
+        let article = self.try_into()?;
+
+        Ok((article, version))
     }
 }
 
@@ -105,7 +114,7 @@ impl ArticleRepository for PgArticleRepository {
         .await.map_err(|why| 
             {
                 if !matches!(why, sqlx::Error::Database(_)) {
-                    return ArticleRepositoryError::Sqlx(why.into());
+                    return ArticleRepositoryError::Sqlx(why);
                 }
                 let db_err = why.as_database_error().unwrap();
                 if db_err.is_unique_violation() {
@@ -114,7 +123,7 @@ impl ArticleRepository for PgArticleRepository {
                 if db_err.is_foreign_key_violation() && db_err.constraint() == Some("articles_series_id_fkey") {
                     return ArticleRepositoryError::SeriesNotFound(article.series_id.unwrap().as_identifier());
                 } 
-                ArticleRepositoryError::Sqlx(why.into())
+                ArticleRepositoryError::Sqlx(why)
             }
         )?;
 
@@ -126,13 +135,13 @@ impl ArticleRepository for PgArticleRepository {
             .await
             .map_err(|why| {
                 if !matches!(why, sqlx::Error::Database(_)) {
-                    return ArticleRepositoryError::Sqlx(why.into());
+                    return ArticleRepositoryError::Sqlx(why);
                 }
                 let db_err = why.as_database_error().unwrap();
                 if db_err.is_foreign_key_violation() && db_err.constraint() == Some("article_categories_category_id_fkey") {
                     return ArticleRepositoryError::CategoryNotFound(category_id.as_identifier());
                 }
-                ArticleRepositoryError::Sqlx(why.into())
+                ArticleRepositoryError::Sqlx(why)
             })?;
         }
 
@@ -144,13 +153,13 @@ impl ArticleRepository for PgArticleRepository {
             .await
             .map_err(|why| {
                 if !matches!(why, sqlx::Error::Database(_)) {
-                    return ArticleRepositoryError::Sqlx(why.into());
+                    return ArticleRepositoryError::Sqlx(why);
                 }
                 let db_err = why.as_database_error().unwrap();
                 if db_err.is_foreign_key_violation() && db_err.constraint() == Some("article_tags_tag_id_fkey") {
                     return ArticleRepositoryError::TagNotFound(tag_id.as_identifier());
                 }
-                ArticleRepositoryError::Sqlx(why.into())
+                ArticleRepositoryError::Sqlx(why)
             })?;
         }
 
@@ -169,7 +178,7 @@ impl ArticleRepository for PgArticleRepository {
         identifier: article::Identifier,
         public_only: bool,
         with_content: bool,
-    ) -> Result<Article, ArticleRepositoryError> {
+    ) -> Result<(Article, TimestampVersion), ArticleRepositoryError> {
         let mut query = QueryBuilder::<Postgres>::new("SELECT * FROM ");
         match (public_only, with_content) {
             (true, true) => {
@@ -209,11 +218,11 @@ impl ArticleRepository for PgArticleRepository {
 
         let tag_ids: Vec<i32> = sqlx::query_scalar("SELECT tag_id FROM article.article_tags WHERE article_id = $1").bind(pg_article.id).fetch_all(&self.pool).await?;
 
-        let mut article: Article = pg_article.try_into().map_err(|why| ArticleRepositoryError::DOConversion(why))?;
+        let (mut article, version) = pg_article.try_into().map_err(|why| ArticleRepositoryError::DOConversion(why))?;
         article.category_ids = category_ids.iter().map(|v| (*v).try_into()).collect::<Result<Vec<_>, _>>().map_err(|why| ArticleRepositoryError::DOConversion(why))?;
         article.tag_ids = tag_ids.iter().map(|v| (*v).try_into()).collect::<Result<Vec<_>, _>>().map_err(|why| ArticleRepositoryError::DOConversion(why))?;
 
-        Ok(article)
+        Ok((article, version))
     }
     async fn get_many(
         &self,
@@ -296,13 +305,13 @@ impl ArticleRepository for PgArticleRepository {
 
         Ok(res)
     }
-    async fn set_series(&self, id: article::Id, series_id: series::Id, version: article::Version) -> Result<(), ArticleRepositoryError> {
+    async fn set_series(&self, id: article::Id, series_id: series::Id, version: article::TimestampVersion) -> Result<(), ArticleRepositoryError> {
         let mut tx = self.pool.begin().await.map_err(|why| ArticleRepositoryError::Transaction(why.to_string()))?;
 
         let db_article_version: Option<chrono::DateTime<chrono::Utc>> = sqlx::query_scalar("UPDATE article.articles SET series_id = $1, version = NOW() WHERE id = $2 RETURNING (SELECT version FROM article.articles WHERE id = $2) as version").bind(series_id.value()).bind(id.value()).fetch_optional(&mut *tx).await.map_err(|why|
             match why {
                 sqlx::Error::Database(db_err) if db_err.is_foreign_key_violation() => ArticleRepositoryError::SeriesNotFound(series_id.as_identifier()),
-                _ => ArticleRepositoryError::Sqlx(why.into())
+                _ => ArticleRepositoryError::Sqlx(why)
             }
         )?;
 
@@ -324,7 +333,7 @@ impl ArticleRepository for PgArticleRepository {
 
         Ok(())
     }
-    async fn remove_series(&self, id: article::Id, version: article::Version) -> Result<(), ArticleRepositoryError> {
+    async fn remove_series(&self, id: article::Id, version: article::TimestampVersion) -> Result<(), ArticleRepositoryError> {
         let mut tx = self.pool.begin().await.map_err(|why| ArticleRepositoryError::Transaction(why.to_string()))?;
 
         let db_article_version: Option<chrono::DateTime<chrono::Utc>> = sqlx::query_scalar("UPDATE article.articles SET series_id = NULL, version = NOW() WHERE id = $1 RETURNING (SELECT version FROM article.articles WHERE id = $1) as version").bind(id.value()).fetch_optional(&mut *tx).await?;
@@ -347,7 +356,7 @@ impl ArticleRepository for PgArticleRepository {
 
         Ok(())
     }
-    async fn add_category(&self, id: article::Id, category_id: category::Id, version: article::Version) -> Result<(), ArticleRepositoryError> {
+    async fn add_category(&self, id: article::Id, category_id: category::Id, version: article::TimestampVersion) -> Result<(), ArticleRepositoryError> {
         let mut tx = self.pool.begin().await.map_err(|why| ArticleRepositoryError::Transaction(why.to_string()))?;
 
         sqlx::query("INSERT INTO article.article_categories (article_id, category_id) VALUES ($1, $2) ON CONFLICT (article_id, category_id) DO NOTHING")
@@ -358,16 +367,16 @@ impl ArticleRepository for PgArticleRepository {
         .map_err(
             |why| {
                 if !matches!(why, sqlx::Error::Database(_)) {
-                    return ArticleRepositoryError::Sqlx(why.into());
+                    return ArticleRepositoryError::Sqlx(why);
                 }
                 let db_err = why.as_database_error().unwrap();
                 if !db_err.is_foreign_key_violation() {
-                    return ArticleRepositoryError::Sqlx(why.into());
+                    return ArticleRepositoryError::Sqlx(why);
                 }
                 match db_err.constraint() {
                     Some("article_categories_article_id_fkey") => ArticleRepositoryError::ArticleNotFound(id.as_identifier()),
                     Some("article_categories_category_id_fkey") => ArticleRepositoryError::CategoryNotFound(category_id.as_identifier()),
-                    _ => ArticleRepositoryError::Sqlx(why.into())
+                    _ => ArticleRepositoryError::Sqlx(why)
                 }
             }
         )?;
@@ -386,7 +395,7 @@ impl ArticleRepository for PgArticleRepository {
 
         Ok(())
     }
-    async fn remove_category(&self, id: article::Id, category_id: category::Id, version: article::Version) -> Result<(), ArticleRepositoryError> {
+    async fn remove_category(&self, id: article::Id, category_id: category::Id, version: article::TimestampVersion) -> Result<(), ArticleRepositoryError> {
         let mut tx = self.pool.begin().await.map_err(|why| ArticleRepositoryError::Transaction(why.to_string()))?;
 
         let db_article_version: Option<chrono::DateTime<chrono::Utc>> = sqlx::query_scalar("UPDATE article.articles SET version = NOW() WHERE id = $1 RETURNING (SELECT version FROM article.articles WHERE id = $1) as version").bind(id.value()).fetch_optional(&mut *tx).await?;
@@ -420,7 +429,7 @@ impl ArticleRepository for PgArticleRepository {
 
         Ok(())
     }
-    async fn add_tag(&self, id: article::Id, tag_id: tag::Id, version: article::Version) -> Result<(), ArticleRepositoryError> {
+    async fn add_tag(&self, id: article::Id, tag_id: tag::Id, version: article::TimestampVersion) -> Result<(), ArticleRepositoryError> {
         let mut tx = self.pool.begin().await.map_err(|why| ArticleRepositoryError::Transaction(why.to_string()))?;
 
         sqlx::query("INSERT INTO article.article_tags (article_id, tag_id) VALUES ($1, $2) ON CONFLICT (article_id, tag_id) DO NOTHING")
@@ -431,16 +440,16 @@ impl ArticleRepository for PgArticleRepository {
         .map_err(
             |why| {
                 if !matches!(why, sqlx::Error::Database(_)) {
-                    return ArticleRepositoryError::Sqlx(why.into());
+                    return ArticleRepositoryError::Sqlx(why);
                 }
                 let db_err = why.as_database_error().unwrap();
                 if !db_err.is_foreign_key_violation() {
-                    return ArticleRepositoryError::Sqlx(why.into());
+                    return ArticleRepositoryError::Sqlx(why);
                 }
                 match db_err.constraint() {
                     Some("article_tags_article_id_fkey") => ArticleRepositoryError::ArticleNotFound(id.as_identifier()),
                     Some("article_tags_tag_id_fkey") => ArticleRepositoryError::TagNotFound(tag_id.as_identifier()),
-                    _ => ArticleRepositoryError::Sqlx(why.into())
+                    _ => ArticleRepositoryError::Sqlx(why)
                 }
             }
         )?;
@@ -459,7 +468,7 @@ impl ArticleRepository for PgArticleRepository {
 
         Ok(())
     }
-    async fn remove_tag(&self, id: article::Id, tag_id: tag::Id, version: article::Version) -> Result<(), ArticleRepositoryError> {
+    async fn remove_tag(&self, id: article::Id, tag_id: tag::Id, version: article::TimestampVersion) -> Result<(), ArticleRepositoryError> {
         let mut tx = self.pool.begin().await.map_err(|why| ArticleRepositoryError::Transaction(why.to_string()))?;
 
         let db_article_version: Option<chrono::DateTime<chrono::Utc>> = sqlx::query_scalar("UPDATE article.articles SET version = NOW() WHERE id = $1 RETURNING (SELECT version FROM article.articles WHERE id = $1) as version").bind(id.value()).fetch_optional(&mut *tx).await?;
@@ -493,7 +502,7 @@ impl ArticleRepository for PgArticleRepository {
 
         Ok(())
     }
-    async fn publish(&self, id: article::Id, published_at: article::PublishedAt, version: article::Version) -> Result<(), ArticleRepositoryError> {
+    async fn publish(&self, id: article::Id, published_at: article::PublishedAt, version: article::TimestampVersion) -> Result<(), ArticleRepositoryError> {
         let mut tx = self.pool.begin().await.map_err(|why| ArticleRepositoryError::Transaction(why.to_string()))?;
         
         let db_article_version: Option<chrono::DateTime<chrono::Utc>> = sqlx::query_scalar("UPDATE article.articles SET published_at = $1, version = NOW() WHERE id = $2 RETURNING (SELECT version FROM article.articles WHERE id = $2) as version")
@@ -520,7 +529,7 @@ impl ArticleRepository for PgArticleRepository {
 
         Ok(())
     }
-    async fn unpublish(&self, id: article::Id, version: article::Version) -> Result<(), ArticleRepositoryError> {
+    async fn unpublish(&self, id: article::Id, version: article::TimestampVersion) -> Result<(), ArticleRepositoryError> {
         let mut tx = self.pool.begin().await.map_err(|why| ArticleRepositoryError::Transaction(why.to_string()))?;
 
         let db_article_version: Option<chrono::DateTime<chrono::Utc>> = sqlx::query_scalar("UPDATE article.articles SET published_at = NULL, version = NOW() WHERE id = $1 RETURNING (SELECT version FROM article.articles WHERE id = $1) as version")
@@ -546,7 +555,7 @@ impl ArticleRepository for PgArticleRepository {
 
         Ok(())
     }
-    async fn soft_delete(&self, id: article::Id, deleted_at: article::DeletedAt, version: article::Version) -> Result<(), ArticleRepositoryError> {
+    async fn soft_delete(&self, id: article::Id, deleted_at: article::DeletedAt, version: article::TimestampVersion) -> Result<(), ArticleRepositoryError> {
         let mut tx = self.pool.begin().await.map_err(|why| ArticleRepositoryError::Transaction(why.to_string()))?;
 
         let db_article_version: Option<chrono::DateTime<chrono::Utc>> = sqlx::query_scalar("UPDATE article.articles SET deleted_at = $1, version = NOW() WHERE id = $2 RETURNING (SELECT version FROM article.articles WHERE id = $2) as version")
@@ -573,7 +582,7 @@ impl ArticleRepository for PgArticleRepository {
 
         Ok(())
     }
-    async fn revoke_soft_delete(&self, id: article::Id, version: article::Version) -> Result<(), ArticleRepositoryError> {
+    async fn revoke_soft_delete(&self, id: article::Id, version: article::TimestampVersion) -> Result<(), ArticleRepositoryError> {
         let mut tx = self.pool.begin().await.map_err(|why| ArticleRepositoryError::Transaction(why.to_string()))?;
 
         let db_article_version: Option<chrono::DateTime<chrono::Utc>> = sqlx::query_scalar("UPDATE article.articles SET deleted_at = NULL, version = NOW() WHERE id = $1 RETURNING (SELECT version FROM article.articles WHERE id = $1) as version")

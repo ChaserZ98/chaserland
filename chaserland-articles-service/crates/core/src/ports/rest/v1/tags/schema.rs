@@ -1,5 +1,5 @@
 use crate::{
-    app::{command::CreateTagCommand, dto::TagDTO},
+    app::{command::CreateTagCommand, query::dto::TagDTO},
     ports::rest::response::ErrorResponse,
 };
 use http::StatusCode;

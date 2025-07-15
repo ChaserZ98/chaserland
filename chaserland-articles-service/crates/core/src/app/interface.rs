@@ -1,7 +1,7 @@
 use crate::app::{command, dto, error, query};
 
-#[trait_variant::make(ArticleService: Send)]
-pub trait LocalArticleService: Clone + Sync + 'static {
+#[trait_variant::make(ArticleCommandService: Send)]
+pub trait LocalArticleCommandService: Clone + Sync + 'static {
     async fn create_article(
         &self,
         command: command::CreateArticleCommand,
@@ -22,20 +22,20 @@ pub trait LocalArticleService: Clone + Sync + 'static {
         command: command::CreateTagCommand,
     ) -> Result<dto::TagDTO, error::CreateTagError>;
 
-    async fn get_article_one(
-        &self,
-        query: query::GetArticleOneQuery,
-    ) -> Result<dto::ArticleDTO, error::GetArticleOneError>;
+    // async fn get_article_one(
+    //     &self,
+    //     query: query::GetArticleOneQuery,
+    // ) -> Result<dto::ArticleDTO, error::GetArticleOneError>;
 
-    async fn get_article_content(
-        &self,
-        query: query::GetArticleContentQuery,
-    ) -> Result<String, error::GetArticleContentError>;
+    // async fn get_article_content(
+    //     &self,
+    //     query: query::GetArticleContentQuery,
+    // ) -> Result<String, error::GetArticleContentError>;
 
-    async fn get_article_many(
-        &self,
-        query: query::GetArticleManyQuery,
-    ) -> Result<Vec<dto::ArticleDTO>, error::GetArticleManyError>;
+    // async fn get_article_many(
+    //     &self,
+    //     query: query::GetArticleManyQuery,
+    // ) -> Result<Vec<dto::ArticleDTO>, error::GetArticleManyError>;
 
     async fn get_series_one(
         &self,
@@ -106,4 +106,22 @@ pub trait LocalArticleService: Clone + Sync + 'static {
         &self,
         command: command::DeleteTagCommand,
     ) -> Result<(), error::DeleteTagError>;
+}
+
+#[trait_variant::make(ArticleQueryService: Send)]
+pub trait LocalArticleQueryService: Clone + Sync + 'static {
+    async fn get_article_one(
+        &self,
+        query: query::GetArticleOneQuery,
+    ) -> Result<dto::ArticleDTO, error::GetArticleOneError>;
+
+    async fn get_article_content(
+        &self,
+        query: query::GetArticleContentQuery,
+    ) -> Result<String, error::GetArticleContentError>;
+
+    async fn get_article_many_(
+        &self,
+        query: query::GetArticleManyQuery,
+    ) -> Result<Vec<dto::ArticleDTO>, error::GetArticleManyError>;
 }

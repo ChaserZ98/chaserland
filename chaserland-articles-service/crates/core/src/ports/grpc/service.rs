@@ -1,8 +1,22 @@
-use crate::app::{interface::ArticleService as ArticleServiceInterface, service::ArticleService};
-use crate::domain::article::repository::ArticleRepository;
-use crate::domain::category::repository::CategoryRepository;
-use crate::domain::series::repository::SeriesRepository;
-use crate::domain::tag::repository::TagRepository;
+use crate::{
+    app::{
+        command::{
+            interface::ArticleCommandService as ArticleCommandServiceInterface,
+            service::ArticleCommandService,
+        },
+        query::{
+            interface::ArticleQueryService as ArticleQueryServiceInterface,
+            query_handler::interface::{
+                ArticleQueryHandler, CategoryQueryHandler, SeriesQueryHandler, TagQueryHandler,
+            },
+            service::ArticleQueryService,
+        },
+    },
+    domain::{
+        article::repository::ArticleRepository, category::repository::CategoryRepository,
+        series::repository::SeriesRepository, tag::repository::TagRepository,
+    },
+};
 use chaserland_protos::article::v1::{
     CreateArticleRequest, CreateArticleResponse, CreateCategoryRequest, CreateCategoryResponse,
     CreateSeriesRequest, CreateSeriesResponse, CreateTagRequest, CreateTagResponse,
@@ -18,40 +32,56 @@ use chaserland_protos::article::v1::{
     UnpublishArticleResponse,
     article_service_server::{ArticleService as TonicArticleService, ArticleServiceServer},
 };
+use sqlx::Database;
 use tonic::{Request, Response, Status};
 
 pub struct GrpcArticleService<
-    R: ArticleRepository,
-    S: SeriesRepository,
-    C: CategoryRepository,
-    T: TagRepository,
->(ArticleService<R, S, C, T>);
-
-impl<R, S, C, T> Into<GrpcArticleService<R, S, C, T>> for ArticleService<R, S, C, T>
-where
-    R: ArticleRepository,
-    S: SeriesRepository,
-    C: CategoryRepository,
-    T: TagRepository,
-{
-    fn into(self) -> GrpcArticleService<R, S, C, T> {
-        GrpcArticleService::new(self)
-    }
+    DB: Database,
+    R: ArticleRepository<DB = DB>,
+    S: SeriesRepository<DB = DB>,
+    C: CategoryRepository<DB = DB>,
+    T: TagRepository<DB = DB>,
+    AQ: ArticleQueryHandler,
+    SQ: SeriesQueryHandler,
+    CQ: CategoryQueryHandler,
+    TQ: TagQueryHandler,
+> {
+    command_service: ArticleCommandService<R, S, C, T, DB>,
+    query_service: ArticleQueryService<AQ, SQ, CQ, TQ>,
 }
 
-impl<R, S, C, T> GrpcArticleService<R, S, C, T>
-where
-    R: ArticleRepository,
-    S: SeriesRepository,
-    C: CategoryRepository,
-    T: TagRepository,
-{
-    pub fn new(article_service: ArticleService<R, S, C, T>) -> Self {
-        Self(article_service)
-    }
+// impl<R, S, C, T> Into<GrpcArticleService<R, S, C, T, A>> for ArticleCommandService<R, S, C, T>
+// where
+//     R: ArticleRepository,
+//     S: SeriesRepository,
+//     C: CategoryRepository,
+//     T: TagRepository,
+// {
+//     fn into(self) -> GrpcArticleService<R, S, C, T> {
+//         GrpcArticleService::new(self)
+//     }
+// }
 
-    pub fn inner(&self) -> &ArticleService<R, S, C, T> {
-        &self.0
+impl<DB, R, S, C, T, AQ, SQ, CQ, TQ> GrpcArticleService<DB, R, S, C, T, AQ, SQ, CQ, TQ>
+where
+    DB: Database,
+    R: ArticleRepository<DB = DB>,
+    S: SeriesRepository<DB = DB>,
+    C: CategoryRepository<DB = DB>,
+    T: TagRepository<DB = DB>,
+    AQ: ArticleQueryHandler,
+    SQ: SeriesQueryHandler,
+    CQ: CategoryQueryHandler,
+    TQ: TagQueryHandler,
+{
+    pub fn new(
+        command_service: ArticleCommandService<R, S, C, T, DB>,
+        query_service: ArticleQueryService<AQ, SQ, CQ, TQ>,
+    ) -> Self {
+        Self {
+            command_service,
+            query_service,
+        }
     }
 
     pub fn into_tonic_service(self) -> ArticleServiceServer<Self> {
@@ -60,12 +90,18 @@ where
 }
 
 #[tonic::async_trait]
-impl<R, S, C, T> TonicArticleService for GrpcArticleService<R, S, C, T>
+impl<DB, R, S, C, T, AQ, SQ, CQ, TQ> TonicArticleService
+    for GrpcArticleService<DB, R, S, C, T, AQ, SQ, CQ, TQ>
 where
-    R: ArticleRepository,
-    S: SeriesRepository,
-    C: CategoryRepository,
-    T: TagRepository,
+    DB: Database,
+    R: ArticleRepository<DB = DB>,
+    S: SeriesRepository<DB = DB>,
+    C: CategoryRepository<DB = DB>,
+    T: TagRepository<DB = DB>,
+    AQ: ArticleQueryHandler,
+    SQ: SeriesQueryHandler,
+    CQ: CategoryQueryHandler,
+    TQ: TagQueryHandler,
 {
     async fn create_article(
         &self,
@@ -75,9 +111,9 @@ where
 
         let command = message.try_into()?;
 
-        let article = self.inner().create_article(command).await?;
+        self.command_service.create_article(command).await?;
 
-        let reply = CreateArticleResponse::from(article);
+        let reply = CreateArticleResponse {};
         Ok(Response::new(reply))
     }
 
@@ -89,9 +125,9 @@ where
 
         let command = message.try_into()?;
 
-        let series = self.inner().create_series(command).await?;
+        self.command_service.create_series(command).await?;
 
-        let reply = CreateSeriesResponse::from(series);
+        let reply = CreateSeriesResponse {};
 
         Ok(Response::new(reply))
     }
@@ -103,9 +139,9 @@ where
         let message = request.into_inner();
         let command = message.try_into()?;
 
-        let category = self.inner().create_category(command).await?;
+        self.command_service.create_category(command).await?;
 
-        let reply = CreateCategoryResponse::from(category);
+        let reply = CreateCategoryResponse {};
         Ok(Response::new(reply))
     }
 
@@ -117,9 +153,9 @@ where
 
         let command = message.try_into()?;
 
-        let tag = self.inner().create_tag(command).await?;
+        self.command_service.create_tag(command).await?;
 
-        let reply = CreateTagResponse::from(tag);
+        let reply = CreateTagResponse {};
         Ok(Response::new(reply))
     }
 
@@ -130,7 +166,7 @@ where
         let message = request.into_inner();
         let query = message.try_into()?;
 
-        let article = self.inner().get_article_one(query).await?;
+        let article = self.query_service.get_article_one(query).await?;
 
         let reply = GetArticleOneResponse {
             article: Some(article.into()),
@@ -146,7 +182,7 @@ where
 
         let query = message.try_into()?;
 
-        let content = self.inner().get_article_content(query).await?;
+        let content = self.query_service.get_article_content(query).await?;
 
         let reply = GetArticleContentResponse { content };
         Ok(Response::new(reply))
@@ -159,7 +195,7 @@ where
         let message = request.into_inner();
         let query = message.try_into()?;
 
-        let articles = self.inner().get_article_many(query).await?;
+        let articles = self.query_service.get_article_many(query).await?;
 
         let reply = GetArticleManyResponse {
             articles: articles.into_iter().map(|x| x.into()).collect(),
@@ -175,7 +211,7 @@ where
 
         let query = message.try_into()?;
 
-        let series = self.inner().get_series_one(query).await?;
+        let series = self.query_service.get_series_one(query).await?;
 
         let reply = GetSeriesOneResponse {
             series: Some(series.into()),
@@ -191,7 +227,7 @@ where
 
         let query = message.try_into()?;
 
-        let series = self.inner().get_series_many(query).await?;
+        let series = self.query_service.get_series_many(query).await?;
 
         let reply = GetSeriesManyResponse {
             series: series.into_iter().map(|x| x.into()).collect(),
@@ -208,7 +244,7 @@ where
 
         let query = message.try_into()?;
 
-        let category = self.inner().get_category_one(query).await?;
+        let category = self.query_service.get_category_one(query).await?;
 
         let reply = GetCategoryOneResponse {
             category: Some(category.into()),
@@ -224,7 +260,7 @@ where
 
         let query = message.try_into()?;
 
-        let categories = self.inner().get_category_many(query).await?;
+        let categories = self.query_service.get_category_many(query).await?;
 
         let reply = GetCategoryManyResponse {
             categories: categories.into_iter().map(|x| x.into()).collect(),
@@ -241,7 +277,7 @@ where
 
         let query = message.try_into()?;
 
-        let tag = self.inner().get_tag_one(query).await?;
+        let tag = self.query_service.get_tag_one(query).await?;
 
         let reply = GetTagOneResponse {
             tag: Some(tag.into()),
@@ -257,7 +293,7 @@ where
 
         let query = message.try_into()?;
 
-        let tags = self.inner().get_tag_many(query).await?;
+        let tags = self.query_service.get_tag_many(query).await?;
 
         let reply = GetTagManyResponse {
             tags: tags.into_iter().map(|x| x.into()).collect(),
@@ -274,7 +310,7 @@ where
 
         let command = message.try_into()?;
 
-        self.inner().publish_article(command).await?;
+        self.command_service.publish_article(command).await?;
 
         Ok(Response::new(PublishArticleResponse {}))
     }
@@ -287,7 +323,7 @@ where
 
         let command = message.try_into()?;
 
-        self.inner().unpublish_article(command).await?;
+        self.command_service.unpublish_article(command).await?;
 
         Ok(Response::new(UnpublishArticleResponse {}))
     }
@@ -300,7 +336,7 @@ where
 
         let command = message.try_into()?;
 
-        self.inner().soft_delete_article(command).await?;
+        self.command_service.soft_delete_article(command).await?;
 
         Ok(Response::new(SoftDeleteArticleResponse {}))
     }
@@ -313,7 +349,9 @@ where
 
         let command = message.try_into()?;
 
-        self.inner().revoke_soft_delete_article(command).await?;
+        self.command_service
+            .revoke_soft_delete_article(command)
+            .await?;
 
         Ok(Response::new(RevokeSoftDeleteArticleResponse {}))
     }
@@ -326,7 +364,7 @@ where
 
         let command = message.try_into()?;
 
-        self.inner().delete_article(command).await?;
+        self.command_service.delete_article(command).await?;
 
         let reply = DeleteArticleResponse {};
         Ok(Response::new(reply))
@@ -340,7 +378,7 @@ where
 
         let command = message.try_into()?;
 
-        self.inner().delete_series(command).await?;
+        self.command_service.delete_series(command).await?;
 
         Ok(Response::new(DeleteSeriesResponse {}))
     }
@@ -353,7 +391,7 @@ where
 
         let command = message.try_into()?;
 
-        self.inner().delete_category(command).await?;
+        self.command_service.delete_category(command).await?;
 
         Ok(Response::new(DeleteCategoryResponse {}))
     }
@@ -366,7 +404,7 @@ where
 
         let command = message.try_into()?;
 
-        self.inner().delete_tag(command).await?;
+        self.command_service.delete_tag(command).await?;
 
         Ok(Response::new(DeleteTagResponse {}))
     }
