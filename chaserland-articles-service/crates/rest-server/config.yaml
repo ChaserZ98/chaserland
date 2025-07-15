@@ -1,0 +1,10 @@
+host: "[::1]"
+port: 8080
+otel:
+  endpoint: http://localhost:4317
+  service_name: chaserland-articles-service
+  trace: {}
+  metric: {}
+  log: {}
+db:
+  url: postgres://chaserland_article:chaserland_article@localhost:5432/chaserland_article
