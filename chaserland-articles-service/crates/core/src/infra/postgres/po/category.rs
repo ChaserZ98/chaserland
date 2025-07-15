@@ -27,3 +27,41 @@ impl Into<CategoryDTO> for PgCategory {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::PgCategory;
+    use crate::{app::query::dto::CategoryDTO, domain::category::entity::Category};
+
+    #[test]
+    fn pg_category_try_into_category() {
+        let pg_category = PgCategory {
+            id: 1,
+            name: "name".to_string(),
+            slug: "name".to_string(),
+        };
+        let target = Category::new(1.try_into().unwrap(), "name".try_into().unwrap());
+
+        let category: Category = pg_category.try_into().unwrap();
+
+        assert_eq!(category, target);
+    }
+
+    #[test]
+    fn pg_article_into_category_dto() {
+        let pg_category = PgCategory {
+            id: 1,
+            name: "name".to_string(),
+            slug: "name".to_string(),
+        };
+        let target = CategoryDTO {
+            id: 1,
+            name: "name".to_string(),
+            slug: "name".to_string(),
+        };
+
+        let category: CategoryDTO = pg_category.into();
+
+        assert_eq!(category, target);
+    }
+}

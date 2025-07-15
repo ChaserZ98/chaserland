@@ -29,3 +29,41 @@ impl Into<TagDTO> for PgTag {
         }
     }
 }
+
+#[cfg(test)]
+mod test {
+    use super::PgTag;
+    use crate::{app::query::dto::TagDTO, domain::tag::entity::Tag};
+
+    #[test]
+    fn pg_tag_try_into_tag() {
+        let pg_tag = PgTag {
+            id: 1,
+            name: "name".to_string(),
+            slug: "name".to_string(),
+        };
+        let target = Tag::new(1.try_into().unwrap(), "name".try_into().unwrap());
+
+        let tag: Tag = pg_tag.try_into().unwrap();
+
+        assert_eq!(tag, target);
+    }
+
+    #[test]
+    fn pg_tag_into_tag_dto() {
+        let pg_tag = PgTag {
+            id: 1,
+            name: "name".to_string(),
+            slug: "name".to_string(),
+        };
+        let target = TagDTO {
+            id: 1,
+            name: "name".to_string(),
+            slug: "name".to_string(),
+        };
+
+        let tag: TagDTO = pg_tag.into();
+
+        assert_eq!(tag, target);
+    }
+}

@@ -43,12 +43,12 @@ impl TryInto<Article> for PgArticle {
         let category_ids = self
             .category_ids
             .iter()
-            .map(|category_id| (*category_id).try_into())
+            .map(|&category_id| category_id.try_into())
             .collect::<Result<Vec<_>, _>>()?;
         let tag_ids = self
             .tag_ids
             .iter()
-            .map(|tag_id| (*tag_id).try_into())
+            .map(|&tag_id| tag_id.try_into())
             .collect::<Result<Vec<_>, _>>()?;
 
         let mut article = Article::new(
@@ -76,5 +76,167 @@ impl TryInto<(Article, TimestampVersion)> for PgArticle {
         let article = self.try_into()?;
 
         Ok((article, version))
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use chrono::{Duration, Utc};
+
+    use super::PgArticle;
+    use crate::domain::article::{entity::Article, vo::TimestampVersion};
+
+    #[test]
+    fn pg_article_to_article() {
+        let pg_article = PgArticle {
+            id: 1,
+            title: "title".to_string(),
+            slug: "slug".to_string(),
+            description: "description".to_string(),
+            content: None,
+            created_at: Utc::now(),
+            published_at: None,
+            updated_at: Utc::now(),
+            deleted_at: None,
+            series_id: None,
+            category_ids: vec![],
+            tag_ids: vec![],
+            version: Utc::now(),
+        };
+
+        let target = Article::new(
+            1.try_into().unwrap(),
+            "title".try_into().unwrap(),
+            "description".into(),
+            None,
+            Utc::now().into(),
+            Utc::now().into(),
+            None,
+            vec![],
+            vec![],
+        );
+
+        let res: Result<Article, _> = pg_article.try_into();
+
+        assert!(res.is_ok());
+
+        let res = res.unwrap();
+
+        assert_eq!(res.id, target.id);
+        assert_eq!(res.title, target.title);
+        assert_eq!(res.description, target.description);
+        assert_eq!(res.content, target.content);
+        assert!(target.created_at.value() - res.created_at.value() < Duration::seconds(1));
+        assert_eq!(res.published_at, target.published_at);
+        assert!(target.updated_at.value() - res.updated_at.value() < Duration::seconds(1));
+        assert_eq!(res.deleted_at, target.deleted_at);
+        assert_eq!(res.series_id, target.series_id);
+        assert_eq!(res.category_ids, target.category_ids);
+        assert_eq!(res.tag_ids, target.tag_ids);
+    }
+
+    #[test]
+    fn pg_article_to_article_timestamp_version() {
+        let pg_article = PgArticle {
+            id: 1,
+            title: "title".to_string(),
+            slug: "slug".to_string(),
+            description: "description".to_string(),
+            content: Some("content".into()),
+            created_at: Utc::now(),
+            published_at: None,
+            updated_at: Utc::now(),
+            deleted_at: None,
+            series_id: Some(1),
+            category_ids: vec![],
+            tag_ids: vec![],
+            version: Utc::now(),
+        };
+
+        let target = Article::new(
+            1.try_into().unwrap(),
+            "title".try_into().unwrap(),
+            "description".into(),
+            Some("content".into()),
+            Utc::now().into(),
+            Utc::now().into(),
+            Some(1.try_into().unwrap()),
+            vec![],
+            vec![],
+        );
+        let target_version = TimestampVersion::new(Utc::now());
+
+        let res: Result<(Article, TimestampVersion), _> = pg_article.try_into();
+
+        assert!(res.is_ok());
+
+        let (article, version) = res.unwrap();
+
+        assert_eq!(article.id, target.id);
+        assert_eq!(article.title, target.title);
+        assert_eq!(article.description, target.description);
+        assert_eq!(article.content, target.content);
+        assert!(target.created_at.value() - article.created_at.value() < Duration::seconds(1));
+        assert_eq!(article.published_at, target.published_at);
+        assert!(target.updated_at.value() - article.updated_at.value() < Duration::seconds(1));
+        assert_eq!(article.deleted_at, target.deleted_at);
+        assert_eq!(article.series_id, target.series_id);
+        assert_eq!(article.category_ids, target.category_ids);
+        assert_eq!(article.tag_ids, target.tag_ids);
+        assert!(target_version.value() - version.value() < Duration::seconds(1));
+    }
+
+    #[test]
+    fn pg_article_to_article_case_category_id_error() {
+        let pg_article = PgArticle {
+            id: 1,
+            title: "title".to_string(),
+            slug: "slug".to_string(),
+            description: "description".to_string(),
+            content: None,
+            created_at: Utc::now(),
+            published_at: None,
+            updated_at: Utc::now(),
+            deleted_at: None,
+            series_id: None,
+            category_ids: vec![-1, -2],
+            tag_ids: vec![],
+            version: Utc::now(),
+        };
+
+        let res: Result<Article, _> = pg_article.try_into();
+
+        assert!(res.is_err());
+
+        let res = res.unwrap_err();
+
+        assert_eq!(res, "id must be greater than 0");
+    }
+
+    #[test]
+    fn pg_article_to_article_case_tag_id_error() {
+        let pg_article = PgArticle {
+            id: 1,
+            title: "title".to_string(),
+            slug: "slug".to_string(),
+            description: "description".to_string(),
+            content: None,
+            created_at: Utc::now(),
+            published_at: None,
+            updated_at: Utc::now(),
+            deleted_at: None,
+            series_id: None,
+            category_ids: vec![],
+            tag_ids: vec![-1, -2],
+            version: Utc::now(),
+        };
+
+        let res: Result<Article, _> = pg_article.try_into();
+
+        assert!(res.is_err());
+
+        let res = res.unwrap_err();
+
+        assert_eq!(res, "id must be greater than 0");
     }
 }
