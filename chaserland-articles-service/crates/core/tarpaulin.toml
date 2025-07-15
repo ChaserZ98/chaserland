@@ -1,8 +1,20 @@
-[chaserland-articles-service]
+[unit-test]
 manifest-path = "./Cargo.toml"
 include-files = ["chaserland-articles-service/crates/core/src/**"]
 skip-clean = true
 run-types = ["Lib"]
+
+[infra-integration]
+test = ["infra"]
+manifest-path = "./Cargo.toml"
+include-files = ["chaserland-articles-service/crates/core/src/**"]
+skip-clean = true
+
+[app-integration]
+test = ["app"]
+manifest-path = "./Cargo.toml"
+include-files = ["chaserland-articles-service/crates/core/src/**"]
+skip-clean = true
 
 [report]
 out = ["Lcov", "Html"]

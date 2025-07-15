@@ -117,7 +117,9 @@ mod tests {
         assert!(
             target.updated_at.value() - article.updated_at.value() < chrono::Duration::seconds(1)
         );
-        assert!(target.version.value() - article.version.value() < chrono::Duration::seconds(1));
+        assert!(
+            target.version().value() - article.version().value() < chrono::Duration::seconds(1)
+        );
     }
 
     #[test]
