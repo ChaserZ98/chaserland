@@ -12,10 +12,6 @@ use crate::{
 pub enum GetArticleOneError {
     #[error("Article with identifier {0} not found")]
     NotFound(article::Identifier),
-    // #[error("Version conflict: {0}")]
-    // DataVersionConflict(String),
-    // #[error("DO to DTO conversion error: {0}")]
-    // DTOConversion(String),
     #[error(transparent)]
     QueryHandler(#[from] QueryHandlerError),
 }
@@ -144,5 +140,143 @@ pub enum GetTagManyError {
 impl From<TagQueryHandlerError> for GetTagManyError {
     fn from(value: TagQueryHandlerError) -> Self {
         Self::QueryHandler(value.into())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn get_article_one_error_from_article_query_handler_error() {
+        let error = ArticleQueryHandlerError::ArticleNotFound(article::Identifier::Id(
+            1.try_into().unwrap(),
+        ));
+
+        let res = GetArticleOneError::from(error);
+
+        assert!(match res {
+            GetArticleOneError::NotFound(identifier) =>
+                identifier == article::Identifier::Id(1.try_into().unwrap()),
+            _ => false,
+        });
+
+        let error = ArticleQueryHandlerError::DOConversion("error".into());
+
+        let res = GetArticleOneError::from(error);
+
+        assert!(matches!(res, GetArticleOneError::QueryHandler(_)));
+    }
+
+    #[test]
+    fn get_article_content_error_from_article_query_handler_error() {
+        let identifier = article::Identifier::Id(1.try_into().unwrap());
+        let error = ArticleQueryHandlerError::ArticleNotFound(identifier.clone());
+
+        let res = GetArticleContentError::from(error);
+
+        assert!(match res {
+            GetArticleContentError::NotFound(identifier) => identifier == identifier,
+            _ => false,
+        });
+
+        let error = ArticleQueryHandlerError::DOConversion("error".into());
+
+        let res = GetArticleContentError::from(error);
+
+        assert!(matches!(res, GetArticleContentError::QueryHandler(_)));
+    }
+
+    #[test]
+    fn get_article_many_error_from_article_query_handler_error() {
+        let error = ArticleQueryHandlerError::DOConversion("error".into());
+
+        let res = GetArticleManyError::from(error);
+
+        assert!(matches!(res, GetArticleManyError::QueryHandler(_)));
+    }
+
+    #[test]
+    fn get_series_one_error_from_series_query_handler_error() {
+        let identifier = series::Identifier::Id(1.try_into().unwrap());
+        let error = SeriesQueryHandlerError::SeriesNotFound(identifier.clone());
+
+        let res = GetSeriesOneError::from(error);
+
+        assert!(match res {
+            GetSeriesOneError::NotFound(identifier) => identifier == identifier,
+            _ => false,
+        });
+
+        let error = SeriesQueryHandlerError::DOConversion("error".into());
+
+        let res = GetSeriesOneError::from(error);
+
+        assert!(matches!(res, GetSeriesOneError::QueryHandler(_)));
+    }
+
+    #[test]
+    fn get_series_many_error_from_series_query_handler_error() {
+        let error = SeriesQueryHandlerError::DOConversion("error".into());
+
+        let res = GetSeriesManyError::from(error);
+
+        assert!(matches!(res, GetSeriesManyError::QueryHandler(_)));
+    }
+
+    #[test]
+    fn get_category_one_error_from_category_query_handler_error() {
+        let identifier = category::Identifier::Id(1.try_into().unwrap());
+        let error = CategoryQueryHandlerError::CategoryNotFound(identifier.clone());
+
+        let res = GetCategoryOneError::from(error);
+
+        assert!(match res {
+            GetCategoryOneError::NotFound(identifier) => identifier == identifier,
+            _ => false,
+        });
+
+        let error = CategoryQueryHandlerError::DOConversion("error".into());
+
+        let res = GetCategoryOneError::from(error);
+
+        assert!(matches!(res, GetCategoryOneError::QueryHandler(_)));
+    }
+
+    #[test]
+    fn get_category_many_error_from_category_query_handler_error() {
+        let error = CategoryQueryHandlerError::DOConversion("error".into());
+
+        let res = GetCategoryManyError::from(error);
+
+        assert!(matches!(res, GetCategoryManyError::QueryHandler(_)));
+    }
+
+    #[test]
+    fn get_tag_one_error_from_tag_query_handler_error() {
+        let identifier = tag::Identifier::Id(1.try_into().unwrap());
+        let error = TagQueryHandlerError::TagNotFound(identifier.clone());
+
+        let res = GetTagOneError::from(error);
+
+        assert!(match res {
+            GetTagOneError::NotFound(identifier) => identifier == identifier,
+            _ => false,
+        });
+
+        let error = TagQueryHandlerError::DOConversion("error".into());
+
+        let res = GetTagOneError::from(error);
+
+        assert!(matches!(res, GetTagOneError::QueryHandler(_)));
+    }
+
+    #[test]
+    fn get_tag_many_error_from_tag_query_handler_error() {
+        let error = TagQueryHandlerError::DOConversion("error".into());
+
+        let res = GetTagManyError::from(error);
+
+        assert!(matches!(res, GetTagManyError::QueryHandler(_)));
     }
 }

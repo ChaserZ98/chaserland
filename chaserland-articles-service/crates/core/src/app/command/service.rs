@@ -1,7 +1,6 @@
 use super::{command, error, interface::ArticleCommandService as ArticleCommandServiceInterface};
 use crate::domain::{
     article::{
-        error::ArticleDomainError,
         repository::{ArticleRepository, ArticleRepositoryError},
         vo as article,
     },
@@ -161,6 +160,35 @@ where
         Ok(())
     }
 
+    async fn update_article(
+        &self,
+        command: command::UpdateArticleCommand,
+    ) -> Result<(), error::UpdateArticleError> {
+        let mut tx = self.pool.begin().await?;
+
+        let identifier = command.identifier;
+
+        let (mut article, version) = self
+            .article_repository
+            .get_one(identifier.clone(), &mut tx)
+            .await?;
+
+        article.set_title(command.title);
+        article.set_description(command.description);
+        article.set_content(command.content);
+        article.set_series_id(command.series_id);
+        article.category_ids = command.category_ids;
+        article.tag_ids = command.tag_ids;
+
+        self.article_repository
+            .save(article, version, &mut tx)
+            .await?;
+
+        tx.commit().await?;
+
+        Ok(())
+    }
+
     async fn publish_article(
         &self,
         command: command::PublishArticleCommand,
@@ -174,20 +202,10 @@ where
             .get_one(identifier.clone(), &mut tx)
             .await?;
 
-        article.publish().map_err(|e| match e {
-            ArticleDomainError::AlreadyPublished(_) => {
-                error::PublishArticleError::AlreadyPublished(identifier)
-            }
-            _ => e.into(),
-        })?;
+        article.publish()?;
 
         self.article_repository
-            .publish(
-                article.id,
-                article.published_at.clone().unwrap(),
-                version,
-                &mut tx,
-            )
+            .save(article, version, &mut tx)
             .await
             .map_err(|e| match e {
                 ArticleRepositoryError::ArticleNotFound(_)
@@ -215,15 +233,10 @@ where
             .get_one(identifier.clone(), &mut tx)
             .await?;
 
-        article.unpublish().map_err(|e| match e {
-            ArticleDomainError::NotPublished(_) => {
-                error::UnpublishArticleError::NotPublished(identifier)
-            }
-            _ => error::UnpublishArticleError::Domain(e.into()),
-        })?;
+        article.unpublish()?;
 
         self.article_repository
-            .unpublish(article.id, version, &mut tx)
+            .save(article, version, &mut tx)
             .await
             .map_err(|e| match e {
                 ArticleRepositoryError::ArticleNotFound(_)
@@ -251,15 +264,10 @@ where
             .get_one(identifier.clone(), &mut tx)
             .await?;
 
-        article.soft_delete().map_err(|e| match e {
-            ArticleDomainError::AlreadySoftDeleted(_) => {
-                error::SoftDeleteArticleError::AlreadySoftDeleted(identifier)
-            }
-            _ => e.into(),
-        })?;
+        article.soft_delete()?;
 
         self.article_repository
-            .soft_delete(article.id, article.deleted_at.unwrap(), version, &mut tx)
+            .save(article, version, &mut tx)
             .await
             .map_err(|e| match e {
                 ArticleRepositoryError::ArticleNotFound(_)
@@ -287,15 +295,10 @@ where
             .get_one(identifier.clone(), &mut tx)
             .await?;
 
-        article.revoke_soft_delete().map_err(|e| match e {
-            ArticleDomainError::NotSoftDeleted(_) => {
-                error::RevokeSoftDeleteError::NotSoftDeleted(identifier)
-            }
-            _ => e.into(),
-        })?;
+        article.revoke_soft_delete()?;
 
         self.article_repository
-            .revoke_soft_delete(article.id, version, &mut tx)
+            .save(article, version, &mut tx)
             .await
             .map_err(|e| match e {
                 ArticleRepositoryError::ArticleNotFound(_)

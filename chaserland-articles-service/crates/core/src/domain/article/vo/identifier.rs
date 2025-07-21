@@ -1,5 +1,5 @@
 use super::{Id, Slug};
-use std::fmt::Display;
+use std::{fmt::Display, str::FromStr};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Identifier {
@@ -40,6 +40,19 @@ impl From<Id> for Identifier {
 impl From<Slug> for Identifier {
     fn from(slug: Slug) -> Self {
         Self::Slug(slug)
+    }
+}
+
+impl FromStr for Identifier {
+    type Err = String;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        let identifier = match s.parse::<i32>() {
+            Ok(id) => id.try_into().map(|id| Self::Id(id)),
+            _ => s.try_into().map(|slug| Self::Slug(slug)),
+        }?;
+
+        Ok(identifier)
     }
 }
 

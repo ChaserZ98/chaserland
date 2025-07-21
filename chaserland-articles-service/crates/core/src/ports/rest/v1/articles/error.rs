@@ -62,6 +62,26 @@ impl From<command_error::DeleteArticleError> for ErrorResponse {
     }
 }
 
+impl From<command_error::UpdateArticleError> for ErrorResponse {
+    fn from(value: command_error::UpdateArticleError) -> Self {
+        match value {
+            command_error::UpdateArticleError::ArticleNotFound(_) => {
+                Self::new(StatusCode::NOT_FOUND, value.to_string())
+            }
+            command_error::UpdateArticleError::DuplicateSlug(_)
+            | command_error::UpdateArticleError::SeriesNotFound(_)
+            | command_error::UpdateArticleError::CategoryNotFound(_)
+            | command_error::UpdateArticleError::TagNotFound(_) => {
+                Self::new(StatusCode::BAD_REQUEST, value.to_string())
+            }
+            command_error::UpdateArticleError::DataVersionConflict(message) => {
+                Self::new(StatusCode::CONFLICT, message)
+            }
+            _ => Self::new_default(StatusCode::INTERNAL_SERVER_ERROR),
+        }
+    }
+}
+
 impl From<command_error::PublishArticleError> for ErrorResponse {
     fn from(value: command_error::PublishArticleError) -> Self {
         match value {

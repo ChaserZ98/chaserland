@@ -122,12 +122,8 @@ impl Article {
         self.updated_at.update();
     }
 
-    pub fn set_series_id(&mut self, series_id: series::Id) {
-        self.series_id = Some(series_id);
-    }
-
-    pub fn remove_series_id(&mut self) {
-        self.series_id = None;
+    pub fn set_series_id(&mut self, series_id: Option<series::Id>) {
+        self.series_id = series_id;
     }
 
     pub fn add_category_id(&mut self, category_id: category::Id) -> Result<(), ArticleDomainError> {
@@ -458,7 +454,7 @@ mod tests {
 
         let new_series_id = 1.try_into().unwrap();
 
-        article.set_series_id(new_series_id);
+        article.set_series_id(Some(new_series_id));
 
         assert!(article.series_id.is_some());
         assert_eq!(article.series_id.unwrap(), new_series_id);
@@ -472,7 +468,7 @@ mod tests {
 
         assert!(article.series_id.is_some());
 
-        article.remove_series_id();
+        article.set_series_id(None);
 
         assert!(article.series_id.is_none());
     }

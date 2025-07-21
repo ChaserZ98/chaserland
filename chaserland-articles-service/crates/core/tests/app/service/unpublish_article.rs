@@ -1,8 +1,8 @@
 use crate::common::{init_command_service, init_query_service};
 use chaserland_articles_service_core::{
     app::{
-        command::{self, error::PublishArticleError, interface::ArticleCommandService},
-        query::{self, interface::ArticleQueryService},
+        command::{self, error::UnpublishArticleError, interface::ArticleCommandService},
+        query::{self, error::GetArticleOneError, interface::ArticleQueryService},
     },
     domain::article::vo as article,
     migrator::MIGRATOR,
@@ -20,11 +20,12 @@ use sqlx::PgPool;
             "tags",
             "articles",
             "article_categories",
-            "article_tags"
+            "article_tags",
+            "publish_article"
         )
     )
 )]
-async fn publish_article_case_1(pool: PgPool) {
+async fn unpublish_article_case_1(pool: PgPool) {
     let command_service = init_command_service(pool.clone());
     let query_service = init_query_service(pool.clone());
 
@@ -32,7 +33,7 @@ async fn publish_article_case_1(pool: PgPool) {
 
     let query = query::GetArticleOneQuery {
         identifier: id.as_identifier(),
-        public_only: false,
+        public_only: true,
         with_content: true,
     };
 
@@ -41,14 +42,14 @@ async fn publish_article_case_1(pool: PgPool) {
     assert!(target.is_ok());
 
     let mut target = target.unwrap();
-    target.published_at = Some(Utc::now());
+    target.published_at = None;
     target.updated_at = Utc::now();
 
-    let command = command::PublishArticleCommand {
+    let command = command::UnpublishArticleCommand {
         identifier: id.as_identifier(),
     };
 
-    let res = command_service.publish_article(command).await;
+    let res = command_service.unpublish_article(command).await;
 
     assert!(res.is_ok());
 
@@ -57,9 +58,23 @@ async fn publish_article_case_1(pool: PgPool) {
         public_only: true,
         with_content: true,
     };
+
     let res = query_service.get_article_one(query).await;
 
-    assert!(res.is_ok());
+    assert!(res.is_err());
+
+    let res = res.unwrap_err();
+
+    assert!(matches!(res, GetArticleOneError::NotFound(_)));
+
+    let query = query::GetArticleOneQuery {
+        identifier: id.as_identifier(),
+        public_only: false,
+        with_content: true,
+    };
+    let res = query_service.get_article_one(query).await;
+
+    assert!(res.is_ok(), "res: {:#?}", res);
 
     let res = res.unwrap();
 
@@ -71,7 +86,8 @@ async fn publish_article_case_1(pool: PgPool) {
     assert_eq!(res.created_at, target.created_at);
     assert!(res.updated_at - target.updated_at < Duration::seconds(5));
     assert_eq!(res.deleted_at, target.deleted_at);
-    assert!(res.published_at.unwrap() - target.published_at.unwrap() < Duration::seconds(5));
+    // assert!(res.published_at.unwrap() - target.published_at.unwrap() < Duration::seconds(5));
+    assert_eq!(res.published_at, target.published_at);
     assert_eq!(res.series, target.series);
     assert_eq!(res.categories, target.categories);
     assert_eq!(res.tags, target.tags);
@@ -88,11 +104,10 @@ async fn publish_article_case_1(pool: PgPool) {
             "articles",
             "article_categories",
             "article_tags",
-            "publish_article"
         )
     )
 )]
-async fn publish_article_case_2(pool: PgPool) {
+async fn unpublish_article_case_2(pool: PgPool) {
     let command_service = init_command_service(pool.clone());
     let query_service = init_query_service(pool.clone());
 
@@ -110,20 +125,17 @@ async fn publish_article_case_2(pool: PgPool) {
 
     let target = target.unwrap();
 
-    assert!(target.published_at.is_some());
+    assert!(target.published_at.is_none());
 
-    let command = command::PublishArticleCommand {
+    let command = command::UnpublishArticleCommand {
         identifier: id.as_identifier(),
     };
 
-    let res = command_service.publish_article(command).await;
+    let res = command_service.unpublish_article(command).await;
 
     assert!(res.is_err());
 
     let res = res.unwrap_err();
 
-    assert!(match res {
-        PublishArticleError::AlreadyPublished(_) => true,
-        _ => false,
-    });
+    assert!(matches!(res, UnpublishArticleError::NotPublished(_)));
 }

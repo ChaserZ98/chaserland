@@ -238,6 +238,46 @@ pub async fn publish_article<C: ArticleCommandService, Q: ArticleQueryService>(
 }
 
 #[utoipa::path(
+    put,
+    tag = TAG,
+    summary = "Update article",
+    description = "Update article by article identifier",
+    path = "/{identifier}",
+    request_body(content = schema::ArticleUpdate, description = "Request body for update article", content_type = "application/json"),
+    responses(
+        (
+            status = StatusCode::OK,
+            description = "OK",
+            content((()))
+        ),
+        (
+            status = StatusCode::NOT_FOUND,
+            description = "Not found",
+            content((ErrorBody = "application/json"))
+        ),
+        (
+            status = StatusCode::CONFLICT,
+            description = "Not published or database state changed during request",
+            content((ErrorBody = "application/json"))
+        )
+    )
+)]
+pub async fn update_article<C: ArticleCommandService, Q: ArticleQueryService>(
+    State(state): State<AppState<C, Q>>,
+    Path(identifier): Path<String>,
+    Json(payload): Json<schema::ArticleUpdate>,
+) -> Result<Response, ErrorResponse> {
+    let command = (identifier, payload).try_into()?;
+
+    state
+        .article_command_service
+        .update_article(command)
+        .await?;
+
+    Ok(().into_response())
+}
+
+#[utoipa::path(
     delete,
     tag = TAG,
     summary = "Unpublish article",

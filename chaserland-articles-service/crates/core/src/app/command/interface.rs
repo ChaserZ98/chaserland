@@ -22,6 +22,11 @@ pub trait LocalArticleCommandService: Clone + Sync + 'static {
         command: command::CreateTagCommand,
     ) -> Result<(), error::CreateTagError>;
 
+    async fn update_article(
+        &self,
+        command: command::UpdateArticleCommand,
+    ) -> Result<(), error::UpdateArticleError>;
+
     async fn publish_article(
         &self,
         command: command::PublishArticleCommand,

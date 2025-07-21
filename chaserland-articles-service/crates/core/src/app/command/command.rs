@@ -24,6 +24,16 @@ pub struct CreateTagCommand {
     pub name: tag::Name,
 }
 
+pub struct UpdateArticleCommand {
+    pub identifier: article::Identifier,
+    pub title: article::Title,
+    pub description: article::Description,
+    pub content: article::Content,
+    pub series_id: Option<series::Id>,
+    pub category_ids: Vec<category::Id>,
+    pub tag_ids: Vec<tag::Id>,
+}
+
 pub struct PublishArticleCommand {
     pub identifier: article::Identifier,
 }

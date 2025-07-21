@@ -181,16 +181,9 @@ impl TryInto<query::GetArticleManyQuery> for GetArticleManyQuery {
 impl TryInto<command::DeleteArticleCommand> for String {
     type Error = ErrorResponse;
     fn try_into(self) -> Result<command::DeleteArticleCommand, Self::Error> {
-        let identifier = match self.parse::<i32>() {
-            Ok(id) => id
-                .try_into()
-                .map(|id| article::Identifier::Id(id))
-                .map_err(|e| ErrorResponse::new(StatusCode::BAD_REQUEST, e)),
-            _ => self
-                .try_into()
-                .map(|slug| article::Identifier::Slug(slug))
-                .map_err(|e| ErrorResponse::new(StatusCode::BAD_REQUEST, e)),
-        }?;
+        let identifier = self
+            .parse()
+            .map_err(|e| ErrorResponse::new(StatusCode::BAD_REQUEST, e))?;
 
         Ok(command::DeleteArticleCommand { identifier })
     }

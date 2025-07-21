@@ -1,6 +1,6 @@
 use crate::{
     app::{
-        command::CreateArticleCommand,
+        command::{CreateArticleCommand, UpdateArticleCommand},
         query::dto::{ArticleDTO, CategoryDTO, TagDTO},
     },
     ports::rest::{response::ErrorResponse, v1::series::schema as series_schema},
@@ -47,6 +47,65 @@ impl TryInto<CreateArticleCommand> for ArticleCreate {
             .map_err(|e| ErrorResponse::new(StatusCode::BAD_REQUEST, e))?;
 
         let command = CreateArticleCommand {
+            title,
+            description,
+            content,
+            series_id,
+            category_ids,
+            tag_ids,
+        };
+
+        Ok(command)
+    }
+}
+
+#[derive(Deserialize, ToSchema)]
+pub struct ArticleUpdate {
+    pub title: String,
+    pub description: String,
+    pub content: String,
+    pub series_id: Option<i32>,
+    pub category_ids: Vec<i32>,
+    pub tag_ids: Vec<i32>,
+}
+
+impl TryInto<UpdateArticleCommand> for (String, ArticleUpdate) {
+    type Error = ErrorResponse;
+    fn try_into(self) -> Result<UpdateArticleCommand, Self::Error> {
+        let identifier = self
+            .0
+            .parse()
+            .map_err(|e| ErrorResponse::new(StatusCode::BAD_REQUEST, e))?;
+
+        let payload = self.1;
+
+        let title = payload
+            .title
+            .try_into()
+            .map_err(|e| ErrorResponse::new(StatusCode::BAD_REQUEST, e))?;
+
+        let description = payload.description.into();
+        let content = payload.content.into();
+        let series_id = payload
+            .series_id
+            .map(|id| id.try_into())
+            .transpose()
+            .map_err(|e| ErrorResponse::new(StatusCode::BAD_REQUEST, e))?;
+        let category_ids = payload
+            .category_ids
+            .into_iter()
+            .map(|id| id.try_into())
+            .collect::<Result<Vec<_>, _>>()
+            .map_err(|e| ErrorResponse::new(StatusCode::BAD_REQUEST, e))?;
+        let tag_ids = payload
+            .tag_ids
+            .into_iter()
+            .map(|id| id.try_into())
+            .collect::<Result<Vec<_>, _>>()
+            .map_err(|e| ErrorResponse::new(StatusCode::BAD_REQUEST, e))?;
+
+        let command = UpdateArticleCommand {
+            identifier,
             title,
             description,
             content,

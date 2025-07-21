@@ -1,5 +1,5 @@
 use crate::{
-    domain::{article::{vo::TimestampVersion, repository::{ArticleRepository, ArticleRepositoryError}, vo as article, entity::Article}, tag::vo as tag, category::vo as category, series::vo as series}, infra::postgres::po::PgArticle
+    domain::{article::{vo::TimestampVersion, repository::{ArticleRepository, ArticleRepositoryError}, vo as article, entity::Article}, tag::vo as tag, category::vo as category}, infra::postgres::po::PgArticle
 };
 use chrono::{DateTime, Utc};
 use sqlx::{Postgres, QueryBuilder, Transaction};
@@ -181,51 +181,6 @@ impl ArticleRepository for PgArticleRepository {
 
         Ok(())
     }
-    
-    async fn set_series(&self, id: article::Id, series_id: series::Id, version: article::TimestampVersion, tx: &mut Transaction<'static, Self::DB>) -> Result<(), ArticleRepositoryError> {
-        let db_article_version: Option<chrono::DateTime<chrono::Utc>> = sqlx::query_scalar("UPDATE article.articles SET series_id = $1, version = NOW() WHERE id = $2 RETURNING (SELECT version FROM article.articles WHERE id = $2) as version").bind(series_id.value()).bind(id.value()).fetch_optional(&mut **tx).await.map_err(|why|
-            match why {
-                sqlx::Error::Database(db_err) if db_err.is_foreign_key_violation() => ArticleRepositoryError::SeriesNotFound(series_id.as_identifier()),
-                _ => ArticleRepositoryError::Sqlx(why)
-            }
-        )?;
-
-        if db_article_version.is_none() {
-            return Err(ArticleRepositoryError::ArticleNotFound(id.as_identifier()));
-        }
-
-        let db_article_version = db_article_version.unwrap();
-
-        if db_article_version != version.value() {
-            return Err(ArticleRepositoryError::ConcurrentConflict{
-                id,
-                current_version: version,
-                db_version: db_article_version.into()
-            }.into());
-        }
-
-        Ok(())
-    }
-
-    async fn remove_series(&self, id: article::Id, version: article::TimestampVersion, tx: &mut Transaction<'static, Self::DB>) -> Result<(), ArticleRepositoryError> {
-        let db_article_version: Option<chrono::DateTime<chrono::Utc>> = sqlx::query_scalar("UPDATE article.articles SET series_id = NULL, version = NOW() WHERE id = $1 RETURNING (SELECT version FROM article.articles WHERE id = $1) as version").bind(id.value()).fetch_optional(&mut **tx).await?;
-
-        if db_article_version.is_none() {
-            return Err(ArticleRepositoryError::ArticleNotFound(id.as_identifier()));
-        }
-
-        let db_article_version = db_article_version.unwrap();
-
-        if db_article_version != version.value() {
-            return Err(ArticleRepositoryError::ConcurrentConflict{
-                id,
-                current_version: version,
-                db_version: db_article_version.into()
-            }.into());
-        }
-
-        Ok(())
-    }
 
     async fn add_category(&self, id: article::Id, category_id: category::Id, version: article::TimestampVersion, tx: &mut Transaction<'static, Self::DB>) -> Result<(), ArticleRepositoryError> {
         sqlx::query("INSERT INTO article.article_categories (article_id, category_id) VALUES ($1, $2) ON CONFLICT (article_id, category_id) DO NOTHING")
@@ -356,100 +311,6 @@ impl ArticleRepository for PgArticleRepository {
 
         if rows_affected == 0 {
             return Err(ArticleRepositoryError::TagNotFound(tag_id.as_identifier()).into());
-        }
-
-        Ok(())
-    }
-
-    async fn publish(&self, id: article::Id, published_at: article::PublishedAt, version: article::TimestampVersion, tx: &mut Transaction<'static, Self::DB>) -> Result<(), ArticleRepositoryError> {
-        let db_article_version: Option<chrono::DateTime<chrono::Utc>> = sqlx::query_scalar("UPDATE article.articles SET published_at = $1, version = NOW() WHERE id = $2 RETURNING (SELECT version FROM article.articles WHERE id = $2) as version")
-        .bind(published_at.value())
-        .bind(id.value())
-        .fetch_optional(&mut **tx)
-        .await?;
-
-        if db_article_version.is_none() {
-            return Err(ArticleRepositoryError::ArticleNotFound(id.as_identifier()));
-        }
-
-        let db_article_version = db_article_version.unwrap();
-
-        if db_article_version != version.value() {
-            return Err(ArticleRepositoryError::ConcurrentConflict{
-                id,
-                current_version: version,
-                db_version: db_article_version.into()
-            }.into());
-        }
-
-        Ok(())
-    }
-
-    async fn unpublish(&self, id: article::Id, version: article::TimestampVersion, tx: &mut Transaction<'static, Self::DB>) -> Result<(), ArticleRepositoryError> {
-        let db_article_version: Option<chrono::DateTime<chrono::Utc>> = sqlx::query_scalar("UPDATE article.articles SET published_at = NULL, version = NOW() WHERE id = $1 RETURNING (SELECT version FROM article.articles WHERE id = $1) as version")
-        .bind(id.value())
-        .fetch_optional(&mut **tx)
-        .await?;
-
-        if db_article_version.is_none() {
-            return Err(ArticleRepositoryError::ArticleNotFound(id.as_identifier()));
-        }
-
-        let db_article_version = db_article_version.unwrap();
-
-        if db_article_version != version.value() {
-            return Err(ArticleRepositoryError::ConcurrentConflict{
-                id,
-                current_version: version,
-                db_version: db_article_version.into()
-            }.into());
-        }
-
-        Ok(())
-    }
-
-    async fn soft_delete(&self, id: article::Id, deleted_at: article::DeletedAt, version: article::TimestampVersion, tx: &mut Transaction<'static, Self::DB>) -> Result<(), ArticleRepositoryError> {
-        let db_article_version: Option<chrono::DateTime<chrono::Utc>> = sqlx::query_scalar("UPDATE article.articles SET deleted_at = $1, version = NOW() WHERE id = $2 RETURNING (SELECT version FROM article.articles WHERE id = $2) as version")
-        .bind(deleted_at.value())
-        .bind(id.value())
-        .fetch_optional(&mut **tx)
-        .await?;
-
-        if db_article_version.is_none() {
-            return Err(ArticleRepositoryError::ArticleNotFound(id.as_identifier()));
-        }
-
-        let db_article_version = db_article_version.unwrap();
-
-        if db_article_version != version.value() {
-            return Err(ArticleRepositoryError::ConcurrentConflict{
-                id,
-                current_version: version,
-                db_version: db_article_version.into()
-            }.into());
-        }
-
-        Ok(())
-    }
-
-    async fn revoke_soft_delete(&self, id: article::Id, version: article::TimestampVersion, tx: &mut Transaction<'static, Self::DB>) -> Result<(), ArticleRepositoryError> {
-        let db_article_version: Option<chrono::DateTime<chrono::Utc>> = sqlx::query_scalar("UPDATE article.articles SET deleted_at = NULL, version = NOW() WHERE id = $1 RETURNING (SELECT version FROM article.articles WHERE id = $1) as version")
-        .bind(id.value())
-        .fetch_optional(&mut **tx)
-        .await?;
-
-        if db_article_version.is_none() {
-            return Err(ArticleRepositoryError::ArticleNotFound(id.as_identifier()));
-        }
-
-        let db_article_version = db_article_version.unwrap();
-
-        if db_article_version != version.value() {
-            return Err(ArticleRepositoryError::ConcurrentConflict{
-                id,
-                current_version: version,
-                db_version: db_article_version.into()
-            }.into());
         }
 
         Ok(())

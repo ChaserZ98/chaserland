@@ -139,6 +139,39 @@ impl From<TagRepositoryError> for CreateTagError {
 }
 
 #[derive(Debug, thiserror::Error)]
+pub enum UpdateArticleError {
+    #[error("Article with identifier {0} not found")]
+    ArticleNotFound(article::Identifier),
+    #[error("Series with identifier {0} not found")]
+    SeriesNotFound(series::Identifier),
+    #[error("Category with identifier {0} not found")]
+    CategoryNotFound(category::Identifier),
+    #[error("Tag with identifier {0} not found")]
+    TagNotFound(tag::Identifier),
+    #[error("Article with slug {0} already exists")]
+    DuplicateSlug(article::Slug),
+    #[error("Version conflict: {0}")]
+    DataVersionConflict(String),
+    #[error(transparent)]
+    Domain(#[from] DomainError),
+    #[error(transparent)]
+    Repository(#[from] RepositoryError),
+    #[error("Transaction error: {0}")]
+    Transaction(#[from] sqlx::Error),
+}
+
+impl From<ArticleRepositoryError> for UpdateArticleError {
+    fn from(value: ArticleRepositoryError) -> Self {
+        match value {
+            ArticleRepositoryError::ArticleNotFound(identifier) => {
+                Self::ArticleNotFound(identifier)
+            }
+            _ => Self::Repository(value.into()),
+        }
+    }
+}
+
+#[derive(Debug, thiserror::Error)]
 pub enum PublishArticleError {
     #[error("Article with identifier {0} not found")]
     NotFound(article::Identifier),

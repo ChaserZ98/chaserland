@@ -17,7 +17,11 @@ pub fn router<C: ArticleCommandService, Q: ArticleQueryService>() -> OpenApiRout
             handlers::create_article,
             handlers::get_article_many,
         ))
-        .routes(routes!(handlers::get_article_one, handlers::delete_article))
+        .routes(routes!(
+            handlers::get_article_one,
+            handlers::delete_article,
+            handlers::update_article
+        ))
         .routes(routes!(handlers::get_article_content))
         .routes(routes!(
             handlers::publish_article,
