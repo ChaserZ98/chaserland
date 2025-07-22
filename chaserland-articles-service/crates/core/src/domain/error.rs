@@ -1,8 +1,9 @@
-use super::article::error::ArticleDomainError;
-use super::article::repository::ArticleRepositoryError;
-use super::category::repository::CategoryRepositoryError;
-use super::series::repository::SeriesRepositoryError;
-use super::tag::repository::TagRepositoryError;
+use super::{
+    article::{error::ArticleDomainError, repository::ArticleRepositoryError},
+    category::repository::CategoryRepositoryError,
+    series::repository::SeriesRepositoryError,
+    tag::repository::TagRepositoryError,
+};
 
 #[derive(Debug, thiserror::Error)]
 #[non_exhaustive]
