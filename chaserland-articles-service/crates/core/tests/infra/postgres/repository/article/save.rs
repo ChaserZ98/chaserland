@@ -202,7 +202,7 @@ async fn save_case_series(pool: PgPool) {
     );
     let version = "2020-01-01 00:00:00 UTC".try_into().unwrap();
 
-    article.set_series_id(2.try_into().unwrap());
+    article.set_series_id(Some(2.try_into().unwrap()));
 
     let res = repo.save(article, version, &mut tx).await;
 
@@ -240,7 +240,7 @@ async fn save_case_series_none(pool: PgPool) {
     );
     let version = "2020-01-01 00:00:00 UTC".try_into().unwrap();
 
-    article.remove_series_id();
+    article.set_series_id(None);
 
     let res = repo.save(article, version, &mut tx).await;
 
@@ -278,7 +278,7 @@ async fn save_case_series_not_found(pool: PgPool) {
     );
     let version = "2020-01-01 00:00:00 UTC".try_into().unwrap();
 
-    article.set_series_id(4.try_into().unwrap());
+    article.set_series_id(Some(4.try_into().unwrap()));
 
     let res = repo.save(article.clone(), version, &mut tx).await;
 

@@ -388,3 +388,333 @@ impl From<TagRepositoryError> for DeleteTagError {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn create_article_error_from_series_repository_error() {
+        let err = SeriesRepositoryError::SeriesNotFound(series::Id::new(1).as_identifier());
+
+        let err = CreateArticleError::from(err);
+
+        assert!(matches!(err, CreateArticleError::SeriesNotFound(_)));
+
+        let err = SeriesRepositoryError::DOConversion("test".to_string());
+
+        let err = CreateArticleError::from(err);
+
+        assert!(matches!(err, CreateArticleError::Repository(_)));
+    }
+
+    #[test]
+    fn create_article_error_from_category_repository_error() {
+        let err = CategoryRepositoryError::CategoryNotFound(category::Id::new(1).as_identifier());
+
+        let err = CreateArticleError::from(err);
+
+        assert!(matches!(err, CreateArticleError::CategoryNotFound(_)));
+
+        let err = CategoryRepositoryError::DOConversion("test".to_string());
+
+        let err = CreateArticleError::from(err);
+
+        assert!(matches!(err, CreateArticleError::Repository(_)));
+    }
+
+    #[test]
+    fn create_article_error_from_tag_repository_error() {
+        let err = TagRepositoryError::TagNotFound(tag::Id::new(1).as_identifier());
+
+        let err = CreateArticleError::from(err);
+
+        assert!(matches!(err, CreateArticleError::TagNotFound(_)));
+
+        let err = TagRepositoryError::DOConversion("test".to_string());
+
+        let err = CreateArticleError::from(err);
+
+        assert!(matches!(err, CreateArticleError::Repository(_)));
+    }
+
+    #[test]
+    fn create_article_error_from_article_repository_error() {
+        let err = ArticleRepositoryError::DuplicateArticleSlug(
+            article::Title::new("test".to_string()).as_slug(),
+        );
+
+        let err = CreateArticleError::from(err);
+
+        assert!(matches!(err, CreateArticleError::DuplicateSlug(_)));
+
+        let err = ArticleRepositoryError::SeriesNotFound(series::Id::new(1).as_identifier());
+
+        let err = CreateArticleError::from(err);
+
+        assert!(matches!(err, CreateArticleError::DataVersionConflict(_)));
+
+        let err = ArticleRepositoryError::CategoryNotFound(category::Id::new(1).as_identifier());
+
+        let err = CreateArticleError::from(err);
+
+        assert!(matches!(err, CreateArticleError::DataVersionConflict(_)));
+
+        let err = ArticleRepositoryError::TagNotFound(tag::Id::new(1).as_identifier());
+
+        let err = CreateArticleError::from(err);
+
+        assert!(matches!(err, CreateArticleError::DataVersionConflict(_)));
+
+        let err = ArticleRepositoryError::DOConversion("test".to_string());
+
+        let err = CreateArticleError::from(err);
+
+        assert!(matches!(err, CreateArticleError::Repository(_)));
+    }
+
+    #[test]
+    fn create_series_error_from_series_repository_error() {
+        let err = SeriesRepositoryError::DuplicateSeriesSlug(series::NewSeries::new(
+            "test".try_into().unwrap(),
+        ));
+
+        let err = CreateSeriesError::from(err);
+
+        assert!(matches!(err, CreateSeriesError::DuplicateSlug(_)));
+
+        let err = SeriesRepositoryError::DOConversion("test".to_string());
+
+        let err = CreateSeriesError::from(err);
+
+        assert!(matches!(err, CreateSeriesError::Repository(_)));
+    }
+
+    #[test]
+    fn create_category_error_from_category_repository_error() {
+        let err = CategoryRepositoryError::DuplicateCategorySlug(category::NewCategory::new(
+            "test".try_into().unwrap(),
+        ));
+
+        let err = CreateCategoryError::from(err);
+
+        assert!(matches!(err, CreateCategoryError::DuplicateSlug(_)));
+
+        let err = CategoryRepositoryError::DOConversion("test".to_string());
+
+        let err = CreateCategoryError::from(err);
+
+        assert!(matches!(err, CreateCategoryError::Repository(_)));
+    }
+
+    #[test]
+    fn create_tag_error_from_category_repository_error() {
+        let err =
+            TagRepositoryError::DuplicateTagSlug(tag::NewTag::new("test".try_into().unwrap()));
+
+        let err = CreateTagError::from(err);
+
+        assert!(matches!(err, CreateTagError::DuplicateSlug(_)));
+
+        let err = TagRepositoryError::DOConversion("test".to_string());
+
+        let err = CreateTagError::from(err);
+
+        assert!(matches!(err, CreateTagError::Repository(_)));
+    }
+
+    #[test]
+    fn update_article_error_from_article_repository_error() {
+        let err = ArticleRepositoryError::ArticleNotFound(article::Id::new(1).as_identifier());
+
+        let err = UpdateArticleError::from(err);
+
+        assert!(matches!(err, UpdateArticleError::ArticleNotFound(_)));
+
+        let err = ArticleRepositoryError::DOConversion("test".to_string());
+
+        let err = UpdateArticleError::from(err);
+
+        assert!(matches!(err, UpdateArticleError::Repository(_)));
+    }
+
+    #[test]
+    fn publish_article_error_from_article_repository_error() {
+        let err = ArticleRepositoryError::ArticleNotFound(article::Id::new(1).as_identifier());
+
+        let err = PublishArticleError::from(err);
+
+        assert!(matches!(err, PublishArticleError::NotFound(_)));
+
+        let err = ArticleRepositoryError::DOConversion("test".to_string());
+
+        let err = PublishArticleError::from(err);
+
+        assert!(matches!(err, PublishArticleError::Repository(_)));
+    }
+
+    #[test]
+    fn publish_article_error_from_article_domain_error() {
+        let err = ArticleDomainError::AlreadyPublished(1.try_into().unwrap());
+
+        let err = PublishArticleError::from(err);
+
+        assert!(matches!(err, PublishArticleError::AlreadyPublished(_)));
+
+        let err = ArticleDomainError::Unknown(anyhow::anyhow!("test"));
+
+        let err = PublishArticleError::from(err);
+
+        assert!(matches!(err, PublishArticleError::Domain(_)));
+    }
+
+    #[test]
+    fn unpublish_article_error_from_article_repository_error() {
+        let err = ArticleRepositoryError::ArticleNotFound(article::Id::new(1).as_identifier());
+
+        let err = UnpublishArticleError::from(err);
+
+        assert!(matches!(err, UnpublishArticleError::NotFound(_)));
+
+        let err = ArticleRepositoryError::DOConversion("test".to_string());
+
+        let err = UnpublishArticleError::from(err);
+
+        assert!(matches!(err, UnpublishArticleError::Repository(_)));
+    }
+
+    #[test]
+    fn unpublish_article_error_from_article_domain_error() {
+        let err = ArticleDomainError::NotPublished(1.try_into().unwrap());
+
+        let err = UnpublishArticleError::from(err);
+
+        assert!(matches!(err, UnpublishArticleError::NotPublished(_)));
+
+        let err = ArticleDomainError::Unknown(anyhow::anyhow!("test"));
+
+        let err = UnpublishArticleError::from(err);
+
+        assert!(matches!(err, UnpublishArticleError::Domain(_)));
+    }
+
+    #[test]
+    fn soft_delete_article_error_from_article_repository_error() {
+        let err = ArticleRepositoryError::ArticleNotFound(article::Id::new(1).as_identifier());
+
+        let err = SoftDeleteArticleError::from(err);
+
+        assert!(matches!(err, SoftDeleteArticleError::NotFound(_)));
+
+        let err = ArticleRepositoryError::DOConversion("test".to_string());
+
+        let err = SoftDeleteArticleError::from(err);
+
+        assert!(matches!(err, SoftDeleteArticleError::Repository(_)));
+    }
+
+    #[test]
+    fn soft_delete_article_error_from_article_domain_error() {
+        let err = ArticleDomainError::AlreadySoftDeleted(1.try_into().unwrap());
+
+        let err = SoftDeleteArticleError::from(err);
+
+        assert!(matches!(err, SoftDeleteArticleError::AlreadySoftDeleted(_)));
+
+        let err = ArticleDomainError::Unknown(anyhow::anyhow!("test"));
+
+        let err = SoftDeleteArticleError::from(err);
+
+        assert!(matches!(err, SoftDeleteArticleError::Domain(_)));
+    }
+
+    #[test]
+    fn revoke_soft_delete_error_from_article_repository_error() {
+        let err = ArticleRepositoryError::ArticleNotFound(article::Id::new(1).as_identifier());
+
+        let err = RevokeSoftDeleteError::from(err);
+
+        assert!(matches!(err, RevokeSoftDeleteError::NotFound(_)));
+
+        let err = ArticleRepositoryError::DOConversion("test".to_string());
+
+        let err = RevokeSoftDeleteError::from(err);
+
+        assert!(matches!(err, RevokeSoftDeleteError::Repository(_)));
+    }
+
+    #[test]
+    fn revoke_soft_delete_error_from_article_domain_error() {
+        let err = ArticleDomainError::NotSoftDeleted(1.try_into().unwrap());
+
+        let err = RevokeSoftDeleteError::from(err);
+
+        assert!(matches!(err, RevokeSoftDeleteError::NotSoftDeleted(_)));
+
+        let err = ArticleDomainError::Unknown(anyhow::anyhow!("test"));
+
+        let err = RevokeSoftDeleteError::from(err);
+
+        assert!(matches!(err, RevokeSoftDeleteError::Domain(_)));
+    }
+
+    #[test]
+    fn delete_article_error_from_article_repository_error() {
+        let err = ArticleRepositoryError::ArticleNotFound(article::Id::new(1).as_identifier());
+
+        let err = DeleteArticleError::from(err);
+
+        assert!(matches!(err, DeleteArticleError::NotFound(_)));
+
+        let err = ArticleRepositoryError::DOConversion("test".to_string());
+
+        let err = DeleteArticleError::from(err);
+
+        assert!(matches!(err, DeleteArticleError::Repository(_)));
+    }
+
+    #[test]
+    fn delete_series_error_from_series_repository_error() {
+        let err = SeriesRepositoryError::SeriesNotFound(series::Id::new(1).as_identifier());
+
+        let err = DeleteSeriesError::from(err);
+
+        assert!(matches!(err, DeleteSeriesError::NotFound(_)));
+
+        let err = SeriesRepositoryError::DOConversion("test".to_string());
+
+        let err = DeleteSeriesError::from(err);
+
+        assert!(matches!(err, DeleteSeriesError::Repository(_)));
+    }
+
+    #[test]
+    fn delete_category_error_from_category_repository_error() {
+        let err = CategoryRepositoryError::CategoryNotFound(category::Id::new(1).as_identifier());
+
+        let err = DeleteCategoryError::from(err);
+
+        assert!(matches!(err, DeleteCategoryError::NotFound(_)));
+
+        let err = CategoryRepositoryError::DOConversion("test".to_string());
+
+        let err = DeleteCategoryError::from(err);
+
+        assert!(matches!(err, DeleteCategoryError::Repository(_)));
+    }
+
+    #[test]
+    fn delete_tag_error_from_tag_repository_error() {
+        let err = TagRepositoryError::TagNotFound(tag::Id::new(1).as_identifier());
+
+        let err = DeleteTagError::from(err);
+
+        assert!(matches!(err, DeleteTagError::NotFound(_)));
+
+        let err = TagRepositoryError::DOConversion("test".to_string());
+
+        let err = DeleteTagError::from(err);
+
+        assert!(matches!(err, DeleteTagError::Repository(_)));
+    }
+}
