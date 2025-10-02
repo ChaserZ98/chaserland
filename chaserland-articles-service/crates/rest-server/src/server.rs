@@ -1,6 +1,6 @@
 use super::{MetricHandler, Metrics, ServerConfig};
 use anyhow::Result;
-use axum::http::Request;
+use axum::http::{self, Request};
 use chaserland_articles_service_core::{
     app::{command::service::ArticleCommandService, query::service::ArticleQueryService},
     db::connect_db,
@@ -125,6 +125,10 @@ impl Server {
             .on_response(metric_handler.clone())
             .on_failure(metric_handler)
             .on_eos(DefaultOnEos::new().level(Level::TRACE));
+
+        let cors_layer = tower_http::cors::CorsLayer::new()
+            .allow_credentials(true)
+            .allow_methods([http::Method::POST]);
 
         let middlewares = ServiceBuilder::new().layer(trace_layer).layer(metric_layer);
 
