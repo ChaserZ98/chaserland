@@ -1,0 +1,27 @@
+[package]
+name = "chaserland-gateway"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+anyhow = "1.0.98"
+chaserland-observability = { path = "../chaserland-observability" }
+chaserland-protos = { path = "../chaserland-protos" }
+chaserland-common = { path = "../chaserland-common", features = [
+    "figment-file-provider",
+] }
+tonic = "0.13.1"
+serde = { version = "1.0.219", features = ["derive"] }
+figment = { version = "0.10.19", features = ["env", "test"] }
+opentelemetry = "0.30.0"
+opentelemetry-http = "0.30.0"
+tracing = "0.1.41"
+tracing-opentelemetry = "0.31.0"
+axum = "0.8.4"
+tokio = { version = "1.44.1", features = [
+    "macros",
+    "signal",
+    "rt-multi-thread",
+] }
+tower = "0.5.2"
+tower-http = { version = "0.6.6", features = ["trace"] }
